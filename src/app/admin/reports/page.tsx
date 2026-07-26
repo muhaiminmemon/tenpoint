@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -80,7 +81,12 @@ export default async function AdminReportsPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="display mb-1 text-2xl">Reports</h1>
+      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="display text-2xl">Reports</h1>
+        <Link href="/admin" className="text-sm text-ash underline hover:text-paper">
+          Dashboard
+        </Link>
+      </div>
       <p className="num mb-6 text-sm text-ash">
         {open} open · {queue.length} total
       </p>

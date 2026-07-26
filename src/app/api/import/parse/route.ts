@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error: unrecognized.length
-          ? `Couldn't read ${unrecognized.join(", ")}. Upload diary.csv, ratings.csv, watched.csv, or watchlist.csv from your Letterboxd export.`
+          ? `Couldn't read ${unrecognized.join(", ")}. Upload ratings.csv from your Letterboxd export.`
           : "Those files contained no film rows.",
       },
       { status: 400 },

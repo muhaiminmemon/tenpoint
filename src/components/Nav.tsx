@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSessionUser } from "@/lib/auth";
 import { avatarSrc } from "@/lib/avatar";
 import { APP_SLUG } from "@/lib/brand";
+import { isAdmin } from "@/lib/admin";
 import SignOutButton from "./SignOutButton";
 import NavLinks from "./NavLinks";
 import Avatar from "./Avatar";
@@ -30,6 +31,16 @@ export default async function Nav() {
               </div>
               <div className="ml-auto flex items-center gap-3">
                 <CommandPalette />
+                {/* Only rendered for the handful of usernames in
+                    ADMIN_USERNAMES; everyone else never learns it exists. */}
+                {isAdmin(user) && (
+                  <Link
+                    href="/admin"
+                    className="hidden text-sm text-ash hover:text-paper sm:inline"
+                  >
+                    Admin
+                  </Link>
+                )}
                 <Link
                   href="/settings"
                   className="hidden text-sm text-ash hover:text-paper sm:inline"
