@@ -7,7 +7,11 @@ import { getSessionUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import ReportQueue, { type ReportRow } from "@/components/ReportQueue";
 
-export const metadata = { title: "Reports" };
+/** Per-viewer for the same reason as the dashboard: a static title leaks. */
+export async function generateMetadata() {
+  const viewer = await getSessionUser();
+  return { title: isAdmin(viewer) ? "Reports" : "Not found" };
+}
 
 export default async function AdminReportsPage() {
   const viewer = await getSessionUser();

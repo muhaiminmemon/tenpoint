@@ -8,7 +8,17 @@ import { formatTenths } from "@/lib/format";
 import { avatarSrc } from "@/lib/avatar";
 import Avatar from "@/components/Avatar";
 
-export const metadata = { title: "Dashboard" };
+/**
+ * The title is resolved per-viewer rather than exported statically. A static
+ * `metadata` export is evaluated even when the page itself calls `notFound()`,
+ * so the 404 shipped to a stranger still carried the word "Dashboard" in its
+ * <title> — confirming the route exists, which is the one thing the 404 was
+ * chosen to avoid. `getSessionUser` is request-cached, so this costs nothing.
+ */
+export async function generateMetadata() {
+  const viewer = await getSessionUser();
+  return { title: isAdmin(viewer) ? "Dashboard" : "Not found" };
+}
 
 // Always fresh: a monitoring page that can be served from a cache is telling
 // you about a moment that has already passed.
