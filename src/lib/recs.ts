@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { diaryEntries, films, recEvents, userFilmFlags, watchlist, type Film, type User } from "@/db/schema";
+import { diaryEntries, films, recEvents, userFilmFlags, watchlist, type Film, type SessionUser } from "@/db/schema";
 import { bulkEnsureFilms, hydrateFilm } from "./films";
 import { pairKey } from "./social";
 import {
@@ -39,7 +39,7 @@ export type RecFilm = {
 type RatedFilm = { film: Film; rating: number };
 
 type Profile = {
-  user: User;
+  user: SessionUser;
   mean: number;
   genreW: Map<string, number>;
   directorW: Map<string, number>;
@@ -84,7 +84,7 @@ function decadeOf(year: number | null): string | null {
   return year ? `${Math.floor(year / 10) * 10}s` : null;
 }
 
-async function buildProfile(user: User, rated: RatedFilm[]): Promise<Profile> {
+async function buildProfile(user: SessionUser, rated: RatedFilm[]): Promise<Profile> {
   const mean = rated.reduce((s, r) => s + r.rating, 0) / rated.length;
 
   // strongest films drive director signal; fill missing directors (bounded)
@@ -219,7 +219,17 @@ function scoreAll(candidates: Film[], pa: Profile, pb: Profile): Scored[] {
   const rawB = candidates.map((f) => rawScore(pb, f));
   const pctOf = (raw: number[]) => {
     const sorted = [...raw].sort((x, y) => x - y);
-    return raw.map((v) => sorted.findIndex((s) => s >= v) / Math.max(1, sorted.length - 1));
+    const denom = Math.max(1, sorted.length - 1);
+    /*
+     * A value's percentile is how many entries fall strictly below it, which
+     * is the index where it first appears in the sorted array. Walking
+     * backwards leaves the *lowest* index for each distinct value, so ties
+     * share a rank. Building this map once is what keeps a 2000-candidate
+     * batch from doing 4M comparisons in a scan-per-candidate.
+     */
+    const firstIndex = new Map<number, number>();
+    for (let i = sorted.length - 1; i >= 0; i--) firstIndex.set(sorted[i], i);
+    return raw.map((v) => (firstIndex.get(v) ?? 0) / denom);
   };
   const pctA = pctOf(rawA);
   const pctB = pctOf(rawB);
@@ -247,7 +257,7 @@ function diversify(scored: Scored[], n: number): Scored[] {
   return out;
 }
 
-function nameOf(u: User): string {
+function nameOf(u: SessionUser): string {
   return u.displayName ?? u.username;
 }
 
@@ -299,7 +309,7 @@ export async function eligibilityOf(userId: string): Promise<{ rated: number; st
   return { rated: r?.rated ?? 0, strong: r?.strong ?? 0 };
 }
 
-export async function recommendForPair(a: User, b: User): Promise<RecResult> {
+export async function recommendForPair(a: SessionUser, b: SessionUser): Promise<RecResult> {
   const [ea, eb] = await Promise.all([eligibilityOf(a.id), eligibilityOf(b.id)]);
   const shortfall = [
     { username: a.username, ...ea },

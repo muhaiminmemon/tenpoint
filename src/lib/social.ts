@@ -1,6 +1,6 @@
 import { and, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
-import { blocks, friendships, users, type User } from "@/db/schema";
+import { blocks, friendships, users, type SessionUser, type User } from "@/db/schema";
 
 export function pairIds(a: string, b: string): [string, string] {
   return a < b ? [a, b] : [b, a];
@@ -80,7 +80,10 @@ export async function blockedIdsFor(userId: string): Promise<Set<string>> {
 }
 
 /** Can `viewer` (possibly null) see `profile`'s library and reviews? */
-export async function canViewProfile(viewer: User | null, profile: User): Promise<boolean> {
+export async function canViewProfile(
+  viewer: SessionUser | null,
+  profile: SessionUser,
+): Promise<boolean> {
   if (viewer?.id === profile.id) return true;
   if (viewer && (await isBlockedBetween(viewer.id, profile.id))) return false;
   if (profile.privacy === "public") return true;

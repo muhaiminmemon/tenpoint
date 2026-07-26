@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, IBM_Plex_Sans } from "next/font/google";
+import { APP_DESCRIPTION, APP_NAME } from "@/lib/brand";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { ToastProvider } from "@/components/Toast";
@@ -19,11 +20,10 @@ const plexSans = IBM_Plex_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "Betterboxd",
-    template: "%s · Betterboxd",
+    default: APP_NAME,
+    template: `%s · ${APP_NAME}`,
   },
-  description:
-    "A film diary with ratings that mean something. Log what you watch, rate it precisely, find something to watch with a friend.",
+  description: APP_DESCRIPTION,
 };
 
 export default function RootLayout({

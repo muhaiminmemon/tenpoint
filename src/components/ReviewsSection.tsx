@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { comments, diaryEntries, users, type User } from "@/db/schema";
+import { comments, diaryEntries, users, type SessionUser } from "@/db/schema";
 import { blockedIdsFor, friendIdsOf } from "@/lib/social";
 import { formatTenths } from "@/lib/format";
+import { avatarSrc } from "@/lib/avatar";
 import ReviewCard, { type ReviewData } from "./ReviewCard";
 
 type Props = {
   filmId: string;
   filmSlug: string;
-  viewer: User | null;
+  viewer: SessionUser | null;
   tab: "friends" | "recent";
 };
 
@@ -26,7 +27,7 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
       authorId: users.id,
       username: users.username,
       displayName: users.displayName,
-      avatarUrl: users.avatarUrl,
+      avatarUpdatedAt: users.avatarUpdatedAt,
       privacy: users.privacy,
     })
     .from(diaryEntries)
@@ -83,7 +84,7 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
     watchedOn: r.watchedOn,
     username: r.username,
     displayName: r.displayName,
-    avatarUrl: r.avatarUrl,
+    avatarUrl: avatarSrc(r.authorId, r.avatarUpdatedAt),
     comments: commentRows
       .filter((c) => c.entryId === r.id && !blocked.has(c.authorId))
       .map((c) => ({

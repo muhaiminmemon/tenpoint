@@ -3,9 +3,12 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { blocks, users } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { avatarSrc } from "@/lib/avatar";
 import SettingsForm from "@/components/SettingsForm";
 import BlockedList from "@/components/BlockedList";
 import SignOutButton from "@/components/SignOutButton";
+import PasswordChange from "@/components/PasswordChange";
+import DeleteAccount from "@/components/DeleteAccount";
 
 export const metadata = { title: "Settings" };
 
@@ -26,7 +29,7 @@ export default async function SettingsPage() {
         username={user.username}
         displayName={user.displayName}
         bio={user.bio}
-        avatarUrl={user.avatarUrl}
+        avatarUrl={avatarSrc(user.id, user.avatarUpdatedAt)}
         privacy={user.privacy as "public" | "friends" | "private"}
         commentPermission={user.commentPermission as "anyone" | "friends" | "off"}
         showDiaryOnProfile={user.showDiaryOnProfile}
@@ -73,10 +76,14 @@ export default async function SettingsPage() {
         </p>
       </section>
 
+      <PasswordChange />
+
       {/* the nav's sign-out is desktop-only, so this is the way out on a phone */}
       <section className="mt-10 border-t border-seam pt-6">
         <SignOutButton />
       </section>
+
+      <DeleteAccount username={user.username} />
     </div>
   );
 }

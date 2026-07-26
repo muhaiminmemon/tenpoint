@@ -21,8 +21,14 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   bio: text("bio"),
-  // data URL (small, client-resized JPEG), no external storage needed
-  avatarUrl: text("avatar_url"),
+  /**
+   * Version stamp for the avatar, not the image itself. The bytes live in
+   * `avatars`, so no query that joins `users` ever drags a blob along, and
+   * `/api/avatar/[userId]?v=<stamp>` can be cached immutably forever: a new
+   * upload bumps the stamp, which changes the URL.
+   */
+  avatarUpdatedAt: timestamp("avatar_updated_at", { withTimezone: true }),
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   // public | friends | private
   privacy: text("privacy").notNull().default("public"),
   // who may comment on their reviews: anyone | friends | off
@@ -41,6 +47,42 @@ export const sessions = pgTable("sessions", {
     .references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
+
+/**
+ * Avatar bytes, one row per user, deliberately in their own table: a profile
+ * or feed query joins `users` dozens of times and must never pull image data
+ * with it. Read only by `/api/avatar/[userId]`.
+ */
+export const avatars = pgTable("avatars", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  mimeType: text("mime_type").notNull(),
+  // base64 payload without the data-URL prefix
+  data: text("data").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Single-use email tokens for verification and password reset. Stored as a
+ * SHA-256 hash for the same reason sessions are: a database leak must not
+ * hand out working links.
+ */
+export const emailTokens = pgTable(
+  "email_tokens",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // verify | reset
+    kind: text("kind").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("email_tokens_user_idx").on(t.userId, t.kind)],
+);
 
 export const films = pgTable("films", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -323,10 +365,19 @@ export const reports = pgTable("reports", {
   subjectType: text("subject_type").notNull(),
   subjectId: text("subject_id").notNull(),
   reason: text("reason").notNull(),
+  // open | resolved | dismissed
   status: text("status").notNull().default("open"),
+  resolvedBy: uuid("resolved_by").references(() => users.id, { onDelete: "set null" }),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type User = typeof users.$inferSelect;
+/**
+ * What `getSessionUser()` returns: every column except the password hash,
+ * which has no business travelling with the viewer on every render.
+ * A full `User` is still assignable wherever this is accepted.
+ */
+export type SessionUser = Omit<User, "passwordHash">;
 export type Film = typeof films.$inferSelect;
 export type DiaryEntry = typeof diaryEntries.$inferSelect;

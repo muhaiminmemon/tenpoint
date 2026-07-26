@@ -94,6 +94,10 @@ function Form() {
         <Link href="/signup" className="text-paper underline underline-offset-2">
           Create an account
         </Link>
+        {" · "}
+        <Link href="/forgot" className="text-paper underline underline-offset-2">
+          Forgot your password?
+        </Link>
       </p>
     </>
   );

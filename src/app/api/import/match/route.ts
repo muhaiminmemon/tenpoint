@@ -5,6 +5,10 @@ import { db } from "@/db";
 import { imports } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { filmKey, mapLimit, matchFilm, type ImportPayload } from "@/lib/importer";
+import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
+
+/** 30 titles per call, each possibly a TMDB search: past the 10s default. */
+export const maxDuration = 60;
 
 const CHUNK = 30;
 
@@ -14,6 +18,9 @@ const schema = z.object({ importId: z.string().uuid() });
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+
+  const limited = enforceRateLimit(req, "import-match", LIMITS.importMatch, user.id);
+  if (limited) return limited;
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bad request." }, { status: 400 });

@@ -3,6 +3,7 @@ import { inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { films } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 import { releaseYear, searchMovies, TmdbError } from "@/lib/tmdb";
 
 export type SearchResult = {
@@ -19,6 +20,10 @@ export type SearchResult = {
 
 /** TMDB search merged with the local catalogue (pg_trgm handles typos). */
 export async function GET(req: Request) {
+  // Every miss is a TMDB call on our key, so this is their quota being spent.
+  const limited = enforceRateLimit(req, "film-search", LIMITS.search);
+  if (limited) return limited;
+
   const q = new URL(req.url).searchParams.get("q")?.trim();
   if (!q) return NextResponse.json({ results: [] });
 

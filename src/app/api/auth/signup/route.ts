@@ -4,11 +4,14 @@ import { eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { createSession, hashPassword } from "@/lib/auth";
+import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
+import { sendVerification } from "@/lib/verify";
 
 const RESERVED = new Set([
   "api", "film", "films", "import", "library", "login", "signup", "logout",
   "settings", "watchlist", "diary", "watch", "export", "friends", "lists",
-  "search", "about", "help", "admin", "betterboxd", "invite", "feed",
+  "search", "about", "help", "admin", "tenpoint", "invite", "feed",
+  "privacy", "terms", "verify", "reset", "forgot", "account", "avatar",
 ]);
 
 const schema = z.object({
@@ -18,10 +21,13 @@ const schema = z.object({
     .max(24)
     .regex(/^[a-z0-9][a-z0-9-]*$/, "Lowercase letters, numbers, and dashes only"),
   email: z.string().email(),
-  password: z.string().min(8, "At least 8 characters"),
+  password: z.string().min(8, "At least 8 characters").max(200),
 });
 
 export async function POST(req: Request) {
+  const limited = enforceRateLimit(req, "signup", LIMITS.signup);
+  if (limited) return limited;
+
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
@@ -56,5 +62,7 @@ export async function POST(req: Request) {
     .returning({ id: users.id });
 
   await createSession(created[0].id);
+  // Signed in straight away; verification gates being findable, not access.
+  await sendVerification({ id: created[0].id, username, email: email.toLowerCase() });
   return NextResponse.json({ ok: true });
 }

@@ -5,21 +5,12 @@
 // Usage: node scripts/seed-demo.mjs
 // Reads DATABASE_URL / TMDB_API_KEY from .env.local.
 
-import { readFileSync } from "node:fs";
+import "./load-env.mjs";
 import { randomBytes, randomUUID, scrypt as scryptCb } from "node:crypto";
 import { promisify } from "node:util";
 import postgres from "postgres";
 
 const scrypt = promisify(scryptCb);
-
-function loadEnvLocal() {
-  const text = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
-  for (const line of text.split("\n")) {
-    const m = line.match(/^([A-Z_]+)=(.*)$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-  }
-}
-loadEnvLocal();
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -141,8 +132,8 @@ async function main() {
     const id = randomUUID();
     userIds[acc.username] = id;
     await sql`
-      insert into users (id, username, display_name, email, password_hash, privacy)
-      values (${id}, ${acc.username}, ${acc.displayName}, ${acc.email}, ${passwordHash}, 'public')
+      insert into users (id, username, display_name, email, password_hash, privacy, email_verified_at)
+      values (${id}, ${acc.username}, ${acc.displayName}, ${acc.email}, ${passwordHash}, 'public', now())
     `;
   }
   console.log("Created accounts: " + accounts.map((a) => a.username).join(", ") + " (password: demopass123)");

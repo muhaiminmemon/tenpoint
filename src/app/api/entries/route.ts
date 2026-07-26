@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { diaryEntries, films } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 
 const schema = z.object({
   filmId: z.string().uuid(),
@@ -18,6 +19,9 @@ const schema = z.object({
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+
+  const limited = enforceRateLimit(req, "entry", LIMITS.write, user.id);
+  if (limited) return limited;
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bad request." }, { status: 400 });

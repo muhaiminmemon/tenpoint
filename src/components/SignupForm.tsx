@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { errorFrom } from "@/lib/http";
+import { APP_DOMAIN } from "@/lib/brand";
 
 const FIELD =
   "w-full rounded-card border border-seam bg-tray px-3 py-2.5 text-sm text-paper focus:border-beam focus:outline-none";
@@ -72,7 +73,7 @@ function Form() {
           />
           {/* the URL fills in as you type, so the choice is concrete */}
           <span className={HELP}>
-            Your profile lives at betterboxd.app/
+            Your profile lives at {APP_DOMAIN}/
             <span className="text-paper">{username.toLowerCase() || "you"}</span>
           </span>
         </div>
@@ -114,6 +115,17 @@ function Form() {
         >
           {busy ? "Creating…" : "Create account"}
         </button>
+        <p className="text-[12px] leading-relaxed text-ash">
+          By creating an account you agree to the{" "}
+          <Link href="/terms" className="text-paper underline underline-offset-2">
+            terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="text-paper underline underline-offset-2">
+            privacy policy
+          </Link>
+          . We&apos;ll email you a link to confirm your address.
+        </p>
       </form>
       <p className="mt-4 text-[13px] text-ash">
         Already have one?{" "}

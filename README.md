@@ -1,9 +1,27 @@
-# Betterboxd
+# Tenpoint
+
+**A better Letterboxd.**
 
 A film diary with ratings that mean something. Log what you watch, rate it on a
 1.0–10.0 scale in tenths, keep your rewatch history honest, and find something
 to watch with a friend, without pretending an algorithm understands taste
 better than it does.
+
+### On the name
+
+The comparison to Letterboxd is the pitch, and it lives in the copy — the
+landing page, the auth screens, this README. It is deliberately *not* the
+trademark.
+
+Describing yourself as an alternative to a competitor is nominative fair use
+and is protected. Building your brand out of their coined mark is neither, and
+`-boxd` is Letterboxd's own invention, which is the category of mark that gets
+the strongest protection. An earlier working name did exactly that; the rename
+happened before launch rather than after, on the theory that the moment you'd
+be forced to change it is the moment it costs the most.
+
+Every user-visible mention of the name comes from `src/lib/brand.ts`, so the
+next rename is one file.
 
 ## Stack
 
@@ -20,16 +38,30 @@ better than it does.
 npm install
 cp .env.example .env.local   # fill in DATABASE_URL and TMDB_API_KEY
 docker compose up -d          # local Postgres, or use Supabase/Neon/Railway
-npm run db:push               # enables pg_trgm + pushes the schema
+npm run db:migrate            # enables pg_trgm + applies migrations
 npm run dev
 ```
 
-Get a free TMDB API key at https://www.themoviedb.org/settings/api.
+Get a free TMDB API key at https://www.themoviedb.org/settings/api. Only
+`DATABASE_URL` and `TMDB_API_KEY` are needed to run locally; everything else in
+`.env.example` is optional or production-only. With no `RESEND_API_KEY` set,
+verification and password-reset emails are printed to the server console
+instead of sent, so the full signup flow works with zero mail configuration.
 
-To reset the schema after editing `src/db/schema.ts`, run `npm run db:push`
-again. It's `drizzle-kit push`, not migrations; fine for a project this size,
-worth switching to `drizzle-kit generate` + migrations before real user data
-is on the line.
+### Changing the schema
+
+Edit `src/db/schema.ts`, then:
+
+```sh
+npm run db:generate   # writes a new SQL file into ./drizzle
+npm run db:migrate    # applies anything pending
+```
+
+Migrations are committed, reviewed, and run once in order. This deliberately
+replaces `drizzle-kit push`, which diffs the schema against the live database
+and alters it to match: harmless on an empty dev database, and a data-loss
+event once real rows exist, because a renamed column reads as a drop plus an
+add. CI fails the build if `schema.ts` changes without a matching migration.
 
 ---
 
@@ -60,7 +92,7 @@ it's the layer that would survive a full frontend rewrite.
 
 ## Data model
 
-Ten tables, all in `src/db/schema.ts`. The two that matter most:
+Twenty-one tables, all in `src/db/schema.ts`. The two that matter most:
 
 ```
 films            one row per film, keyed to TMDB's id
@@ -164,9 +196,68 @@ hashes the token with SHA-256 before storing it in the `sessions` table
 Every server component that needs the current user calls
 `getSessionUser()`, which is a single indexed join (`sessions` → `users`):
 cheap enough to call at the top of every page without a separate auth
-middleware layer. Route handlers call the same function and return `401` if
-it's null; there is no separate authorization framework, just an `if` at the
-top of each handler in `src/app/api/**/route.ts`.
+middleware layer. It selects an explicit column list (`SessionUser`, every
+column *except* `passwordHash`) rather than the whole row, so the password
+hash never travels with the viewer on a render. Route handlers call the same
+function and return `401` if it's null; there is no separate authorization
+framework, just an `if` at the top of each handler in
+`src/app/api/**/route.ts`.
+
+CSRF needs no token layer here: the session cookie is `sameSite=lax`, so it
+isn't sent on cross-site POSTs, and every mutation is a JSON body that a
+cross-origin form can't produce without a preflight.
+
+A failed sign-in for a username that doesn't exist still runs scrypt against a
+dummy hash (`burnPasswordTiming`), so response latency can't be used to
+enumerate which usernames are registered.
+
+### Passwords, email, and accounts
+
+- **Verification.** Signup issues a single-use token (SHA-256 hashed in
+  `email_tokens`, 24h) and mails a link. Confirming is a `POST` from the
+  landing page rather than a `GET` on the emailed URL, because corporate mail
+  scanners follow links and a `GET` would let a scanner burn the token before
+  the user ever clicked it.
+- **What verification gates.** Not access. An unverified account can use
+  everything private to it; it just isn't listed in user search and can't
+  comment on other people's reviews. Signup is free, so being *findable* is the
+  thing that should cost a working inbox.
+- **Reset.** `POST /api/auth/forgot` answers identically whether or not the
+  account exists — it's unauthenticated, so a distinguishable response would
+  make it an account-enumeration oracle. Completing a reset destroys every
+  session for that user; changing a password from Settings destroys every
+  session *except* the current one.
+- **Deletion.** `DELETE /api/account` needs the password and the username typed
+  back. The work is done by `on delete cascade` on every table referencing
+  `users.id`, so it can't drift from the schema. The one case cascade gets
+  wrong is a shared list the user owns, which would take other people's work
+  with it — those are handed to another member first.
+- **Mail** goes through Resend over plain `fetch` (no SDK dependency). With no
+  API key configured, `sendMail` logs the message instead, which is a mode and
+  not an error: local development needs no mail setup.
+
+### Rate limiting
+
+`src/lib/ratelimit.ts` is a fixed-window counter in process memory, applied to
+sign-in, signup, outbound email, recommendations, imports, search, and every
+user-visible write. Deliberately not Redis: this runs as one long-lived Node
+server, where an in-process map is exact and free. The tradeoff is that it
+doesn't span replicas, so behind more than one instance the effective limit
+multiplies by the replica count — still a hard ceiling per attacker rather than
+none, and the swap to a shared store is confined to one function.
+
+Limits that protect TMDB's quota rather than ours (`/api/recs`, which fans out
+to ~17 TMDB calls) are keyed per account, not per IP.
+
+### Moderation
+
+Reports land in `reports` and are read at `/admin/reports`, gated on the
+`ADMIN_USERNAMES` env allowlist (`src/lib/admin.ts`) — an env var rather than a
+`users.role` column, because there is exactly one privileged action in this
+product and a role column would mean a schema, a granting UI, and a way to
+escalate. Non-admins get a `404`, not a `403`: the existence of the route isn't
+worth advertising. `reports.subjectId` is a loose id rather than a foreign key,
+so the queue renders "content no longer exists" for anything already deleted.
 
 ---
 
@@ -360,9 +451,47 @@ chronological, and that's the entire implementation.
 `GET /api/export` is one route that joins diary entries, watchlist, and
 every list the user belongs to into a single JSON document. No paywall gate
 exists in the code at all, so there's nothing to remove later if that stays
-true.
+true. It sits next to account deletion in Settings on purpose: the export is
+the only copy anyone gets, and deletion is immediate and unrecoverable.
 
 ---
+
+## Avatars
+
+Profile photos are the one piece of user data big enough to matter on a hot
+path, so they don't live on the user row. `avatars` holds the bytes, keyed by
+user id; `users.avatarUpdatedAt` holds a timestamp and nothing else. Every
+query that joins `users` — the feed, list members, review authors, and the
+session lookup that runs on *every* render — reads the timestamp, never the
+image.
+
+`avatarSrc(userId, stamp)` turns that into `/api/avatar/<id>?v=<stamp>`, which
+the route serves with `Cache-Control: immutable, max-age=1y`. Pinning it that
+hard is safe precisely because the stamp is in the URL: a new upload writes a
+new timestamp, which is a different URL, so a cached response can never be the
+stale one. The image crosses the wire once per user per change instead of once
+per row per query.
+
+Uploads are validated server-side (`parseImageDataUrl`) and capped at 512 KB.
+`image/svg+xml` is rejected along with everything else outside JPEG/PNG/WebP —
+an SVG is a script-bearing document, and these are served from our own origin.
+
+## Deploying
+
+Beyond `DATABASE_URL` and `TMDB_API_KEY`:
+
+| Variable | Why |
+|---|---|
+| `APP_URL` | Builds the links in verification and reset emails. Wrong value sends people to the wrong host. |
+| `RESEND_API_KEY` | Without it, emails print to the console instead of sending. Fine locally, not in production. |
+| `MAIL_FROM` | Must be a domain verified with Resend. |
+| `ADMIN_USERNAMES` | Comma-separated; who can read `/admin/reports`. |
+| `CONTACT_EMAIL` | Shown on `/privacy` and `/terms`. |
+
+Run `npm run db:migrate` as part of the deploy, before the new build serves
+traffic. `/api/recs` and `/api/import/match` declare `maxDuration = 60`, since
+both comfortably exceed the 10s default a serverless platform gives a route
+handler.
 
 ## Design system
 

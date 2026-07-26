@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { comments, diaryEntries, users } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 import { areFriends, isBlockedBetween } from "@/lib/social";
 
 const schema = z.object({
@@ -14,6 +15,18 @@ const schema = z.object({
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+
+  const limited = enforceRateLimit(req, "comment", LIMITS.write, user.id);
+  if (limited) return limited;
+
+  // Writing on someone else's review is the one action that puts text in front
+  // of a stranger, so it's the one that costs a working inbox.
+  if (!user.emailVerifiedAt) {
+    return NextResponse.json(
+      { error: "Confirm your email address before commenting." },
+      { status: 403 },
+    );
+  }
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bad request." }, { status: 400 });

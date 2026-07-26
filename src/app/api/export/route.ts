@@ -5,6 +5,7 @@ import { diaryEntries, films, listItems, listMembers, lists, watchlist } from "@
 import { getSessionUser } from "@/lib/auth";
 import { formatTenths } from "@/lib/library";
 import { formatStars } from "@/lib/letterboxd";
+import { APP_SLUG } from "@/lib/brand";
 
 /** RFC 4180: quote everything, double any embedded quote. */
 function csvCell(value: string | number | null | undefined): string {
@@ -57,13 +58,13 @@ async function letterboxdDiaryCsv(userId: string, username: string) {
     r.watchedOn ?? "",
     r.rewatch ? "true" : "false",
     r.review ?? "",
-    "betterboxd",
+    APP_SLUG,
   ]);
 
   return new NextResponse(csvRows([header, ...body]), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="betterboxd-${username}-letterboxd-diary.csv"`,
+      "Content-Disposition": `attachment; filename="${APP_SLUG}-${username}-letterboxd-diary.csv"`,
     },
   });
 }
@@ -81,7 +82,7 @@ async function letterboxdWatchlistCsv(userId: string, username: string) {
   return new NextResponse(csvRows([["Title", "Year", "tmdbID"], ...body]), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="betterboxd-${username}-letterboxd-watchlist.csv"`,
+      "Content-Disposition": `attachment; filename="${APP_SLUG}-${username}-letterboxd-watchlist.csv"`,
     },
   });
 }
@@ -170,7 +171,7 @@ export async function GET(req: Request) {
   return new NextResponse(JSON.stringify(body, null, 2), {
     headers: {
       "Content-Type": "application/json",
-      "Content-Disposition": `attachment; filename="betterboxd-${user.username}.json"`,
+      "Content-Disposition": `attachment; filename="${APP_SLUG}-${user.username}.json"`,
     },
   });
 }

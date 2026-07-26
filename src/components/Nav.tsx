@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { getSessionUser } from "@/lib/auth";
+import { avatarSrc } from "@/lib/avatar";
+import { APP_SLUG } from "@/lib/brand";
 import SignOutButton from "./SignOutButton";
 import NavLinks from "./NavLinks";
 import Avatar from "./Avatar";
 import CommandPalette from "./CommandPalette";
 import BottomNav from "./BottomNav";
+import VerifyBanner from "./VerifyBanner";
 
 export default async function Nav() {
   const user = await getSessionUser();
@@ -17,7 +20,7 @@ export default async function Nav() {
             href={user ? "/library" : "/"}
             className="display text-lg font-medium tracking-tight"
           >
-            betterboxd
+            {APP_SLUG}
           </Link>
           {user ? (
             <>
@@ -43,7 +46,7 @@ export default async function Nav() {
                   className="shrink-0"
                 >
                   <Avatar
-                    avatarUrl={user.avatarUrl}
+                    avatarUrl={avatarSrc(user.id, user.avatarUpdatedAt)}
                     name={user.displayName ?? user.username}
                     size={28}
                   />
@@ -65,6 +68,7 @@ export default async function Nav() {
           )}
         </div>
       </header>
+      {user && !user.emailVerifiedAt && <VerifyBanner email={user.email} />}
       {user && <BottomNav />}
     </>
   );

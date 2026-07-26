@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { friendRequests, users } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 import { areFriends, createFriendship, isBlockedBetween } from "@/lib/social";
 
 const schema = z.object({ userId: z.string().uuid() });
@@ -12,6 +13,9 @@ const schema = z.object({ userId: z.string().uuid() });
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+
+  const limited = enforceRateLimit(req, "friend-request", LIMITS.write, user.id);
+  if (limited) return limited;
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success || parsed.data.userId === user.id) {

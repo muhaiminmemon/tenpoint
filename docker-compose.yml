@@ -1,10 +1,15 @@
+# Pins the Compose project name. Without this it defaults to the directory
+# name, so the container and volume would carry whatever the folder is called
+# rather than the product's name.
+name: tenpoint
+
 services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: betterboxd
-      POSTGRES_PASSWORD: betterboxd
-      POSTGRES_DB: betterboxd
+      POSTGRES_USER: tenpoint
+      POSTGRES_PASSWORD: tenpoint
+      POSTGRES_DB: tenpoint
     ports:
       - "5432:5432"
     volumes:

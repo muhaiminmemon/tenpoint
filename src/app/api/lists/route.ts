@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { listMembers, lists } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 
 const schema = z.object({
   title: z.string().min(1).max(120),
@@ -12,6 +13,9 @@ const schema = z.object({
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+
+  const limited = enforceRateLimit(req, "list-create", LIMITS.write, user.id);
+  if (limited) return limited;
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Give the list a title." }, { status: 400 });

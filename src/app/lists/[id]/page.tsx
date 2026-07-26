@@ -5,6 +5,7 @@ import { films, listItems, listMembers, lists, users } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { roleIn, type ListRole } from "@/lib/lists";
 import { getRankedLibrary } from "@/lib/library";
+import { avatarSrc } from "@/lib/avatar";
 import ListDetail from "@/components/ListDetail";
 
 export default async function ListPage(ctx: { params: Promise<{ id: string }> }) {
@@ -17,7 +18,7 @@ export default async function ListPage(ctx: { params: Promise<{ id: string }> })
   const role = await roleIn(id, user.id);
   if (!role) notFound();
 
-  const items = await db
+  const itemRows = await db
     .select({
       filmId: listItems.filmId,
       title: films.title,
@@ -29,7 +30,7 @@ export default async function ListPage(ctx: { params: Promise<{ id: string }> })
       addedBy: listItems.addedBy,
       addedByName: users.displayName,
       addedByUsername: users.username,
-      addedByAvatar: users.avatarUrl,
+      addedByAvatarUpdatedAt: users.avatarUpdatedAt,
     })
     .from(listItems)
     .innerJoin(films, eq(films.id, listItems.filmId))
@@ -37,18 +38,27 @@ export default async function ListPage(ctx: { params: Promise<{ id: string }> })
     .where(eq(listItems.listId, id))
     // the order people dragged into; untouched rows keep insertion order
     .orderBy(asc(listItems.position), asc(listItems.createdAt));
+  const items = itemRows.map(({ addedByAvatarUpdatedAt, ...i }) => ({
+    ...i,
+    addedByAvatar: i.addedBy ? avatarSrc(i.addedBy, addedByAvatarUpdatedAt) : null,
+  }));
 
-  const members = await db
-    .select({
-      userId: listMembers.userId,
-      role: listMembers.role,
-      username: users.username,
-      displayName: users.displayName,
-      avatarUrl: users.avatarUrl,
-    })
-    .from(listMembers)
-    .innerJoin(users, eq(users.id, listMembers.userId))
-    .where(eq(listMembers.listId, id));
+  const members = (
+    await db
+      .select({
+        userId: listMembers.userId,
+        role: listMembers.role,
+        username: users.username,
+        displayName: users.displayName,
+        avatarUpdatedAt: users.avatarUpdatedAt,
+      })
+      .from(listMembers)
+      .innerJoin(users, eq(users.id, listMembers.userId))
+      .where(eq(listMembers.listId, id))
+  ).map(({ avatarUpdatedAt, ...m }) => ({
+    ...m,
+    avatarUrl: avatarSrc(m.userId, avatarUpdatedAt),
+  }));
 
   // the viewer's own library is the source for bulk-add
   const library = await getRankedLibrary(user.id);

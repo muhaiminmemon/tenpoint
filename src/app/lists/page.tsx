@@ -4,6 +4,7 @@ import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { films, listItems, listMembers, lists, users } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { avatarSrc } from "@/lib/avatar";
 import NewListForm from "@/components/NewListForm";
 import ListCover from "@/components/ListCover";
 import Avatar from "@/components/Avatar";
@@ -58,19 +59,24 @@ export default async function ListsPage() {
   }
 
   // who else is on each list, for the overlapping avatars
-  const memberRows = myLists.length
-    ? await db
-        .select({
-          listId: listMembers.listId,
-          userId: users.id,
-          username: users.username,
-          displayName: users.displayName,
-          avatarUrl: users.avatarUrl,
-        })
-        .from(listMembers)
-        .innerJoin(users, eq(users.id, listMembers.userId))
-        .where(inArray(listMembers.listId, myLists.map((l) => l.id)))
-    : [];
+  const memberRows = (
+    myLists.length
+      ? await db
+          .select({
+            listId: listMembers.listId,
+            userId: users.id,
+            username: users.username,
+            displayName: users.displayName,
+            avatarUpdatedAt: users.avatarUpdatedAt,
+          })
+          .from(listMembers)
+          .innerJoin(users, eq(users.id, listMembers.userId))
+          .where(inArray(listMembers.listId, myLists.map((l) => l.id)))
+      : []
+  ).map(({ avatarUpdatedAt, ...m }) => ({
+    ...m,
+    avatarUrl: avatarSrc(m.userId, avatarUpdatedAt),
+  }));
   const membersByList = new Map<string, typeof memberRows>();
   for (const m of memberRows) {
     const list = membersByList.get(m.listId) ?? [];

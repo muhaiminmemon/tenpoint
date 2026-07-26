@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { posterUrl } from "@/lib/tmdb-urls";
+import { APP_POSITIONING } from "@/lib/brand";
 import type { WallPoster } from "@/lib/posters";
 
 type Props = {
@@ -18,6 +19,9 @@ export default function AuthShell({ mode, posters, children }: Props) {
     <div className="mx-auto max-w-3xl py-6">
       <div className="grid overflow-hidden rounded-xl border border-seam bg-carbon md:grid-cols-2">
         <aside className="relative hidden overflow-hidden border-r border-seam bg-[#0f0f12] p-8 md:block">
+          <p className="display mb-3 text-[13px] uppercase tracking-[0.14em] text-beam">
+            {APP_POSITIONING}
+          </p>
           <h2 className="display text-[30px] font-medium leading-[1.05] text-paper">
             Your film cabinet, kept honest.
           </h2>

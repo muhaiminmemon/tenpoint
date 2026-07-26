@@ -7,6 +7,7 @@ import { getSessionUser } from "@/lib/auth";
 import { getRankedLibrary } from "@/lib/library";
 import { formatTenths } from "@/lib/format";
 import { areFriends, canViewProfile, isBlockedBetween } from "@/lib/social";
+import { avatarSrc } from "@/lib/avatar";
 import ProfileActions, { type Relationship } from "@/components/ProfileActions";
 import Avatar from "@/components/Avatar";
 import ProfileTabs from "@/components/ProfileTabs";
@@ -64,7 +65,7 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
   if (!visible) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <Avatar avatarUrl={profile.avatarUrl} name={displayLabel} size={72} className="mx-auto" />
+        <Avatar avatarUrl={avatarSrc(profile.id, profile.avatarUpdatedAt)} name={displayLabel} size={72} className="mx-auto" />
         <h1 className="display mt-3 text-2xl">{displayLabel}</h1>
         <p className="mt-3 text-ash">This profile is private.</p>
         {viewer && !isOwner && (
@@ -142,7 +143,7 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
   return (
     <div>
       <div className="mb-8 flex items-start gap-4">
-        <Avatar avatarUrl={profile.avatarUrl} name={displayLabel} size={72} />
+        <Avatar avatarUrl={avatarSrc(profile.id, profile.avatarUpdatedAt)} name={displayLabel} size={72} />
         <div className="min-w-0 flex-1">
           <h1 className="display text-3xl font-medium">{displayLabel}</h1>
           <p className="num mt-1 text-sm text-ash">

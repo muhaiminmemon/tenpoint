@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
+import { APP_POSITIONING } from "@/lib/brand";
 import { wallPosters } from "@/lib/posters";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
@@ -31,6 +32,12 @@ export default async function Home() {
       <div className="overflow-hidden rounded-xl border border-seam bg-carbon">
         <div className="grid md:grid-cols-[1fr_0.92fr]">
           <div className="p-8 sm:p-10 md:py-13">
+            {/* The comparison lives in the copy, never in the name: describing
+                what we're an alternative to is ordinary and protected, and
+                naming ourselves after them would not have been. */}
+            <p className="display mb-3 text-[13px] uppercase tracking-[0.14em] text-beam">
+              {APP_POSITIONING}
+            </p>
             <h1 className="display text-[38px] font-medium leading-[1.02] text-paper sm:text-[44px]">
               Rate films
               <br />

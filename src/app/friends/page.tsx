@@ -6,6 +6,7 @@ import { friendRequests, users } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { friendsOf } from "@/lib/social";
 import { eligibilityOf } from "@/lib/recs";
+import { avatarSrc } from "@/lib/avatar";
 import FriendsPanel from "@/components/FriendsPanel";
 
 export const metadata = { title: "Friends" };
@@ -22,36 +23,44 @@ export default async function FriendsPage() {
         id: f.id,
         username: f.username,
         displayName: f.displayName,
-        avatarUrl: f.avatarUrl,
+        avatarUrl: avatarSrc(f.id, f.avatarUpdatedAt),
         rated: e.rated,
       };
     }),
   );
 
   const fromUser = alias(users, "from_user");
-  const incoming = await db
+  const incomingRows = await db
     .select({
       requestId: friendRequests.id,
       userId: fromUser.id,
       username: fromUser.username,
       displayName: fromUser.displayName,
-      avatarUrl: fromUser.avatarUrl,
+      avatarUpdatedAt: fromUser.avatarUpdatedAt,
     })
     .from(friendRequests)
     .innerJoin(fromUser, eq(fromUser.id, friendRequests.fromId))
     .where(eq(friendRequests.toId, user.id));
+  const incoming = incomingRows.map(({ avatarUpdatedAt, ...r }) => ({
+    ...r,
+    avatarUrl: avatarSrc(r.userId, avatarUpdatedAt),
+  }));
 
   const toUser = alias(users, "to_user");
-  const outgoing = await db
+  const outgoingRows = await db
     .select({
       userId: toUser.id,
       username: toUser.username,
       displayName: toUser.displayName,
-      avatarUrl: toUser.avatarUrl,
+      avatarUpdatedAt: toUser.avatarUpdatedAt,
     })
     .from(friendRequests)
     .innerJoin(toUser, eq(toUser.id, friendRequests.toId))
     .where(eq(friendRequests.fromId, user.id));
+  const outgoing = outgoingRows.map(({ avatarUpdatedAt, ...r }) => ({
+    ...r,
+    avatarUrl: avatarSrc(r.userId, avatarUpdatedAt),
+  }));
 
   return (
     <div className="max-w-xl">

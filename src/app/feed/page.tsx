@@ -7,6 +7,7 @@ import { getSessionUser } from "@/lib/auth";
 import { friendIdsOf } from "@/lib/social";
 import { formatTenths } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
+import { avatarSrc } from "@/lib/avatar";
 import Avatar from "@/components/Avatar";
 
 export const metadata = { title: "Feed" };
@@ -31,9 +32,10 @@ export default async function FeedPage() {
           year: films.year,
           slug: films.slug,
           posterPath: films.posterPath,
+          userId: users.id,
           username: users.username,
           displayName: users.displayName,
-          avatarUrl: users.avatarUrl,
+          avatarUpdatedAt: users.avatarUpdatedAt,
         })
         .from(diaryEntries)
         .innerJoin(films, eq(films.id, diaryEntries.filmId))
@@ -74,7 +76,11 @@ export default async function FeedPage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-ash">
                     <span className="mr-1.5 inline-block align-middle">
-                      <Avatar avatarUrl={e.avatarUrl} name={e.displayName ?? e.username} size={18} />
+                      <Avatar
+                        avatarUrl={avatarSrc(e.userId, e.avatarUpdatedAt)}
+                        name={e.displayName ?? e.username}
+                        size={18}
+                      />
                     </span>
                     <Link href={`/${e.username}`} className="text-paper hover:underline">
                       {e.displayName ?? e.username}
