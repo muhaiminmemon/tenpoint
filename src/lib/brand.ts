@@ -12,7 +12,7 @@ export const APP_NAME = "Tenpoint";
 export const APP_SLUG = "tenpoint";
 
 /** Shown on the signup form under the username field. */
-export const APP_DOMAIN = "tenpoint.app";
+export const APP_DOMAIN = "tenpoint.site";
 
 export const APP_TAGLINE = "A film diary with ratings that mean something.";
 
@@ -31,7 +31,7 @@ export const APP_POSITIONING = "A better Letterboxd.";
  * isn't set. Both `/privacy` and `/terms` display it, so it lives here rather
  * than being typed twice and drifting.
  */
-export const SUPPORT_EMAIL = "support@tenpoint.com";
+export const SUPPORT_EMAIL = "support@tenpoint.site";
 
 export const APP_DESCRIPTION =
   "A better Letterboxd. Log what you watch, rate it in tenths, keep your rewatch history honest, and find something to watch with a friend.";
