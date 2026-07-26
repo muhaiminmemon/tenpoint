@@ -372,6 +372,30 @@ export const reports = pgTable("reports", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Every `users` column except `passwordHash`.
+ *
+ * Prefer this over a bare `select()` on `users` anywhere the row travels
+ * further than the one function verifying a password: a hash that is never
+ * read cannot be logged, serialised into an RSC payload, or leaked by a future
+ * `JSON.stringify` on something that happens to hold it. Adding a column to
+ * `users` means adding it here too, which is the intended friction.
+ */
+export const safeUserColumns = {
+  id: users.id,
+  username: users.username,
+  displayName: users.displayName,
+  email: users.email,
+  bio: users.bio,
+  avatarUpdatedAt: users.avatarUpdatedAt,
+  emailVerifiedAt: users.emailVerifiedAt,
+  privacy: users.privacy,
+  commentPermission: users.commentPermission,
+  showDiaryOnProfile: users.showDiaryOnProfile,
+  showWatchlistOnProfile: users.showWatchlistOnProfile,
+  createdAt: users.createdAt,
+};
+
 export type User = typeof users.$inferSelect;
 /**
  * What `getSessionUser()` returns: every column except the password hash,

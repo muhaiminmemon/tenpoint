@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { errorFrom } from "@/lib/http";
+import { errorFrom, safeNextPath } from "@/lib/http";
 
 const FIELD =
   "w-full rounded-card border border-seam bg-tray px-3 py-2.5 text-sm text-paper focus:border-beam focus:outline-none";
@@ -40,7 +40,7 @@ function Form() {
         setError(await errorFrom(res, "Couldn't sign you in. Try again."));
         return;
       }
-      router.push(next && next.startsWith("/") ? next : "/library");
+      router.push(safeNextPath(next, "/library"));
       router.refresh();
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");

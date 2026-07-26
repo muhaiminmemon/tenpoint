@@ -26,5 +26,12 @@ export const APP_TAGLINE = "A film diary with ratings that mean something.";
  */
 export const APP_POSITIONING = "A better Letterboxd.";
 
+/**
+ * Fallback contact address for the legal pages, used when `CONTACT_EMAIL`
+ * isn't set. Both `/privacy` and `/terms` display it, so it lives here rather
+ * than being typed twice and drifting.
+ */
+export const SUPPORT_EMAIL = "support@tenpoint.com";
+
 export const APP_DESCRIPTION =
   "A better Letterboxd. Log what you watch, rate it in tenths, keep your rewatch history honest, and find something to watch with a friend.";

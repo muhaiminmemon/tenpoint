@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { listItems, listMembers, lists, recEvents, userFilmFlags, users } from "@/db/schema";
+import { listItems, listMembers, lists, recEvents, safeUserColumns, userFilmFlags, users } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { areFriends, pairKey } from "@/lib/social";
 
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   const { friend: friendName, filmId, action } = parsed.data;
 
   const friend = (
-    await db.select().from(users).where(eq(users.username, friendName.toLowerCase())).limit(1)
+    await db.select(safeUserColumns).from(users).where(eq(users.username, friendName.toLowerCase())).limit(1)
   )[0];
   if (!friend || !(await areFriends(user.id, friend.id))) {
     return NextResponse.json({ error: "Not friends." }, { status: 403 });

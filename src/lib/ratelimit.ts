@@ -61,14 +61,55 @@ function hit(key: string, { limit, windowSec }: RateLimit): RateLimitResult {
 }
 
 /**
- * The caller's IP, from the proxy headers a platform sets. Every value here is
- * client-controllable in a direct-to-Node deployment, so this is an abuse
- * speed bump, never an identity: nothing security-critical keys off it.
+ * How many proxies sit in front of this app, and therefore how many trailing
+ * `X-Forwarded-For` entries were written by infrastructure rather than by the
+ * caller.
+ *
+ * Railway terminates TLS and forwards once, so production defaults to 1. A CDN
+ * in front of that makes it 2 — override with `TRUSTED_PROXY_HOPS`.
+ *
+ * Development defaults to **0**, meaning `X-Forwarded-For` is ignored
+ * completely. That matters: running with no proxy, the header is pure client
+ * input, and trusting it would let anyone reset every limit here by sending a
+ * different value each request. With 0 hops there's no trustworthy address
+ * available at all, so every caller shares one bucket — a blunt limit, but an
+ * honest one, and never a bypass.
+ */
+function trustedProxyHops(): number {
+  const configured = process.env.TRUSTED_PROXY_HOPS;
+  if (configured !== undefined) {
+    const parsed = Number(configured);
+    if (Number.isInteger(parsed) && parsed >= 0) return parsed;
+  }
+  return process.env.NODE_ENV === "production" ? 1 : 0;
+}
+
+/**
+ * The caller's IP, or a shared bucket when none can be trusted.
+ *
+ * `X-Forwarded-For` is `client, proxy1, proxy2, …`, built left to right, with
+ * each proxy *appending* the address it actually saw. The leftmost entry is
+ * therefore whatever the client typed; only the trailing entries are ours.
+ * We count in from the right, and only as far as we know proxies exist.
  */
 export function clientIp(req: Request): string {
+  const hops = trustedProxyHops();
+  if (hops === 0) return "untrusted-proxy";
+
   const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return req.headers.get("x-real-ip") ?? "unknown";
+  if (forwarded) {
+    const parts = forwarded
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    // Fall through to the shared bucket rather than reading a client-supplied
+    // entry when the chain is shorter than the configured hop count.
+    if (parts.length >= hops) {
+      const trusted = parts[parts.length - hops];
+      if (trusted) return trusted;
+    }
+  }
+  return "untrusted-proxy";
 }
 
 /**

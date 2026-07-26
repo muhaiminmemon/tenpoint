@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { errorFrom } from "@/lib/http";
+import { errorFrom, safeNextPath } from "@/lib/http";
 import { APP_DOMAIN } from "@/lib/brand";
 
 const FIELD =
@@ -43,7 +43,7 @@ function Form() {
         setError(await errorFrom(res, "Couldn't create your account. Try again."));
         return;
       }
-      router.push(next && next.startsWith("/") ? next : "/import");
+      router.push(safeNextPath(next, "/import"));
       router.refresh();
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");

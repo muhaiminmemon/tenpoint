@@ -23,6 +23,15 @@ export async function POST(req: Request) {
   }
 
   const identity = parsed.data.identity.trim().toLowerCase();
+
+  /*
+   * Also cap per target, not just per IP: the IP limit alone doesn't stop
+   * someone rotating addresses to flood one person's inbox. Keyed on the
+   * submitted string *before* any lookup, so a name that doesn't exist is
+   * throttled identically and this can't become an existence oracle.
+   */
+  const targetLimited = enforceRateLimit(req, "forgot-target", LIMITS.email, identity);
+  if (targetLimited) return targetLimited;
   const user = (
     await db
       .select({ id: users.id, username: users.username, email: users.email })

@@ -4,7 +4,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { and, eq, isNull, lt, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { emailTokens, sessions, users, type SessionUser } from "@/db/schema";
+import { emailTokens, safeUserColumns, sessions, users, type SessionUser } from "@/db/schema";
 
 const scrypt = promisify(scryptCb);
 const SESSION_COOKIE = "tp_session";
@@ -38,22 +38,6 @@ export async function burnPasswordTiming(password: string): Promise<void> {
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
-
-/** Columns that make up a `SessionUser`: everything but the password hash. */
-const sessionUserColumns = {
-  id: users.id,
-  username: users.username,
-  displayName: users.displayName,
-  email: users.email,
-  bio: users.bio,
-  avatarUpdatedAt: users.avatarUpdatedAt,
-  emailVerifiedAt: users.emailVerifiedAt,
-  privacy: users.privacy,
-  commentPermission: users.commentPermission,
-  showDiaryOnProfile: users.showDiaryOnProfile,
-  showWatchlistOnProfile: users.showWatchlistOnProfile,
-  createdAt: users.createdAt,
-};
 
 export async function createSession(userId: string): Promise<void> {
   const token = randomBytes(32).toString("hex");
@@ -129,7 +113,7 @@ export const getSessionUser = cache(async function getSessionUser(): Promise<Ses
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const rows = await db
-    .select({ user: sessionUserColumns, expiresAt: sessions.expiresAt })
+    .select({ user: safeUserColumns, expiresAt: sessions.expiresAt })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(eq(sessions.tokenHash, hashToken(token)))

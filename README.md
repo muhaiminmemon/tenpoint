@@ -249,6 +249,14 @@ none, and the swap to a shared store is confined to one function.
 Limits that protect TMDB's quota rather than ours (`/api/recs`, which fans out
 to ~17 TMDB calls) are keyed per account, not per IP.
 
+**Identifying the caller** is the subtle part. `X-Forwarded-For` is
+`client, proxy1, …` with each proxy *appending* what it saw, so the leftmost
+entry is whatever the client typed — reading it lets anyone reset every limit
+by rotating one header. `clientIp()` counts in from the right, only as far as
+`TRUSTED_PROXY_HOPS` says proxies exist, and when that's `0` (the development
+default, and any deployment with no proxy) it ignores the header entirely and
+buckets every caller together. A blunt limit, but never a bypass.
+
 ### Moderation
 
 Reports land in `reports` and are read at `/admin/reports`, gated on the
@@ -478,20 +486,64 @@ an SVG is a script-bearing document, and these are served from our own origin.
 
 ## Deploying
 
-Beyond `DATABASE_URL` and `TMDB_API_KEY`:
+Configured for **Railway** in `railway.json`. Nixpacks builds it, `npm start`
+serves it, and `/api/health` is the liveness probe.
+
+### Environment
 
 | Variable | Why |
 |---|---|
-| `APP_URL` | Builds the links in verification and reset emails. Wrong value sends people to the wrong host. |
+| `DATABASE_URL` | Reference the Postgres service as `${{Postgres.DATABASE_URL}}` so it resolves to the private network — no egress, lower latency, no SSL config. |
+| `TMDB_API_KEY` | Film metadata. |
+| `APP_URL` | Builds the links in verification and reset emails. No trailing slash; a wrong value silently sends people to the wrong host. |
 | `RESEND_API_KEY` | Without it, emails print to the console instead of sending. Fine locally, not in production. |
-| `MAIL_FROM` | Must be a domain verified with Resend. |
-| `ADMIN_USERNAMES` | Comma-separated; who can read `/admin/reports`. |
+| `MAIL_FROM` | Must be a domain verified with Resend — see below. |
+| `ADMIN_USERNAMES` | Comma-separated; who can read `/admin/reports`. Unset means nobody, including you. |
 | `CONTACT_EMAIL` | Shown on `/privacy` and `/terms`. |
+| `NODE_ENV` | Must be `production`. This is what makes the session cookie `secure`, and what makes the rate limiter trust Railway's `X-Forwarded-For`. |
+| `TRUSTED_PROXY_HOPS` | Optional. Defaults to 1 in production. Raise it only if you put a CDN in front of Railway. |
 
-Run `npm run db:migrate` as part of the deploy, before the new build serves
-traffic. `/api/recs` and `/api/import/match` declare `maxDuration = 60`, since
-both comfortably exceed the 10s default a serverless platform gives a route
-handler.
+### Migrations run before traffic
+
+`deploy.preDeployCommand` runs `npm run db:migrate` after the build and before
+the new version serves anything, so the schema is never behind the code that
+expects it. If your Railway project predates config-as-code and ignores the
+file, set the same command under **Settings → Deploy → Pre-deploy Command**.
+
+### Do not raise `numReplicas`
+
+Pinned to `1` on purpose. `src/lib/ratelimit.ts` keeps its counters in process
+memory, which is exact on a single instance and divides by the replica count on
+several — sign-in brute-force protection is the limit that degrades, and it's
+the one that matters. Scaling out is fine, but move the limiter to a shared
+store first; the change is confined to `hit()`.
+
+### Email will not work until a domain is verified
+
+Resend's default `onboarding@resend.dev` sender can **only deliver to your own
+account address**. Until you add a domain to Resend and publish its DKIM/SPF
+records, every other person's verification link goes nowhere and they stay
+unlisted in user search. This is the most likely thing to make launch day look
+broken, and nothing in the app can detect it — watch the logs for
+`Email send failed`.
+
+### Timeouts
+
+`/api/recs` and `/api/import/match` declare `maxDuration = 60`. Railway doesn't
+impose the short function ceiling a serverless platform would, so these are
+headroom rather than a requirement, but they matter if this is ever moved.
+
+### After deploying
+
+```sh
+curl -s -o /dev/null -w "health %{http_code}\n"  https://YOUR_DOMAIN/api/health
+curl -s -o /dev/null -w "home   %{http_code}\n"  https://YOUR_DOMAIN/
+curl -s -o /dev/null -w "gated  %{http_code}\n"  https://YOUR_DOMAIN/library      # 307
+curl -s -o /dev/null -w "404    %{http_code}\n"  https://YOUR_DOMAIN/nosuchuser   # 404
+```
+
+Then sign up with an address that isn't yours and confirm the email arrives.
+That single test exercises Resend, `APP_URL`, and DNS at once.
 
 ## Design system
 

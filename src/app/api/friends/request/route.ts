@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { friendRequests, users } from "@/db/schema";
+import { friendRequests, safeUserColumns, users } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 import { areFriends, createFriendship, isBlockedBetween } from "@/lib/social";
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   }
   const otherId = parsed.data.userId;
 
-  const other = (await db.select().from(users).where(eq(users.id, otherId)).limit(1))[0];
+  const other = (await db.select(safeUserColumns).from(users).where(eq(users.id, otherId)).limit(1))[0];
   if (!other || (await isBlockedBetween(user.id, otherId))) {
     return NextResponse.json({ error: "No user found." }, { status: 404 });
   }

@@ -1,6 +1,6 @@
 import { and, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
-import { blocks, friendships, users, type SessionUser, type User } from "@/db/schema";
+import { blocks, friendships, safeUserColumns, users, type SessionUser } from "@/db/schema";
 
 export function pairIds(a: string, b: string): [string, string] {
   return a < b ? [a, b] : [b, a];
@@ -30,10 +30,10 @@ export async function friendIdsOf(userId: string): Promise<string[]> {
   return rows.map((r) => (r.userLowId === userId ? r.userHighId : r.userLowId));
 }
 
-export async function friendsOf(userId: string): Promise<User[]> {
+export async function friendsOf(userId: string): Promise<SessionUser[]> {
   const ids = await friendIdsOf(userId);
   if (!ids.length) return [];
-  return db.select().from(users).where(inArray(users.id, ids));
+  return db.select(safeUserColumns).from(users).where(inArray(users.id, ids));
 }
 
 export async function createFriendship(a: string, b: string): Promise<void> {

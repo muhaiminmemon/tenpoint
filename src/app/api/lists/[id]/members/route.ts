@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { listMembers, users } from "@/db/schema";
+import { listMembers, safeUserColumns, users } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { roleIn } from "@/lib/lists";
 import { isBlockedBetween } from "@/lib/social";
@@ -25,7 +25,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const member = (
     await db
-      .select()
+      .select(safeUserColumns)
       .from(users)
       .where(eq(users.username, parsed.data.username.toLowerCase()))
       .limit(1)

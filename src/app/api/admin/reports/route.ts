@@ -16,10 +16,15 @@ const schema = z.object({
 export async function POST(req: Request) {
   const user = await getSessionUser();
   // A non-admin gets the same 404 an unauthenticated caller would: the
-  // existence of a moderation endpoint isn't something to advertise.
-  if (!isAdmin(user)) return NextResponse.json({ error: "Not found." }, { status: 404 });
+  // existence of a moderation endpoint isn't something to advertise. Checking
+  // `user` explicitly rather than leaning on `isAdmin` alone is what lets the
+  // compiler narrow it, instead of a `!` that would keep compiling if the
+  // guard were ever weakened.
+  if (!user || !isAdmin(user)) {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
 
-  const limited = enforceRateLimit(req, "admin-reports", LIMITS.write, user!.id);
+  const limited = enforceRateLimit(req, "admin-reports", LIMITS.write, user.id);
   if (limited) return limited;
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
@@ -30,7 +35,7 @@ export async function POST(req: Request) {
     .update(reports)
     .set({
       status: parsed.data.status,
-      resolvedBy: open ? null : user!.id,
+      resolvedBy: open ? null : user.id,
       resolvedAt: open ? null : new Date(),
     })
     .where(eq(reports.id, parsed.data.id))

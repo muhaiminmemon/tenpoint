@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { APP_NAME } from "@/lib/brand";
+import { APP_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata = { title: "Privacy" };
 
@@ -11,7 +11,7 @@ export const metadata = { title: "Privacy" };
 const LAST_UPDATED = "26 July 2026";
 
 function contactEmail() {
-  return process.env.CONTACT_EMAIL ?? "your-contact-address@example.com";
+  return process.env.CONTACT_EMAIL ?? SUPPORT_EMAIL;
 }
 
 export default function PrivacyPage() {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { safeUserColumns, users } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 import { recommendForPair } from "@/lib/recs";
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
   const friend = (
     await db
-      .select()
+      .select(safeUserColumns)
       .from(users)
       .where(eq(users.username, parsed.data.friend.toLowerCase()))
       .limit(1)

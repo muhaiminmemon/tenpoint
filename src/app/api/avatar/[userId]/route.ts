@@ -37,6 +37,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ userId: string
       // Safe to pin: the `?v=` stamp in the URL changes on every upload, so a
       // cached response can never be the stale one.
       "Cache-Control": "public, max-age=31536000, immutable",
+      // This is user-uploaded content served from our own origin. The mime
+      // type was allowlisted on write, and this stops a browser second-
+      // guessing it and sniffing something executable out of the bytes.
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
     },
   });
 }

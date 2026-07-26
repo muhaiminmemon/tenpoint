@@ -19,15 +19,6 @@ export async function POST(req: Request) {
   const limited = enforceRateLimit(req, "comment", LIMITS.write, user.id);
   if (limited) return limited;
 
-  // Writing on someone else's review is the one action that puts text in front
-  // of a stranger, so it's the one that costs a working inbox.
-  if (!user.emailVerifiedAt) {
-    return NextResponse.json(
-      { error: "Confirm your email address before commenting." },
-      { status: 403 },
-    );
-  }
-
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bad request." }, { status: 400 });
 
@@ -48,11 +39,28 @@ export async function POST(req: Request) {
   }
 
   if (entry.userId !== user.id) {
+    // Putting text in front of a stranger is the action that costs a working
+    // inbox. Replying under your own review doesn't reach anyone new, so it
+    // stays available while an account is still unverified.
+    if (!user.emailVerifiedAt) {
+      return NextResponse.json(
+        { error: "Confirm your email address before commenting on other people's reviews." },
+        { status: 403 },
+      );
+    }
     if (await isBlockedBetween(user.id, entry.userId)) {
       return NextResponse.json({ error: "Review not found." }, { status: 404 });
     }
     const author = (
-      await db.select().from(users).where(eq(users.id, entry.userId)).limit(1)
+      await db
+        .select({
+          username: users.username,
+          displayName: users.displayName,
+          commentPermission: users.commentPermission,
+        })
+        .from(users)
+        .where(eq(users.id, entry.userId))
+        .limit(1)
     )[0];
     if (!author) return NextResponse.json({ error: "Review not found." }, { status: 404 });
     if (author.commentPermission === "off") {
