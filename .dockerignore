@@ -1,0 +1,19 @@
+# Anything here would be copied into the image, so secrets first.
+.env
+.env.*
+!.env.example
+
+# Rebuilt inside the image; copying host versions risks platform-specific
+# binaries and stale output.
+node_modules
+.next
+out
+*.tsbuildinfo
+
+.git
+.github
+.claude
+
+# Unrelated to the app.
+venv
+README.md
