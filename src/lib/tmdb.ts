@@ -1,4 +1,4 @@
-export { posterUrl, POSTER_BASE } from "./tmdb-urls";
+export { posterUrl, TMDB_IMAGE_BASE } from "./tmdb-urls";
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 

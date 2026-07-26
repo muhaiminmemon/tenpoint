@@ -88,9 +88,9 @@ export default function PrivacyPage() {
         <List>
           <li>
             <strong className="text-paper">TMDB</strong> supplies all film metadata and poster
-            images. Your browser loads poster images directly from TMDB&apos;s servers, so they
-            see those requests. Searches you type are sent to TMDB to look up films —{" "}
-            <em>without</em> any identifier tying them to your account.
+            images. Posters are served from our own servers rather than loaded from theirs, so
+            TMDB never sees your browser or your IP address. Searches you type are sent to TMDB to
+            look up films — <em>without</em> any identifier tying them to your account.
           </li>
           <li>
             <strong className="text-paper">Our email provider</strong> receives your address when
