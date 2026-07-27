@@ -53,6 +53,11 @@ export default function RatingGrid({
       held.current = false;
       return;
     }
+    // 10 has no decimals above .0 — drop any carried fraction (e.g. 8.7 -> 10)
+    if (n === 10) {
+      onChange(100);
+      return;
+    }
     // keep the decimal when moving between whole numbers, so 8.7 -> 9.7
     onChange(n * 10 + (dec ?? 0));
   }
