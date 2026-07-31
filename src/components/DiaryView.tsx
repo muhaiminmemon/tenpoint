@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { formatTenths, ratingColor } from "@/lib/format";
+import { accentFor, formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import Sheet from "./Sheet";
 
@@ -28,18 +28,6 @@ const MONTHS = [
 
 /** Sunday-first, as in the design. */
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-/**
- * Each film gets its own quiet accent, stable across renders, so a month reads
- * as a set of distinct things rather than one repeated colour.
- */
-const ACCENTS = ["#8faecc", "#d9b25f", "#8fbf7f", "#c4756a", "#a99ad9", "#6fb0a8"];
-
-function accentFor(slug: string): string {
-  let h = 0;
-  for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) >>> 0;
-  return ACCENTS[h % ACCENTS.length];
-}
 
 function monthKey(iso: string): string {
   return iso.slice(0, 7);

@@ -3,6 +3,18 @@ export function formatTenths(tenths: number): string {
   return (tenths / 10).toFixed(1);
 }
 
+/**
+ * Each film gets its own quiet accent, stable across renders, so a group of
+ * films reads as a set of distinct things rather than one repeated colour.
+ */
+const ACCENTS = ["#8faecc", "#d9b25f", "#8fbf7f", "#c4756a", "#a99ad9", "#6fb0a8"];
+
+export function accentFor(key: string): string {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return ACCENTS[h % ACCENTS.length];
+}
+
 /** "8", "8.7", "10" → tenths; anything else → null. */
 export function parseRatingInput(raw: string): number | null {
   const trimmed = raw.trim();

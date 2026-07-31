@@ -21,6 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
+import { useProgressiveList } from "@/lib/useProgressiveList";
 import type { LibraryFilm } from "@/lib/library";
 
 type Props = {
@@ -144,6 +145,8 @@ export default function LibraryView({ films, editable }: Props) {
     } satisfies Record<SavedView, number>;
   }, [items]);
 
+  const { visible: shown, hasMore, total, sentinelRef } = useProgressiveList(visible, 30);
+
   return (
     <div>
       {/* saved views: the slices you actually reach for */}
@@ -223,12 +226,21 @@ export default function LibraryView({ films, editable }: Props) {
         </p>
       ) : view === "ledger" ? (
         dragEnabled ? (
-          <RankedLedger films={visible} onReorder={setItems} all={items} />
+          <RankedLedger films={shown} onReorder={setItems} all={items} />
         ) : (
-          <FlatLedger films={visible} showRank={sort === "rating"} />
+          <FlatLedger films={shown} showRank={sort === "rating"} />
         )
       ) : (
-        <Shelf films={visible} editable={editable} onToggleFavourite={toggleFavourite} />
+        <Shelf films={shown} editable={editable} onToggleFavourite={toggleFavourite} />
+      )}
+
+      {visible.length > 0 && (
+        <>
+          <p className="num mt-4 text-center text-[11px] text-dim">
+            Showing {shown.length} of {total}
+          </p>
+          {hasMore && <div ref={sentinelRef} aria-hidden className="h-1" />}
+        </>
       )}
     </div>
   );

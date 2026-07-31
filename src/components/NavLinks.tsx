@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
+  { href: "/", label: "Home" },
   { href: "/library", label: "Library" },
   { href: "/diary", label: "Diary" },
   { href: "/feed", label: "Feed" },
@@ -18,7 +19,7 @@ export default function NavLinks({ pendingRequests = 0 }: { pendingRequests?: nu
   return (
     <nav aria-label="Main" className="flex flex-wrap items-center gap-1 text-sm">
       {LINKS.map((l) => {
-        const active = pathname === l.href || pathname.startsWith(l.href + "/");
+        const active = l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
         return (
           <Link
             key={l.href}

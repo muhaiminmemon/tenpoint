@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, inArray, or, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { comments, diaryEntries, users, type SessionUser } from "@/db/schema";
 import { blockedIdsFor, friendIdsOf } from "@/lib/social";
-import { formatTenths } from "@/lib/format";
+import { formatTenths, ratingColor } from "@/lib/format";
 import { avatarSrc } from "@/lib/avatar";
+import Avatar from "./Avatar";
 import ReviewCard, { type ReviewData } from "./ReviewCard";
 
 type Props = {
@@ -35,7 +36,7 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
     .where(
       and(
         eq(diaryEntries.filmId, filmId),
-        isNotNull(diaryEntries.review),
+        or(isNotNull(diaryEntries.review), isNotNull(diaryEntries.rating)),
         eq(diaryEntries.private, false),
       ),
     )
@@ -76,25 +77,56 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
         .orderBy(comments.createdAt)
     : [];
 
-  const reviews: ReviewData[] = shown.map((r) => ({
-    id: r.id,
-    review: r.review!,
-    spoiler: r.spoiler,
-    rating: r.rating !== null ? formatTenths(r.rating) : null,
-    watchedOn: r.watchedOn,
-    username: r.username,
-    displayName: r.displayName,
-    avatarUrl: avatarSrc(r.authorId, r.avatarUpdatedAt),
-    comments: commentRows
-      .filter((c) => c.entryId === r.id && !blocked.has(c.authorId))
-      .map((c) => ({
-        id: c.id,
-        body: c.body,
-        username: c.username,
-        displayName: c.displayName,
-        mine: c.authorId === viewer?.id,
-      })),
-  }));
+  // a row with review text renders as a full ReviewCard; a bare rating gets a
+  // one-line activity row instead, so a silent 9/10 still shows up here
+  type FeedRow =
+    | { kind: "review"; data: ReviewData }
+    | {
+        kind: "rating";
+        id: string;
+        rating: number;
+        watchedOn: string | null;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+
+  const feed: FeedRow[] = shown.map((r) => {
+    const avatarUrl = avatarSrc(r.authorId, r.avatarUpdatedAt);
+    if (r.review !== null) {
+      return {
+        kind: "review",
+        data: {
+          id: r.id,
+          review: r.review,
+          spoiler: r.spoiler,
+          rating: r.rating !== null ? formatTenths(r.rating) : null,
+          watchedOn: r.watchedOn,
+          username: r.username,
+          displayName: r.displayName,
+          avatarUrl,
+          comments: commentRows
+            .filter((c) => c.entryId === r.id && !blocked.has(c.authorId))
+            .map((c) => ({
+              id: c.id,
+              body: c.body,
+              username: c.username,
+              displayName: c.displayName,
+              mine: c.authorId === viewer?.id,
+            })),
+        },
+      };
+    }
+    return {
+      kind: "rating",
+      id: r.id,
+      rating: r.rating!,
+      watchedOn: r.watchedOn,
+      username: r.username,
+      displayName: r.displayName,
+      avatarUrl,
+    };
+  });
 
   return (
     <section>
@@ -113,17 +145,37 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
           </Link>
         ))}
       </div>
-      {reviews.length === 0 ? (
+      {feed.length === 0 ? (
         <p className="text-sm text-ash">
           {tab === "friends"
-            ? "None of your friends has reviewed this yet."
-            : "No reviews yet. Log a viewing and write the first one."}
+            ? "None of your friends has rated or reviewed this yet."
+            : "No ratings or reviews yet. Log a viewing to be the first."}
         </p>
       ) : (
         <ul className="space-y-5">
-          {reviews.map((r) => (
-            <ReviewCard key={r.id} review={r} signedIn={Boolean(viewer)} />
-          ))}
+          {feed.map((item) =>
+            item.kind === "review" ? (
+              <ReviewCard key={item.data.id} review={item.data} signedIn={Boolean(viewer)} />
+            ) : (
+              <li key={item.id} className="flex items-center gap-2 border-b border-seam pb-4 text-sm">
+                <Avatar
+                  avatarUrl={item.avatarUrl}
+                  name={item.displayName ?? item.username}
+                  size={24}
+                />
+                <Link href={`/${item.username}`} className="text-paper hover:underline">
+                  {item.displayName ?? item.username}
+                </Link>
+                <span className="text-ash">rated</span>
+                <span className={`num ${ratingColor(item.rating)}`}>
+                  {formatTenths(item.rating)}
+                </span>
+                {item.watchedOn && (
+                  <span className="num ml-auto text-xs text-ash">{item.watchedOn}</span>
+                )}
+              </li>
+            ),
+          )}
         </ul>
       )}
     </section>

@@ -6,6 +6,19 @@ import { requestSearchOpen } from "@/lib/search-event";
 
 type IconProps = { className?: string };
 
+function HomeIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path
+        d="M3 8.5l7-5.5 7 5.5v7a1 1 0 01-1 1h-3.25v-5h-5.5v5H4a1 1 0 01-1-1v-7z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function LibraryIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
@@ -82,6 +95,7 @@ function FriendsIcon({ className }: IconProps) {
 }
 
 const LINKS_BEFORE_SEARCH = [
+  { href: "/", label: "Home", Icon: HomeIcon },
   { href: "/library", label: "Library", Icon: LibraryIcon },
   { href: "/diary", label: "Diary", Icon: DiaryIcon },
 ];
@@ -141,7 +155,7 @@ function NavLink({
   pathname: string;
   badge?: number;
 }) {
-  const active = pathname === href || pathname.startsWith(href + "/");
+  const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
   return (
     <Link href={href} aria-current={active ? "page" : undefined} className={`relative ${itemClass}`}>
       <span className="relative">

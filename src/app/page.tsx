@@ -1,10 +1,16 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { APP_POSITIONING } from "@/lib/brand";
 import { wallPosters } from "@/lib/posters";
+import { getGlobalTopRated } from "@/lib/leaderboard";
+import { topMoviesOfYear } from "@/lib/tmdb";
+import { getTasteProfile } from "@/lib/taste";
+import { friendIdsOf } from "@/lib/social";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
+import TopRatedBoard from "@/components/TopRatedBoard";
+import HomeLayout from "@/components/HomeLayout";
+import { type QuickRateFilm } from "@/components/QuickRateDeck";
 
 const PROMISES: { lead: string; rest: string }[] = [
   {
@@ -23,7 +29,47 @@ const PROMISES: { lead: string; rest: string }[] = [
 
 export default async function Home() {
   const user = await getSessionUser();
-  if (user) redirect("/library");
+
+  if (user) {
+    const [topRated, taste, friendIds] = await Promise.all([
+      getGlobalTopRated(10),
+      getTasteProfile(user.id, { includePrivate: true }),
+      friendIdsOf(user.id),
+    ]);
+
+    const displayLabel = user.displayName ?? user.username;
+    const hasFriend = friendIds.length > 0;
+
+    let quickRateFilms: QuickRateFilm[] = [];
+    try {
+      const movies = await topMoviesOfYear(new Date().getFullYear());
+      quickRateFilms = movies
+        .filter((m) => m.poster_path)
+        .slice(0, 24)
+        .map((m) => ({
+          tmdbId: m.id,
+          title: m.title,
+          year: m.release_date ? Number(m.release_date.slice(0, 4)) : null,
+          posterPath: m.poster_path ?? null,
+        }));
+    } catch {
+      // no TMDB key, rate limited, or offline — the deck just stays empty
+    }
+
+    return (
+      <>
+        <HomeLayout
+          name={displayLabel}
+          taste={taste}
+          hasFriend={hasFriend}
+          quickRateFilms={quickRateFilms}
+        />
+        <div className="pb-6">
+          <TopRatedBoard films={topRated} />
+        </div>
+      </>
+    );
+  }
 
   const posters = await wallPosters(12);
 
