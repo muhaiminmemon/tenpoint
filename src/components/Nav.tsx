@@ -19,8 +19,10 @@ export default async function Nav() {
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
           <Link
             href={user ? "/library" : "/"}
-            className="display text-lg font-medium tracking-tight"
+            className="flex shrink-0 items-center gap-2 display text-lg font-medium tracking-tight"
           >
+            {/* eslint-disable-next-line @next/next/no-img-element -- local static asset, not an optimizable remote image */}
+            <img src="/brand/mark.png" alt="" width={22} height={22} className="rounded-[5px]" />
             {APP_SLUG}
           </Link>
           {user ? (
