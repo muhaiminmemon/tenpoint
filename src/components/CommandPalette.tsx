@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
+import { OPEN_SEARCH_EVENT } from "@/lib/search-event";
 
 type FilmHit = {
   id?: string;
@@ -51,6 +52,16 @@ export default function CommandPalette() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open, openPalette]);
+
+  // the bottom nav has no room for the desktop trigger button, so it opens
+  // this instead by dispatching an event rather than lifting state up
+  useEffect(() => {
+    function onOpenRequest() {
+      openPalette();
+    }
+    window.addEventListener(OPEN_SEARCH_EVENT, onOpenRequest);
+    return () => window.removeEventListener(OPEN_SEARCH_EVENT, onOpenRequest);
+  }, [openPalette]);
 
   useEffect(() => {
     if (!open) return;
@@ -178,8 +189,11 @@ export default function CommandPalette() {
             aria-modal="true"
             aria-label="Search"
             onKeyDown={onKeyDown}
-            className="fade-up absolute left-1/2 top-[8vh] w-[560px] max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-hidden rounded-xl border border-beam-edge bg-lift shadow-[0_30px_80px_rgba(0,0,0,.6)]"
+            className="palette-in absolute inset-x-0 bottom-0 max-h-[85vh] overflow-hidden rounded-t-[20px] border-t border-beam-edge bg-lift shadow-[0_-20px_60px_rgba(0,0,0,.55)] sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-[8vh] sm:w-[560px] sm:max-w-[calc(100vw-2rem)] sm:max-h-none sm:-translate-x-1/2 sm:rounded-xl sm:border sm:shadow-[0_30px_80px_rgba(0,0,0,.6)]"
           >
+            {/* grab handle reads as "drag me" on touch; decorative on desktop */}
+            <div aria-hidden className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-seam sm:hidden" />
+
             <div className="flex items-center gap-2.5 border-b border-seam px-4 py-3.5">
               <span aria-hidden className="text-dim">
                 ⌕
@@ -190,21 +204,30 @@ export default function CommandPalette() {
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search for a film…"
                 aria-label="Search"
-                className="min-w-0 flex-1 bg-transparent text-[15px] text-paper placeholder:text-dim focus:outline-none"
+                inputMode="search"
+                enterKeyHint="search"
+                className="min-w-0 flex-1 bg-transparent text-[16px] text-paper placeholder:text-dim focus:outline-none sm:text-[15px]"
               />
-              <span className="rounded border border-seam px-1.5 py-0.5 text-[11px] text-dim">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="shrink-0 text-sm text-ash hover:text-paper sm:hidden"
+              >
+                Cancel
+              </button>
+              <span className="hidden rounded border border-seam px-1.5 py-0.5 text-[11px] text-dim sm:inline-block">
                 esc
               </span>
             </div>
 
-            <div className="max-h-[52vh] overflow-y-auto p-2">
+            <div className="max-h-[62vh] overflow-y-auto p-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:max-h-[52vh] sm:pb-2">
               {rows.map((r, i) => (
                 <button
                   key={r.key}
                   type="button"
                   onClick={r.go}
                   onMouseEnter={() => setCursor(i)}
-                  className={`block w-full rounded-card px-2.5 py-2 text-left ${
+                  className={`block w-full rounded-card px-2.5 py-2.5 text-left active:bg-tray sm:py-2 ${
                     cursor === i ? "bg-tray" : ""
                   }`}
                 >
