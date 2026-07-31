@@ -99,7 +99,7 @@ const itemClass =
  * Thumb-reachable navigation on phones. Hidden from `sm` up, where the top bar
  * has room for the full set of links plus the desktop search button.
  */
-export default function BottomNav() {
+export default function BottomNav({ pendingRequests = 0 }: { pendingRequests?: number }) {
   const pathname = usePathname();
 
   return (
@@ -117,7 +117,12 @@ export default function BottomNav() {
       </button>
 
       {LINKS_AFTER_SEARCH.map((item) => (
-        <NavLink key={item.href} {...item} pathname={pathname} />
+        <NavLink
+          key={item.href}
+          {...item}
+          pathname={pathname}
+          badge={item.href === "/friends" ? pendingRequests : 0}
+        />
       ))}
     </nav>
   );
@@ -128,16 +133,25 @@ function NavLink({
   label,
   Icon,
   pathname,
+  badge = 0,
 }: {
   href: string;
   label: string;
   Icon: (p: IconProps) => React.JSX.Element;
   pathname: string;
+  badge?: number;
 }) {
   const active = pathname === href || pathname.startsWith(href + "/");
   return (
-    <Link href={href} aria-current={active ? "page" : undefined} className={itemClass}>
-      <Icon className={`size-5 ${active ? "text-beam" : "text-ash"}`} />
+    <Link href={href} aria-current={active ? "page" : undefined} className={`relative ${itemClass}`}>
+      <span className="relative">
+        <Icon className={`size-5 ${active ? "text-beam" : "text-ash"}`} />
+        {badge > 0 && (
+          <span className="num absolute -right-2 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-beam px-[3px] text-[9px] font-medium text-carbon">
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
+      </span>
       <span className={`text-[10px] ${active ? "text-paper" : "text-ash"}`}>{label}</span>
     </Link>
   );

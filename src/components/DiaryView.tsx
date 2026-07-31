@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
+import Sheet from "./Sheet";
 
 export type DiaryRow = {
   id: string;
@@ -210,6 +211,8 @@ function PaceStat({
 }
 
 function CalendarGrid({ monthKey: key, rows }: { monthKey: string; rows: DiaryRow[] }) {
+  const [openDay, setOpenDay] = useState<number | null>(null);
+
   const byDay = useMemo(() => {
     const map = new Map<number, DiaryRow[]>();
     for (const r of rows) {
@@ -229,6 +232,8 @@ function CalendarGrid({ monthKey: key, rows }: { monthKey: string; rows: DiaryRo
     ...Array<null>(firstWeekday).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
+
+  const openFilms = openDay !== null ? (byDay.get(openDay) ?? []) : [];
 
   return (
     <div className="fade-up">
@@ -250,7 +255,9 @@ function CalendarGrid({ monthKey: key, rows }: { monthKey: string; rows: DiaryRo
                 first ? "border-seam bg-lift" : "border-tray bg-transparent"
               }`}
             >
-              <span className={`num text-[11px] ${first ? "text-paper" : "text-dim"}`}>{day}</span>
+              <span className={`num text-[9px] sm:text-[11px] ${first ? "text-paper" : "text-dim"}`}>
+                {day}
+              </span>
               {first && (
                 <div className="absolute inset-x-1.5 bottom-1.5">
                   <div
@@ -259,7 +266,7 @@ function CalendarGrid({ monthKey: key, rows }: { monthKey: string; rows: DiaryRo
                     style={{ background: accentFor(first.slug) }}
                   />
                   <div className="flex items-center justify-between gap-1">
-                    <span className={`num text-[13px] ${ratingColor(first.rating)}`}>
+                    <span className={`num text-[10px] sm:text-[13px] ${ratingColor(first.rating)}`}>
                       {first.rating !== null ? formatTenths(first.rating) : ""}
                     </span>
                     {films.some((f) => f.rewatch) && (
@@ -276,19 +283,65 @@ function CalendarGrid({ monthKey: key, rows }: { monthKey: string; rows: DiaryRo
             </div>
           );
           return first ? (
-            <Link
+            <button
               key={day}
-              href={`/film/${first.slug}`}
+              type="button"
+              onClick={() => setOpenDay(day)}
               title={films.map((f) => f.title).join(", ")}
-              className="block"
+              className="block text-left"
             >
               {cell}
-            </Link>
+            </button>
           ) : (
             <div key={day}>{cell}</div>
           );
         })}
       </div>
+
+      <Sheet
+        open={openDay !== null}
+        onClose={() => setOpenDay(null)}
+        title={openDay !== null ? `${MONTHS[month - 1]} ${openDay}, ${year}` : ""}
+      >
+        <ul className="mt-4 flex flex-col gap-1">
+          {openFilms.map((f) => {
+            const poster = posterUrl(f.posterPath, "w154");
+            return (
+              <li key={f.id}>
+                <Link
+                  href={`/film/${f.slug}`}
+                  onClick={() => setOpenDay(null)}
+                  className="flex items-center gap-3 rounded-card p-2 hover:bg-tray"
+                >
+                  {poster ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={poster}
+                      alt=""
+                      loading="lazy"
+                      className="h-[54px] w-9 shrink-0 rounded-[3px] bg-tray object-cover"
+                    />
+                  ) : (
+                    <span className="h-[54px] w-9 shrink-0 rounded-[3px] bg-tray" aria-hidden />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="truncate text-sm text-paper">{f.title}</span>
+                      {f.rewatch && <span className="text-[10px] text-beam">↺ rewatch</span>}
+                    </span>
+                    <span className="num block text-[11px] text-ash">{f.year ?? ""}</span>
+                  </span>
+                  {f.rating !== null && (
+                    <span className={`num text-sm ${ratingColor(f.rating)}`}>
+                      {formatTenths(f.rating)}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </Sheet>
     </div>
   );
 }

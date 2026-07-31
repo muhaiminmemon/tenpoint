@@ -350,9 +350,6 @@ export default function FilmPanel({
               />
             ))}
           </ul>
-          <p className="mt-2.5 text-center text-[11px] text-dim sm:hidden">
-            Swipe a viewing left to edit or delete
-          </p>
         </section>
       )}
 
@@ -366,18 +363,6 @@ export default function FilmPanel({
           className="display flex-1 rounded-lg bg-paper py-2.5 text-sm font-medium text-carbon"
         >
           {isRewatch ? "Log a rewatch" : "Log a viewing"}
-        </button>
-        <button
-          type="button"
-          onClick={toggleWatchlist}
-          disabled={busy}
-          aria-pressed={wl}
-          aria-label={wl ? "Remove from watchlist" : "Add to watchlist"}
-          className={`flex size-[42px] items-center justify-center rounded-lg border border-seam bg-tray text-base disabled:opacity-50 ${
-            wl ? "text-beam" : "text-ash"
-          }`}
-        >
-          ✓
         </button>
         {listState.length > 0 && (
           <button

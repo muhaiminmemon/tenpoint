@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { avatarSrc } from "@/lib/avatar";
 import { APP_SLUG } from "@/lib/brand";
 import { isAdmin } from "@/lib/admin";
+import { pendingRequestCountFor } from "@/lib/social";
 import SignOutButton from "./SignOutButton";
 import NavLinks from "./NavLinks";
 import Avatar from "./Avatar";
@@ -12,6 +13,7 @@ import VerifyBanner from "./VerifyBanner";
 
 export default async function Nav() {
   const user = await getSessionUser();
+  const pendingRequests = user ? await pendingRequestCountFor(user.id) : 0;
 
   return (
     <>
@@ -29,7 +31,7 @@ export default async function Nav() {
             <>
               {/* the full link set needs room; phones get the bottom bar instead */}
               <div className="hidden sm:block">
-                <NavLinks />
+                <NavLinks pendingRequests={pendingRequests} />
               </div>
               <div className="ml-auto flex items-center gap-3">
                 <CommandPalette />
@@ -82,7 +84,7 @@ export default async function Nav() {
         </div>
       </header>
       {user && !user.emailVerifiedAt && <VerifyBanner email={user.email} />}
-      {user && <BottomNav />}
+      {user && <BottomNav pendingRequests={pendingRequests} />}
     </>
   );
 }

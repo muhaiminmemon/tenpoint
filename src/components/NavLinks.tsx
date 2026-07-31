@@ -13,7 +13,7 @@ const LINKS = [
   { href: "/import", label: "Import" },
 ];
 
-export default function NavLinks() {
+export default function NavLinks({ pendingRequests = 0 }: { pendingRequests?: number }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Main" className="flex flex-wrap items-center gap-1 text-sm">
@@ -24,11 +24,16 @@ export default function NavLinks() {
             key={l.href}
             href={l.href}
             aria-current={active ? "page" : undefined}
-            className={`rounded-card px-2.5 py-1 transition-colors ${
+            className={`flex items-center gap-1.5 rounded-card px-2.5 py-1 transition-colors ${
               active ? "bg-tray-2 text-paper" : "text-ash hover:bg-tray hover:text-paper"
             }`}
           >
             {l.label}
+            {l.href === "/friends" && pendingRequests > 0 && (
+              <span className="num flex h-4 min-w-4 items-center justify-center rounded-full bg-beam px-1 text-[10px] font-medium text-carbon">
+                {pendingRequests > 9 ? "9+" : pendingRequests}
+              </span>
+            )}
           </Link>
         );
       })}

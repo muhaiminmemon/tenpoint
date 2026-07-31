@@ -1,6 +1,6 @@
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, count, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
-import { blocks, friendships, safeUserColumns, users, type SessionUser } from "@/db/schema";
+import { blocks, friendRequests, friendships, safeUserColumns, users, type SessionUser } from "@/db/schema";
 
 export function pairIds(a: string, b: string): [string, string] {
   return a < b ? [a, b] : [b, a];
@@ -34,6 +34,15 @@ export async function friendsOf(userId: string): Promise<SessionUser[]> {
   const ids = await friendIdsOf(userId);
   if (!ids.length) return [];
   return db.select(safeUserColumns).from(users).where(inArray(users.id, ids));
+}
+
+/** Pending incoming requests, for the badge on the Friends nav link. */
+export async function pendingRequestCountFor(userId: string): Promise<number> {
+  const rows = await db
+    .select({ n: count() })
+    .from(friendRequests)
+    .where(eq(friendRequests.toId, userId));
+  return rows[0]?.n ?? 0;
 }
 
 export async function createFriendship(a: string, b: string): Promise<void> {
