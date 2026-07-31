@@ -157,10 +157,7 @@ export default function ImportWizard() {
       <div className="max-w-xl">
         <p className="text-ash">
           Export your data from Letterboxd (Settings → Import &amp; Export → Export your data),
-          unzip it, and upload any of <code className="text-paper">diary.csv</code>,{" "}
-          <code className="text-paper">ratings.csv</code>,{" "}
-          <code className="text-paper">watched.csv</code>,{" "}
-          <code className="text-paper">watchlist.csv</code>.
+          unzip it, and upload <code className="text-paper">ratings.csv</code>.
         </p>
         <p className="mt-3 text-sm text-ash">
           Stars carry over doubled: 4★ becomes 8.0, 3½★ becomes 7.0. Your history stays intact:
@@ -220,7 +217,7 @@ export default function ImportWizard() {
             <h2 className="display text-xl">Imported</h2>
             <ul className="num mt-3 space-y-1 text-sm text-ash">
               {result?.diary ? <li>{result.diary} diary entries</li> : null}
-              {result?.ratings ? <li>{result.ratings} ratings without dates</li> : null}
+              {result?.ratings ? <li>{result.ratings} ratings imported</li> : null}
               {result?.watched ? <li>{result.watched} films marked watched</li> : null}
               {result?.watchlist ? <li>{result.watchlist} watchlist films</li> : null}
               {result?.unmatched ? (
