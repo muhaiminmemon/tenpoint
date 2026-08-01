@@ -40,7 +40,10 @@ function Form() {
         setError(await errorFrom(res, "Couldn't sign you in. Try again."));
         return;
       }
-      router.push(safeNextPath(next, "/library"));
+      // Home, not the library: it carries the card, the search, recent
+      // viewings and the quick-rate deck, so it answers "what now" for someone
+      // arriving cold. `next` still wins, so a gated link returns you to it.
+      router.push(safeNextPath(next, "/"));
       router.refresh();
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");
