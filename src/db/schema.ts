@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   index,
   primaryKey,
+  serial,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -21,6 +22,12 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   bio: text("bio"),
+  /**
+   * Permanent signup-order badge — the taste card's "No. ####". Assigned
+   * once via a sequence and never recomputed, so it can't shift if an
+   * earlier account is later deleted; a live COUNT(*)-based rank would.
+   */
+  memberNumber: serial("member_number").notNull().unique(),
   /**
    * Version stamp for the avatar, not the image itself. The bytes live in
    * `avatars`, so no query that joins `users` ever drags a blob along, and
@@ -387,6 +394,7 @@ export const safeUserColumns = {
   displayName: users.displayName,
   email: users.email,
   bio: users.bio,
+  memberNumber: users.memberNumber,
   avatarUpdatedAt: users.avatarUpdatedAt,
   emailVerifiedAt: users.emailVerifiedAt,
   privacy: users.privacy,
@@ -395,6 +403,35 @@ export const safeUserColumns = {
   showWatchlistOnProfile: users.showWatchlistOnProfile,
   createdAt: users.createdAt,
 };
+
+/**
+ * Every finish a user has ever held.
+ *
+ * A variant is derived from current taste, not collected, so a person holds
+ * exactly one at a time and the one they held a year ago is otherwise
+ * unrecoverable. Without this table the binder could only ever say "one yours,
+ * twenty-nine not", which is a diagram rather than a collection.
+ *
+ * A set, deliberately, not a timeline: first-held is kept because it is free,
+ * but nothing here records an order, a duration, or a lapse. Written on the
+ * same pass that builds the card, which is the cheapest place that already
+ * knows the answer.
+ */
+export const heldVariants = pgTable(
+  "held_variants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** the finish's printed name, e.g. "Filmstrip Gold" */
+    variantName: text("variant_name").notNull(),
+    firstHeldAt: timestamp("first_held_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("held_variants_user_variant_uq").on(t.userId, t.variantName)],
+);
+
+export type HeldVariant = typeof heldVariants.$inferSelect;
 
 export type User = typeof users.$inferSelect;
 /**

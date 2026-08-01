@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatTenths, ratingColor } from "@/lib/format";
+import { decadeLabel, formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import type { MutualLove, TasteProfile } from "@/lib/taste";
 
@@ -13,10 +13,6 @@ type Props = {
     mutual: MutualLove[];
   };
 };
-
-function decadeLabel(d: number): string {
-  return `${String(d).slice(-2)}s`;
-}
 
 /** Who someone is, in one glance: what they watch, how they rate, what they love. */
 export default function TasteCard({ taste, compare }: Props) {
@@ -43,7 +39,7 @@ export default function TasteCard({ taste, compare }: Props) {
         {taste.topGenres.length > 0 && (
           <Stat label="Genres">
             <span className="flex flex-wrap gap-1.5 pt-1">
-              {taste.topGenres.map((g) => (
+              {taste.topGenres.slice(0, 3).map((g) => (
                 <span
                   key={g.name}
                   className="rounded-full border border-seam bg-tray px-2.5 py-0.5 text-xs text-paper"

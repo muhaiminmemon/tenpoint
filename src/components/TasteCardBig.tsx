@@ -1,0 +1,332 @@
+import Link from "next/link";
+import { accentFor, formatTenths } from "@/lib/format";
+import { posterUrl } from "@/lib/tmdb-urls";
+import type { HomeTasteCardData } from "@/lib/taste";
+
+function SectionLabel({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
+  return (
+    <div className="mb-1.5 flex items-center gap-2">
+      <span className="text-[8px] uppercase tracking-[0.18em] text-[#8a8a92]">{children}</span>
+      <span className="h-px flex-1 bg-[#1f1f25]" aria-hidden />
+      {right}
+    </div>
+  );
+}
+
+/**
+ * The big, detailed taste card — front and back — used inside the expanded
+ * popup. The home page shows a lighter teaser (`TasteFoilCard`); this is the
+ * "opened properly" version with the full rarity ribbon, movie DNA, profile
+ * stats and traits.
+ */
+export function TasteCardFrontBig({
+  data,
+  username,
+  displayName,
+  avatarUrl,
+  memberNumber,
+}: {
+  data: HomeTasteCardData;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  memberNumber: number;
+}) {
+  const { tier, variant } = data;
+  const genreDNA = data.genreShare.slice(0, 5).map((g) => ({
+    label: g.name,
+    pct: g.pct,
+    dot: accentFor(g.name),
+  }));
+  const signature = data.signatureFilms[0];
+
+  return (
+    <div className="relative flex flex-col p-4">
+      {tier.sheenOp >= 0.42 && (
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <span className="card-float-a absolute bottom-6 left-[18%] size-[3px] rounded-full bg-[rgba(217,178,95,.85)]" />
+          <span
+            className="card-float-b absolute bottom-3 left-[42%] size-[2px] rounded-full bg-[rgba(143,174,204,.8)]"
+            style={{ animationDelay: "1.4s" }}
+          />
+          <span
+            className="card-float-a absolute bottom-7 left-[66%] size-[3px] rounded-full bg-[rgba(217,178,95,.7)]"
+            style={{ animationDelay: ".8s" }}
+          />
+          <span
+            className="card-float-b absolute bottom-4 left-[82%] size-[2px] rounded-full bg-[rgba(143,174,204,.7)]"
+            style={{ animationDelay: "2.2s" }}
+          />
+        </div>
+      )}
+
+      {/* rarity ribbon */}
+      <div className="flex items-center justify-between">
+        <span
+          className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[.22em]"
+          style={{ color: tier.labelColor }}
+        >
+          <span aria-hidden>◆</span>
+          {tier.name}
+        </span>
+        <span className="flex flex-col items-end gap-px">
+          <span className="display text-[10px] uppercase tracking-[.1em]" style={{ color: variant.accentColor }}>
+            {variant.name || "—"}
+          </span>
+        </span>
+      </div>
+
+      {/* portrait */}
+      <div
+        className="relative mx-auto mt-3 size-[86px] rounded-full p-0.5"
+        style={{
+          background: `conic-gradient(from 28deg, ${variant.accentColor}, #8faecc, #c4756a, ${variant.accentColor})`,
+          boxShadow: `0 0 26px ${variant.accentColor}44`,
+        }}
+      >
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={avatarUrl} alt="" className="size-full rounded-full object-cover" />
+        ) : (
+          <span className="display flex size-full items-center justify-center rounded-full bg-tray text-2xl text-paper">
+            {displayName.slice(0, 1).toUpperCase()}
+          </span>
+        )}
+      </div>
+
+      {/* identity */}
+      <div className="mt-3 text-center">
+        <div className="display text-[22px] leading-none text-paper">{displayName.toUpperCase()}</div>
+        <div className="num mt-1 text-[11px] text-beam">@{username}</div>
+        {data.archetype && (
+          <div className="display mt-2 text-[14px]" style={{ color: variant.accentColor }}>
+            {data.archetype}
+          </div>
+        )}
+        {data.archetypeQuote && (
+          <p className="mx-4 mt-1.5 text-[11px] italic leading-snug text-ash">&ldquo;{data.archetypeQuote}&rdquo;</p>
+        )}
+      </div>
+
+      <div className="my-2.5 h-px bg-gradient-to-r from-transparent via-seam to-transparent" />
+
+      {/* movie DNA */}
+      {genreDNA.length > 0 && (
+        <div>
+          <SectionLabel right={<span className="text-[9px] uppercase tracking-[.12em] text-dim">by share</span>}>
+            Movie DNA
+          </SectionLabel>
+          <div className="flex flex-col gap-1.5">
+            {genreDNA.map((d) => (
+              <div key={d.label} className="flex items-center gap-2.5">
+                <span className="size-1.5 shrink-0 rounded-full" style={{ background: d.dot }} aria-hidden />
+                <span className="w-[92px] truncate text-[11px] text-[#d0d0d5]">{d.label}</span>
+                <span className="h-1 flex-1 overflow-hidden rounded-full bg-[#1f1f25]">
+                  <span
+                    className="block h-full rounded-full bg-gradient-to-r from-beam to-gold"
+                    style={{ width: `${Math.max(4, d.pct)}%` }}
+                  />
+                </span>
+                <span className="num w-6 shrink-0 text-right text-[10px] text-ash">{d.pct}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* signature + avg */}
+      <div className="mt-3 flex items-end justify-between">
+        <div className="flex items-center gap-2">
+          <div className="relative w-8 shrink-0 overflow-hidden rounded-[4px] border border-seam bg-tray" style={{ aspectRatio: "2/3" }}>
+            {signature &&
+              (posterUrl(signature.posterPath, "w154") ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={posterUrl(signature.posterPath, "w154")!} alt="" className="size-full object-cover" />
+              ) : null)}
+          </div>
+          <div>
+            <div className="text-[9px] uppercase tracking-[.1em] text-[#8a8a92]">Signature film</div>
+            <div className="display max-w-[120px] text-[12px] leading-tight text-paper">
+              {signature?.title ?? "—"}
+            </div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="num text-[30px] leading-none text-paper">
+            {data.mean !== null ? formatTenths(data.mean) : "—"}
+          </div>
+          <div className="mt-0.5 text-[9px] uppercase tracking-[.1em] text-[#8a8a92]">career avg</div>
+        </div>
+      </div>
+
+      {/* footer */}
+      <div className="mt-2.5 flex items-center justify-between border-t border-[#1c1c22] pt-2 text-[9px] uppercase tracking-[.08em] text-[#5a5a62]">
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="size-[5px] rounded-full"
+            style={{ background: "#d9b25f", boxShadow: "0 0 8px rgba(217,178,95,.6)" }}
+          />
+          <span className="text-[#6a6a72]">{data.traitsHeldCount} traits</span>
+        </span>
+        <span>No. {String(memberNumber).padStart(4, "0")}</span>
+      </div>
+    </div>
+  );
+}
+
+export function TasteCardBackBig({
+  data,
+  username,
+  displayName,
+}: {
+  data: HomeTasteCardData;
+  username: string;
+  displayName: string;
+}) {
+  const heldTraits = data.traits.filter((t) => t.held);
+
+  return (
+    // `relative` is load-bearing: the foil behind this face is absolutely
+    // positioned, and a static root would let it paint over the type.
+    <div className="relative flex flex-col gap-2.5 p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-[9px] uppercase tracking-[.18em] text-[#8a8a92]">Profile</div>
+          <div className="display text-[16px] text-paper">
+            {displayName} <span className="num text-[11px] text-beam">@{username}</span>
+          </div>
+        </div>
+        <span className="text-[9px] uppercase tracking-[.2em]" style={{ color: data.tier.labelColor }}>
+          ◆ {data.tier.name}
+        </span>
+      </div>
+
+      {data.profStats.length > 0 && (
+        <div>
+          <SectionLabel>Profile stats</SectionLabel>
+          <div className="grid grid-cols-5 gap-1.5">
+            {data.profStats.map((s) => (
+              <div key={s.label} className="rounded-[7px] border border-[#232329] bg-white/[.02] py-1.5 text-center">
+                <div className="num text-[14px] text-paper">{s.value}</div>
+                <div className="mt-0.5 text-[7px] uppercase tracking-[.04em] text-[#8a8a92]">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.personality.length > 0 && (
+        <div>
+          <SectionLabel>Personality</SectionLabel>
+          <div className="grid grid-cols-2 gap-x-3.5 gap-y-1.5">
+            {/* The four strongest of the profile, already sorted. The card
+                shows a reading on its own terms, because four shares of a
+                sixteen-part profile would print as single digits and read as
+                nothing; the profile that sums to 100 is in the binder. */}
+            {data.personality.slice(0, 4).map((p) => (
+              <div key={p.label}>
+                <div className="flex justify-between text-[10px] text-[#d0d0d5]">
+                  <span>{p.label}</span>
+                  <span className="num text-ash">{p.rawPct}%</span>
+                </div>
+                <span className="mt-0.5 block h-1 overflow-hidden rounded-full bg-[#1f1f25]">
+                  <span className="block h-full rounded-full bg-beam" style={{ width: `${Math.max(4, p.rawPct)}%` }} />
+                </span>
+              </div>
+            ))}
+          </div>
+          {/* Absent until enough of the library has vote data on file; a split
+              built mostly from unknowns is not a reading of anyone's taste. */}
+          {data.mainstreamPct !== null && data.indiePct !== null && (
+            <div className="mt-2">
+              <div className="flex justify-between text-[9px] uppercase tracking-[.06em] text-[#8a8a92]">
+                <span>Mainstream {data.mainstreamPct}</span>
+                <span>{data.indiePct} Indie</span>
+              </div>
+              <span className="mt-0.5 flex h-[5px] overflow-hidden rounded-full">
+                <span className="bg-[#3a3a44]" style={{ width: `${data.mainstreamPct}%` }} />
+                <span className="bg-beam" style={{ width: `${data.indiePct}%` }} />
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {data.favsCard.length > 0 && (
+        <div>
+          <SectionLabel>Favourites</SectionLabel>
+          <div className="flex flex-col gap-1">
+            {data.favsCard.map((f) => (
+              <div key={f.label} className="flex items-baseline justify-between border-b border-[#1a1a20] pb-1">
+                <span className="text-[9px] uppercase tracking-[.08em] text-[#8a8a92]">{f.label}</span>
+                <span className="display text-[12px] text-paper">{f.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.social.length > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          {data.social.map((s, i) => (
+            <div key={i} className="rounded-[7px] border border-[#232329] px-2.5 py-1.5">
+              <div className="text-[8px] uppercase tracking-[.1em] text-[#8a8a92]">
+                {i === 0 ? "Best match" : "Biggest rival"}
+              </div>
+              <div className="mt-0.5 flex items-baseline justify-between">
+                <span className="display text-[13px] text-paper">{s.name}</span>
+                <span className="num text-[12px]" style={{ color: s.color }}>
+                  {s.pct}%
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {heldTraits.length > 0 && (
+        <div>
+          <SectionLabel>
+            Traits · {data.traitsHeldCount} of {data.traitsTotal}
+          </SectionLabel>
+          <div className="flex flex-wrap gap-1">
+            {heldTraits.map((t) => (
+              <span
+                key={t.key}
+                className="rounded-full border border-[#3a3320] bg-[rgba(217,178,95,.05)] px-1.5 py-0.5 text-[8.5px] text-[#c9b48a]"
+              >
+                {t.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-1 text-center text-[9px] uppercase tracking-[.12em] text-[#5a5a62]">
+        Click to flip back
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The way through to the binder. Only the link: the binder page opens by
+ * explaining itself, so saying the same thing here first is a paragraph the
+ * reader has to get past twice.
+ */
+export function BinderLink() {
+  return (
+    <div>
+      <Link
+        href="/binder"
+        className="display flex items-center justify-between rounded-card border border-seam bg-[#1a1a1f] px-3.5 py-2.5 text-[13px] text-paper transition-colors hover:border-dim"
+      >
+        Open the binder
+        <span aria-hidden className="text-ash">
+          &rarr;
+        </span>
+      </Link>
+    </div>
+  );
+}

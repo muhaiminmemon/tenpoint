@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { getSessionUser } from "@/lib/auth";
+import { avatarSrc } from "@/lib/avatar";
 import { APP_POSITIONING } from "@/lib/brand";
 import { wallPosters } from "@/lib/posters";
 import { getGlobalTopRated } from "@/lib/leaderboard";
 import { topMoviesOfYear } from "@/lib/tmdb";
-import { getTasteProfile } from "@/lib/taste";
+import { buildHomeTasteCard, getTasteProfile } from "@/lib/taste";
+import { getRankedLibrary, getRecentViewings } from "@/lib/library";
 import { friendIdsOf } from "@/lib/social";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
@@ -31,11 +33,16 @@ export default async function Home() {
   const user = await getSessionUser();
 
   if (user) {
-    const [topRated, taste, friendIds] = await Promise.all([
+    const [topRated, taste, library, friendIds, recentViewings] = await Promise.all([
       getGlobalTopRated(10),
       getTasteProfile(user.id, { includePrivate: true }),
+      getRankedLibrary(user.id, { includePrivate: true }),
       friendIdsOf(user.id),
+      getRecentViewings(user.id, 6),
     ]);
+    const tasteCard = await buildHomeTasteCard(user.id, taste, library, friendIds, {
+      includePrivate: true,
+    });
 
     const displayLabel = user.displayName ?? user.username;
     const hasFriend = friendIds.length > 0;
@@ -60,9 +67,16 @@ export default async function Home() {
       <>
         <HomeLayout
           name={displayLabel}
-          taste={taste}
+          username={user.username}
+          displayName={displayLabel}
+          avatarUrl={avatarSrc(user.id, user.avatarUpdatedAt)}
+          userId={user.id}
+          memberNumber={user.memberNumber}
+          memberSince={new Date(user.createdAt).getFullYear()}
+          taste={tasteCard}
           hasFriend={hasFriend}
           quickRateFilms={quickRateFilms}
+          recentViewings={recentViewings}
         />
         <div className="pb-6">
           <TopRatedBoard films={topRated} />

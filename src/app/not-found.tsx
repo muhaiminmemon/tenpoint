@@ -5,7 +5,7 @@ export default function NotFound() {
     <div className="mx-auto max-w-md py-20 text-center">
       <h1 className="display text-2xl text-paper">Nothing here</h1>
       <p className="mt-3 text-sm text-ash">
-        That page, film, or profile doesn&apos;t exist — or it&apos;s private.
+        That page, film, or profile doesn&apos;t exist, or it&apos;s private.
       </p>
       <Link
         href="/"

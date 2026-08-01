@@ -46,6 +46,10 @@ export function ratingColor(tenths: number | null): string {
   return "text-ash";
 }
 
+export function decadeLabel(decade: number): string {
+  return `${String(decade).slice(-2)}s`;
+}
+
 export const RATING_ANCHORS: { range: string; meaning: string }[] = [
   { range: "9.0–10.0", meaning: "Exceptional: a personal favourite" },
   { range: "8.0–8.9", meaning: "Great" },

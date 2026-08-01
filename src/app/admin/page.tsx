@@ -161,7 +161,7 @@ export default async function AdminDashboard() {
         {totals.total_users > 2 && verifiedPct < 60 && (
           <p className="mt-3 text-xs text-warn">
             Most accounts never confirmed their address. That usually means verification mail is
-            landing in spam rather than that people chose not to — check the Resend dashboard for
+            landing in spam rather than that people chose not to. Check the Resend dashboard for
             delivered vs. bounced.
           </p>
         )}

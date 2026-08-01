@@ -62,7 +62,6 @@ export default function QuickRateDeck({ pool }: { pool: QuickRateFilm[] }) {
                   </span>
                 )}
                 <span className="mt-1.5 line-clamp-2 block text-[12px] text-paper">{f.title}</span>
-                <span className="block text-[11px] text-beam">+ rate</span>
               </Link>
             </li>
           );

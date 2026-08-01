@@ -8,6 +8,41 @@
       "when": 1785100143514,
       "tag": "0000_moaning_valkyrie",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785530215003,
+      "tag": "0001_white_shadow_king",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785533767543,
+      "tag": "0002_striped_talkback",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785537442546,
+      "tag": "0003_mute_amazoness",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785537451944,
+      "tag": "0004_chunky_nightshade",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785541528468,
+      "tag": "0005_collapse_variant_edges",
+      "breakpoints": true
     }
   ]
 }

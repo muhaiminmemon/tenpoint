@@ -232,56 +232,31 @@ function CalendarGrid({ monthKey: key, rows }: { monthKey: string; rows: DiaryRo
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1.5">
+      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
         {cells.map((day, i) => {
           if (day === null) return <div key={`pad-${i}`} />;
           const films = byDay.get(day) ?? [];
-          const first = films[0];
-          const cell = (
-            <div
-              className={`relative aspect-[1/1.05] overflow-hidden rounded-card border p-1.5 ${
-                first ? "border-seam bg-lift" : "border-tray bg-transparent"
-              }`}
-            >
-              <span className={`num text-[9px] sm:text-[11px] ${first ? "text-paper" : "text-dim"}`}>
-                {day}
-              </span>
-              {first && (
-                <div className="absolute inset-x-1.5 bottom-1.5">
-                  <div
-                    aria-hidden
-                    className="mb-1 h-[3px] w-5 rounded-sm"
-                    style={{ background: accentFor(first.slug) }}
-                  />
-                  <div className="flex items-center justify-between gap-1">
-                    <span className={`num text-[10px] sm:text-[13px] ${ratingColor(first.rating)}`}>
-                      {first.rating !== null ? formatTenths(first.rating) : ""}
-                    </span>
-                    {films.some((f) => f.rewatch) && (
-                      <span className="text-[9px] text-beam" title="Rewatch">
-                        ↺
-                      </span>
-                    )}
-                    {films.length > 1 && (
-                      <span className="num text-[9px] text-dim">+{films.length - 1}</span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-          return first ? (
+          if (films.length === 0) {
+            return (
+              <div
+                key={day}
+                className="relative aspect-[1/1.05] rounded-card border border-tray p-1 sm:p-1.5"
+              >
+                <span className="num text-[9px] text-dim sm:text-[11px]">{day}</span>
+              </div>
+            );
+          }
+          return (
             <button
               key={day}
               type="button"
               onClick={() => setOpenDay(day)}
+              aria-label={dayLabel(MONTHS[month - 1], day, films)}
               title={films.map((f) => f.title).join(", ")}
-              className="block text-left"
+              className="block rounded-card text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beam focus-visible:ring-offset-2 focus-visible:ring-offset-carbon"
             >
-              {cell}
+              <DayCell day={day} films={films} />
             </button>
-          ) : (
-            <div key={day}>{cell}</div>
           );
         })}
       </div>
@@ -330,6 +305,133 @@ function CalendarGrid({ monthKey: key, rows }: { monthKey: string; rows: DiaryRo
           })}
         </ul>
       </Sheet>
+    </div>
+  );
+}
+
+/**
+ * How many posters a day cell shows before it starts counting instead.
+ *
+ * Three, because the cell is one seventh of the grid: on a narrow phone that
+ * is roughly 40px, so a fourth slice would be too thin to read as a film. Days
+ * with more say so with a count rather than shrinking further.
+ */
+const POSTERS_PER_DAY = 3;
+
+/**
+ * The day's rating: the mean of whatever was rated that day, in tenths.
+ *
+ * One film is just that film's rating, so the cell has a single rule rather
+ * than one number for solo days and a different one for busy days. Unrated
+ * viewings are left out of the mean instead of counting as zero, and a day
+ * with nothing rated returns null rather than 0.0 — the product lets anyone
+ * log without rating, and a day of unrated viewings has no rating, which is
+ * not the same as a bad one.
+ *
+ * Tenths stay integers throughout: they are summed as integers and rounded
+ * back to an integer tenth before anything formats them, the same way the
+ * month's average above is taken.
+ */
+/**
+ * What a day cell reads as to a screen reader. The cell shows one number
+ * whether it covers one film or five, so this is where the difference is
+ * said out loud rather than left to be inferred from the artwork.
+ */
+function dayLabel(month: string, day: number, films: DiaryRow[]): string {
+  const titles = films.map((f) => f.title).join(", ");
+  const rating = dayAverage(films);
+  if (rating === null) return `${month} ${day}: ${titles}. Not rated.`;
+  return films.length === 1
+    ? `${month} ${day}: ${titles}, rated ${formatTenths(rating)}.`
+    : `${month} ${day}: ${titles}. ${films.length} films, averaging ${formatTenths(rating)}.`;
+}
+
+function dayAverage(films: DiaryRow[]): number | null {
+  const rated = films.filter((f) => f.rating !== null);
+  if (!rated.length) return null;
+  return Math.round(rated.reduce((s, f) => s + (f.rating ?? 0), 0) / rated.length);
+}
+
+/**
+ * A day of watching, drawn as the films themselves.
+ *
+ * The posters are the cell, sliced side by side and cropped — at this size a
+ * whole poster is unreadable anyway, so what survives is its colour and
+ * contrast, and a month of cells reads as a strip of what was actually
+ * watched. A film with no poster on file falls back to its own accent colour
+ * so the strip never gains a hole.
+ *
+ * Everything written on top sits over a scrim rather than beside the artwork,
+ * which is what keeps the day number and rating legible across posters this
+ * component cannot predict.
+ */
+function DayCell({ day, films }: { day: number; films: DiaryRow[] }) {
+  const shown = films.slice(0, POSTERS_PER_DAY);
+  const extra = films.length - shown.length;
+  const rating = dayAverage(films);
+
+  return (
+    <div className="relative aspect-[1/1.05] overflow-hidden rounded-card border border-seam bg-lift">
+      <span aria-hidden className="absolute inset-0 flex">
+        {shown.map((f, i) => {
+          const poster = posterUrl(f.posterPath, "w154");
+          // A hairline between films, so two posters of similar colour still
+          // read as two films rather than one wide image. Dark rather than
+          // light because it has to hold against artwork of any brightness.
+          const divide = i === 0 ? "" : "border-l border-[rgba(8,8,10,.7)]";
+          return poster ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={f.id}
+              src={poster}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className={`h-full min-w-0 flex-1 object-cover ${divide}`}
+            />
+          ) : (
+            <span
+              key={f.id}
+              className={`h-full min-w-0 flex-1 ${divide}`}
+              style={{ background: accentFor(f.slug) }}
+            />
+          );
+        })}
+      </span>
+
+      {/* Dark at top and bottom where the type sits, clearer through the
+          middle so the artwork still comes through. */}
+      <span
+        aria-hidden
+        className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,8,10,.78)_0%,rgba(8,8,10,.24)_42%,rgba(8,8,10,.86)_100%)]"
+      />
+
+      <span className="num absolute left-1 top-0.5 text-[9px] text-paper sm:left-1.5 sm:top-1 sm:text-[11px]">
+        {day}
+      </span>
+
+      {films.some((f) => f.rewatch) && (
+        <span
+          aria-hidden
+          className="absolute right-1 top-0.5 text-[9px] text-beam sm:right-1.5 sm:top-1"
+        >
+          ↺
+        </span>
+      )}
+
+      {rating !== null && (
+        <span
+          className={`num absolute bottom-0.5 left-1 text-[10px] sm:bottom-1 sm:left-1.5 sm:text-[13px] ${ratingColor(rating)}`}
+        >
+          {formatTenths(rating)}
+        </span>
+      )}
+
+      {extra > 0 && (
+        <span className="num absolute bottom-0.5 right-1 text-[9px] text-ash sm:bottom-1 sm:right-1.5">
+          +{extra}
+        </span>
+      )}
     </div>
   );
 }

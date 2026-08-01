@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
   open: boolean;
@@ -16,6 +17,15 @@ type Props = {
  * One panel, two shapes: a right-hand slide-over from `sm` up, a bottom sheet
  * below it. The page behind stays visible and in place, so logging a viewing
  * never navigates you off the film.
+ *
+ * Rendered into `document.body` through a portal rather than in place. `fixed`
+ * positions against the viewport only while no ancestor establishes a
+ * containing block, and a transform does establish one — including a transform
+ * that only exists inside an animation's keyframes. The diary's calendar sits
+ * inside `.fade-up`, which animates `translateY`, so an in-place sheet was
+ * being positioned against the calendar and then clipped by the card's
+ * `overflow-hidden`. Portalling fixes that everywhere at once instead of
+ * asking every future caller to know which ancestors are safe.
  */
 export default function Sheet({ open, onClose, title, subtitle, children }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -65,9 +75,12 @@ export default function Sheet({ open, onClose, title, subtitle, children }: Prop
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  // A portal contributes nothing where the component sits, so rendering null
+  // on the server and a portal on the client leaves the in-place DOM identical
+  // and hydration has nothing to reconcile.
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-40">
       <button
         type="button"
@@ -104,6 +117,7 @@ export default function Sheet({ open, onClose, title, subtitle, children }: Prop
 
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

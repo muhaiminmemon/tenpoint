@@ -32,11 +32,11 @@ export default function PrivacyPage() {
         <List>
           <li>
             <strong className="text-paper">Your account</strong>: username, email address, a
-            display name and bio if you set them, and your password — hashed with scrypt and a
-            per-account salt, never stored in a form anyone can read.
+            display name and bio if you set them, and your password, hashed with scrypt and a
+            per-account salt and never stored in a form anyone can read.
           </li>
           <li>
-            <strong className="text-paper">Your diary</strong>: every viewing you log — film, date,
+            <strong className="text-paper">Your diary</strong>: every viewing you log. Film, date,
             rating, review text, and whether you marked it a rewatch, a spoiler, or private.
           </li>
           <li>
@@ -60,7 +60,7 @@ export default function PrivacyPage() {
       <Section title="What isn't">
         <List>
           <li>No IP address logs, page-view history, or behavioural profile.</li>
-          <li>No third-party analytics or advertising code — there is none in the page.</li>
+          <li>No third-party analytics or advertising code. There is none in the page.</li>
           <li>No payment details, because nothing here costs money.</li>
         </List>
         <p className="mt-3">
@@ -90,7 +90,7 @@ export default function PrivacyPage() {
             <strong className="text-paper">TMDB</strong> supplies all film metadata and poster
             images. Posters are served from our own servers rather than loaded from theirs, so
             TMDB never sees your browser or your IP address. Searches you type are sent to TMDB to
-            look up films — <em>without</em> any identifier tying them to your account.
+            look up films, <em>without</em> any identifier tying them to your account.
           </li>
           <li>
             <strong className="text-paper">Our email provider</strong> receives your address when
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
             Settings
           </Link>{" "}
           has a one-click export of everything you&apos;ve logged, as JSON, plus CSVs shaped for
-          Letterboxd&apos;s importer. It is free, has no gate on it, and always will — there is no
+          Letterboxd&apos;s importer. It is free, has no gate on it, and always will. There is no
           paywall code in this project to switch on later.
         </p>
         <p className="mt-3">

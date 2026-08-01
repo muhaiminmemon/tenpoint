@@ -85,3 +85,64 @@ export async function getRankedLibrary(
 }
 
 export { formatTenths } from "./format";
+
+export type RecentViewing = {
+  entryId: string;
+  slug: string;
+  title: string;
+  year: number | null;
+  posterPath: string | null;
+  /** tenths as logged on this viewing; null = watched, not rated */
+  rating: number | null;
+  watchedOn: string | null;
+  rewatch: boolean;
+  hasReview: boolean;
+  /** how many times this film appears in the diary, this viewing included */
+  entryCount: number;
+};
+
+/**
+ * The last few viewings, newest first.
+ *
+ * One row per *viewing*, not per film, which is the point: a rewatch is its
+ * own line here even though the library collapses it. The rating shown is the
+ * one logged on that viewing rather than the film's current rating, so a row
+ * reads as what was actually written down at the time.
+ *
+ * Undated entries sort last within their created order rather than being
+ * dropped: a bulk import often has no watch dates at all, and a "recent"
+ * panel that renders empty for those libraries would be wrong about a record
+ * that is entirely present.
+ */
+export async function getRecentViewings(
+  userId: string,
+  limit = 6,
+): Promise<RecentViewing[]> {
+  const rows = await db.execute(sql`
+    select
+      d.id as entry_id,
+      f.slug, f.title, f.year, f.poster_path,
+      d.rating, d.watched_on, d.rewatch,
+      (d.review is not null and length(trim(d.review)) > 0) as has_review,
+      (select count(*) from diary_entries e
+        where e.user_id = d.user_id and e.film_id = d.film_id)::int as entry_count
+    from diary_entries d
+    join films f on f.id = d.film_id
+    where d.user_id = ${userId}
+    order by d.watched_on desc nulls last, d.created_at desc
+    limit ${limit}
+  `);
+
+  return (rows as unknown as Record<string, unknown>[]).map((r) => ({
+    entryId: r.entry_id as string,
+    slug: r.slug as string,
+    title: r.title as string,
+    year: r.year as number | null,
+    posterPath: r.poster_path as string | null,
+    rating: r.rating as number | null,
+    watchedOn: r.watched_on === null ? null : String(r.watched_on).slice(0, 10),
+    rewatch: r.rewatch as boolean,
+    hasReview: r.has_review as boolean,
+    entryCount: r.entry_count as number,
+  }));
+}

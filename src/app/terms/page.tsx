@@ -33,7 +33,7 @@ export default function TermsPage() {
       <Section title="What you write">
         <p>
           Your reviews, lists, and comments stay yours. By posting them here you give us
-          permission to store and display them within the product — to you, and to whoever your
+          permission to store and display them within the product: to you, and to whoever your
           privacy settings allow. That permission ends when you delete the content or your
           account.
         </p>
@@ -66,15 +66,15 @@ export default function TermsPage() {
           and remain subject to their terms. This product uses the TMDB API but is not endorsed or
           certified by TMDB. {APP_NAME} is an independent product and is not affiliated with,
           endorsed by, or connected to Letterboxd in any way. We describe ourselves as an
-          alternative to it, and the import feature reads the export files Letterboxd gives you —
-          that is the whole of the relationship. Letterboxd is their trademark, not ours.
+          alternative to it, and the import feature reads the export files Letterboxd gives you.
+          That is the whole of the relationship. Letterboxd is their trademark, not ours.
         </p>
       </Section>
 
       <Section title="No warranty">
         <p>
           This is provided as-is, with no guarantee of uptime, and no liability for lost data.
-          That&apos;s not a licence to be careless — but it is the honest position of a free
+          That&apos;s not a licence to be careless, but it is the honest position of a free
           project, which is exactly why{" "}
           <Link href="/settings" className="text-paper underline underline-offset-2">
             export
