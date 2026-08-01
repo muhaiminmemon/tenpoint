@@ -17,14 +17,20 @@ export const APP_DOMAIN = "tenpoint.site";
 export const APP_TAGLINE = "A film diary with ratings that mean something.";
 
 /**
- * Positioning, deliberately kept as body copy rather than baked into the name.
+ * Positioning, stated as what this product is rather than what it beats.
  *
- * Saying we're an alternative to Letterboxd is nominative fair use — the
- * ordinary, protected way to describe what a product competes with. Building
- * the brand *out of* their mark is not the same thing and is not protected,
- * which is why this sentence lives here and not in `APP_NAME`.
+ * An earlier line named a competitor directly. Naming one is legally fine —
+ * describing what you compete with is nominative fair use — but it makes the
+ * other product the subject of your own first sentence, and a reader has to
+ * know them to understand us. The claim is stronger made on its own terms: the
+ * scale is the argument, and anyone arriving from a five-star app recognises
+ * what it answers without being told.
+ *
+ * The trademark disclaimer in `/terms` still names them, deliberately. That
+ * one exists to disclaim a relationship, and it cannot do that job without
+ * saying whose relationship it is disclaiming.
  */
-export const APP_POSITIONING = "A better Letterboxd.";
+export const APP_POSITIONING = "Ratings that mean something.";
 
 /**
  * Fallback contact address for the legal pages, used when `CONTACT_EMAIL`
@@ -34,4 +40,4 @@ export const APP_POSITIONING = "A better Letterboxd.";
 export const SUPPORT_EMAIL = "support@tenpoint.site";
 
 export const APP_DESCRIPTION =
-  "A better Letterboxd. Log what you watch, rate it in tenths, keep your rewatch history honest, and find something to watch with a friend.";
+  "A film diary with ratings that mean something. Log what you watch, rate it in tenths, keep your rewatch history honest, and find something to watch with a friend.";

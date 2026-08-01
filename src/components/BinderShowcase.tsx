@@ -1,6 +1,7 @@
 import type { AxisRow, Binder, FinishState, PersonalityRow, TierRow } from "@/lib/binder";
 import type { StockDef } from "@/lib/taste-card";
 import FoilLight from "./FoilLight";
+import CardGrain from "./CardGrain";
 
 /**
  * Every finish the card can be dealt, and which of them are yours.
@@ -47,6 +48,7 @@ function TierSpecimen({ tier, held }: { tier: TierRow["tier"]; held: boolean }) 
       <span className="relative block size-full overflow-hidden rounded-[3px] bg-[linear-gradient(158deg,#18181e,#0f0f13)]">
         {/* A finish you hold catches the light. One you don't is the same foil,
             standing still — held back, not hidden. */}
+        <CardGrain intensity={tier.sheenOp} />
         <FoilLight intensity={tier.sheenOp} sweepSec={tier.sweepSec} still={!held} blurPx={4} />
         {!held && <Glassine />}
       </span>

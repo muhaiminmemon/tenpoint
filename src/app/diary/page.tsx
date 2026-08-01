@@ -49,7 +49,7 @@ export default async function DiaryPage() {
         <p className="text-ash">
           Nothing logged yet. Find a film up top, or{" "}
           <Link href="/import" className="text-paper underline">
-            import your Letterboxd history
+            import an existing diary
           </Link>
           .
         </p>

@@ -57,7 +57,7 @@ function EmptyRecord() {
         <span className="text-sm text-ash">
           Name one in the search above, or{" "}
           <Link href="/import" className="text-beam underline underline-offset-4">
-            import your Letterboxd history
+            import an existing diary
           </Link>
           .
         </span>

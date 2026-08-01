@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useToast } from "./Toast";
 import TasteCardDialog from "./TasteCardDialog";
 import FoilLight, { CARD_FOIL } from "./FoilLight";
+import CardGrain, { CARD_GRAIN } from "./CardGrain";
+import TiltCard from "./TiltCard";
 import { accentFor, formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import { RARITY_TIERS, stockDef } from "@/lib/taste-card";
@@ -96,6 +98,10 @@ export default function TasteFoilCard({
 
   return (
     <div>
+      {/* The tilt wraps the button alone, never this outer div: a transform
+          becomes the containing block for `position: fixed`, and the dialog
+          below would be positioned against the card instead of the viewport. */}
+      <TiltCard radius="20px">
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -123,6 +129,7 @@ export default function TasteFoilCard({
               }}
             />
           )}
+          <CardGrain intensity={tier.sheenOp} strength={CARD_GRAIN} />
           <FoilLight intensity={tier.sheenOp * CARD_FOIL} sweepSec={tier.sweepSec} />
 
           <div className="relative p-5">
@@ -222,6 +229,7 @@ export default function TasteFoilCard({
           </div>
         </div>
       </button>
+      </TiltCard>
 
       <div className="mx-auto mt-4 flex w-full gap-2.5">
         <button

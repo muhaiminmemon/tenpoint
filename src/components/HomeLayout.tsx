@@ -84,7 +84,7 @@ export default function HomeLayout({
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <div className="rounded-xl border border-seam bg-carbon p-5">
             <p className="text-[11px] uppercase tracking-[0.14em] text-ash">Coming from elsewhere?</p>
-            <h2 className="display mt-2 text-xl text-paper">Import your Letterboxd history</h2>
+            <h2 className="display mt-2 text-xl text-paper">Bring your existing diary</h2>
             <p className="mt-2 text-sm leading-relaxed text-ash">
               Upload the CSV, preview every row, undo anytime. Nothing is written until you confirm.
             </p>

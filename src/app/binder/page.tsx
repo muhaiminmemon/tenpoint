@@ -25,7 +25,7 @@ export default async function BinderPage() {
           <p className="mt-4 text-[15px] leading-relaxed text-paper">
             Nothing is yours yet. Rate a film and the first tier is issued;{" "}
             <Link href="/import" className="text-beam underline underline-offset-4">
-              importing your Letterboxd history
+              importing an existing diary
             </Link>{" "}
             is the fastest way there.
           </p>

@@ -36,6 +36,18 @@ body {
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  /* `.bleed` measures against the viewport, which includes the scrollbar, so
+     it overhangs by a scrollbar's width. `clip` trims that without the side
+     effects `hidden` has on sticky positioning. */
+  overflow-x: clip;
+}
+
+/* Escapes the centred column in `layout.tsx` so a section can run edge to
+   edge without every page having to own its own container. */
+.bleed {
+  width: 100vw;
+  max-width: 100vw;
+  margin-inline: calc(50% - 50vw);
 }
 
 /* ratings and anything columnar: decimal points must align */
@@ -203,6 +215,43 @@ body {
   animation: none;
 }
 
+/* The grain: a lit hotspot, banded into steps, printed through an ordered
+   dither.
+
+   Two devices doing what a shader does in one pass. The highlight is a radial
+   with hard stops rather than smooth ones, so it posterises itself into six
+   flat bands instead of blending — that is the quantisation. It is then masked
+   by an 8x8 Bayer matrix whose thresholds live in the alpha channel, so each
+   cell either passes light or holds it back, which is the dither. The result
+   is a finish that looks pressed onto stock rather than lit in software.
+
+   The tile is the same matrix the reference shader indexes into, baked to 193
+   bytes and inlined: no request to fail, nothing to animate, and it costs the
+   same on the twelve specimens in the binder as it does on one card. */
+.card-grain {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: var(--grain-op, 0);
+  background-image: radial-gradient(
+    115% 85% at 72% 18%,
+    rgba(255, 255, 255, 0.22) 0 15%,
+    rgba(255, 255, 255, 0.145) 15% 29%,
+    rgba(255, 255, 255, 0.085) 29% 45%,
+    rgba(255, 255, 255, 0.042) 45% 63%,
+    rgba(255, 255, 255, 0.016) 63% 81%,
+    transparent 81%
+  );
+  -webkit-mask-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAQAAABuBnYAAAAAiElEQVR42gXBEWACABAAwIdgEARBMAiCSRAEQTAYBMEgGARBEARBECRBEAwGg2AwCAZBEARBEARBEgRBEARBEAS3uxAGsn49GXnxF1ZenTRsVFy0QsFMypeShYxxuOnYeffQc/ARkj7lTSUM5UzCVtVV29qbs2YoW3r2o2gu7TvQd1R317VX+wcACl+hiw8ZNgAAAABJRU5ErkJggg==");
+  mask-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAQAAABuBnYAAAAAiElEQVR42gXBEWACABAAwIdgEARBMAiCSRAEQTAYBMEgGARBEARBECRBEAwGg2AwCAZBEARBEARBEgRBEARBEAS3uxAGsn49GXnxF1ZenTRsVFy0QsFMypeShYxxuOnYeffQc/ARkj7lTSUM5UzCVtVV29qbs2YoW3r2o2gu7TvQd1R317VX+wcACl+hiw8ZNgAAAABJRU5ErkJggg==");
+  -webkit-mask-size: 8px 8px;
+  mask-size: 8px 8px;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  image-rendering: pixelated;
+}
+
 /* Epic-tier-and-up taste cards: a few motes drifting up through the foil. */
 @keyframes card-float-a {
   0% {
@@ -317,6 +366,51 @@ body {
   }
 }
 
+/* The landing's one authored moment: the title rises a line at a time and the
+   objects settle onto it, once. Everything is legible from the first frame —
+   only position and shadow move, never opacity from zero, so a slow connection
+   never shows a blank hero. */
+@keyframes marquee-line {
+  from {
+    transform: translate3d(0, 0.14em, 0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.marquee-line {
+  animation: marquee-line 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes marquee-settle {
+  from {
+    transform: translate3d(0, 22px, 0) scale(0.97);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* The shadow is a resting property rather than a keyframe, so the objects keep
+   their depth when reduced motion switches the animation off. */
+.marquee-settle {
+  filter: drop-shadow(0 24px 38px rgba(0, 0, 0, 0.55));
+  animation: marquee-settle 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* The badge ring turns continuously, the way the foil shifts continuously:
+   ambient to the object, not part of the page entrance. */
+@keyframes marquee-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.marquee-ring {
+  animation: marquee-ring 24s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fade-up,
   .scrim-in,
@@ -327,7 +421,10 @@ body {
   .card-float-b,
   .card-tier-pop,
   .card-flash-out,
-  .plate-rule {
+  .plate-rule,
+  .marquee-line,
+  .marquee-settle,
+  .marquee-ring {
     animation: none;
   }
   /* the foil still reads as foil standing still */

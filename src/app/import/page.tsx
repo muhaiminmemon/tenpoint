@@ -10,7 +10,7 @@ export default async function ImportPage() {
 
   return (
     <div>
-      <h1 className="display mb-6 text-2xl">Import from Letterboxd</h1>
+      <h1 className="display mb-6 text-2xl">Import your diary</h1>
       <ImportWizard />
     </div>
   );

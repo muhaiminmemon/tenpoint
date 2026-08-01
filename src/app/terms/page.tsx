@@ -65,9 +65,10 @@ export default function TermsPage() {
           </a>{" "}
           and remain subject to their terms. This product uses the TMDB API but is not endorsed or
           certified by TMDB. {APP_NAME} is an independent product and is not affiliated with,
-          endorsed by, or connected to Letterboxd in any way. We describe ourselves as an
-          alternative to it, and the import feature reads the export files Letterboxd gives you.
-          That is the whole of the relationship. Letterboxd is their trademark, not ours.
+          endorsed by, or connected to Letterboxd in any way. The import and export features
+          read and write the CSV files their own tools produce, so that anyone can move a
+          history in or out without being held anywhere. That is the whole of the relationship.
+          Letterboxd is their trademark, not ours.
         </p>
       </Section>
 

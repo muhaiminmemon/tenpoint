@@ -35,14 +35,14 @@ export default async function LibraryPage() {
         <div className="max-w-md py-12">
           <p className="text-lg text-paper">Your library is empty.</p>
           <p className="mt-2 text-ash">
-            Import your Letterboxd history, or search a film up top and log your first viewing.
+            Import an existing diary, or search a film up top and log your first viewing.
           </p>
           <div className="mt-6 flex gap-4">
             <Link
               href="/import"
               className="rounded-card bg-paper px-4 py-2 text-sm font-medium text-carbon hover:bg-white"
             >
-              Import from Letterboxd
+              Import a diary
             </Link>
           </div>
         </div>

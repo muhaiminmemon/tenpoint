@@ -49,7 +49,7 @@ export default async function SettingsPage() {
           Export everything (JSON)
         </a>
 
-        <h3 className="mt-8 text-sm text-paper">Take it to Letterboxd</h3>
+        <h3 className="mt-8 text-sm text-paper">Take it elsewhere</h3>
         <p className="mt-1 text-sm text-ash">
           CSVs shaped for Letterboxd&apos;s importer. Their scale only goes to half stars, so
           ratings round to the nearest one: 8.7 becomes 4½★, 6.4 becomes 3★. Entries marked

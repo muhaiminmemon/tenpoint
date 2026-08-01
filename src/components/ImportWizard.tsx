@@ -66,7 +66,7 @@ export default function ImportWizard() {
   async function handleUpload() {
     const files = fileRef.current?.files;
     if (!files?.length) {
-      setError("Choose the CSV files from your Letterboxd export first.");
+      setError("Choose the CSV files from your export first.");
       return;
     }
     setError(null);
@@ -169,7 +169,7 @@ export default function ImportWizard() {
             type="file"
             accept=".csv,text/csv"
             multiple
-            aria-label="Letterboxd CSV files"
+            aria-label="Diary CSV files"
             className="text-sm text-ash file:mr-3 file:rounded-card file:border file:border-seam file:bg-tray file:px-3 file:py-1.5 file:text-paper hover:file:bg-tray-2"
           />
           <button

@@ -109,7 +109,7 @@ export default function RecsView({ friend }: { friend: string }) {
           a useful match.
         </p>
         <Link href="/import" className="mt-3 inline-block text-sm text-paper underline">
-          Import from Letterboxd
+          Import a diary
         </Link>
       </div>
     );

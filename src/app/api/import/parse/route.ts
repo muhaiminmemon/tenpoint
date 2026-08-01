@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   const form = await req.formData();
   const files = form.getAll("files").filter((f): f is File => f instanceof File);
   if (!files.length) {
-    return NextResponse.json({ error: "Choose at least one CSV from your Letterboxd export." }, { status: 400 });
+    return NextResponse.json({ error: "Choose at least one CSV from your diary export." }, { status: 400 });
   }
   if (files.length > MAX_FILES) {
     return NextResponse.json(
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   const tooBig = files.find((f) => f.size > MAX_FILE_BYTES);
   if (tooBig || totalBytes > MAX_TOTAL_BYTES) {
     return NextResponse.json(
-      { error: "That's larger than a Letterboxd export should ever be. Check the files." },
+      { error: "That's larger than a diary export should ever be. Check the files." },
       { status: 413 },
     );
   }
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error: unrecognized.length
-          ? `Couldn't read ${unrecognized.join(", ")}. Upload ratings.csv from your Letterboxd export.`
+          ? `Couldn't read ${unrecognized.join(", ")}. Upload ratings.csv from your export.`
           : "Those files contained no film rows.",
       },
       { status: 400 },

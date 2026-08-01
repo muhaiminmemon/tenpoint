@@ -3,6 +3,8 @@
 import { TasteCardBackBig, TasteCardFrontBig } from "./TasteCardBig";
 import type { HomeTasteCardData } from "@/lib/taste";
 import FoilLight, { CARD_FOIL } from "./FoilLight";
+import CardGrain, { CARD_GRAIN } from "./CardGrain";
+import TiltCard from "./TiltCard";
 import { stockDef } from "@/lib/taste-card";
 
 /**
@@ -36,8 +38,13 @@ export default function TasteCardFlip({
   const stock = stockDef(data.variant.stock);
   const glow = data.tier.glow;
 
+  // The tilt sits outside the flip rather than on it: the flipping button owns
+  // `rotateY(180deg)` and `preserve-3d`, and a second transform on the same
+  // node would overwrite the flip. Tilting the parent instead composes the way
+  // it does in the hand — the card turns over, and the whole thing leans.
   return (
-    <div className="mx-auto w-full max-w-[320px]" style={{ perspective: "1600px" }}>
+    <TiltCard radius="18px" maxTilt={4} className="mx-auto w-full max-w-[320px]">
+    <div className="w-full" style={{ perspective: "1600px" }}>
       <button
         type="button"
         onClick={onFlip}
@@ -69,6 +76,7 @@ export default function TasteCardFlip({
             {stock?.texture && (
               <span aria-hidden className="absolute inset-0" style={{ backgroundImage: stock.texture }} />
             )}
+            <CardGrain intensity={data.tier.sheenOp} strength={CARD_GRAIN} />
             <FoilLight intensity={data.tier.sheenOp * CARD_FOIL} sweepSec={data.tier.sweepSec} />
             <TasteCardFrontBig data={data} username={username} displayName={displayName} avatarUrl={avatarUrl} memberNumber={memberNumber} />
           </div>
@@ -98,11 +106,13 @@ export default function TasteCardFlip({
             {/* the back is the same piece of card stock, so it carries the same
                 stock and foil; a card finished on one side only reads as a
                 print, not an object */}
+            <CardGrain intensity={data.tier.sheenOp} strength={CARD_GRAIN} />
             <FoilLight intensity={data.tier.sheenOp * CARD_FOIL} sweepSec={data.tier.sweepSec} />
             <TasteCardBackBig data={data} username={username} displayName={displayName} />
           </div>
         </div>
       </button>
     </div>
+    </TiltCard>
   );
 }
