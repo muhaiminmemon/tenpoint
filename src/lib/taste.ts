@@ -3,7 +3,8 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import type { LibraryFilm } from "@/lib/library";
 import { decadeLabel, formatTenths } from "@/lib/format";
-import { CLUSTERS } from "@/lib/archetype-clusters";
+import { CLUSTERS, CLUSTER_PREVALENCE } from "@/lib/archetype-clusters";
+import { pickSignatureFilms } from "@/lib/signature-films";
 import {
   readArchetype,
   themeDNA,
@@ -244,7 +245,7 @@ export async function getBestMatchAndRival(
 
     const basis =
       agreement === null
-        ? `Read from the themes you both watch. ${common} films in common.`
+        ? `Read from what is unusual about each of your libraries. ${common} films in common.`
         : `${common} films in common, ${((r.avg_diff as number) / 10).toFixed(1)} apart on average.`;
 
     return {
@@ -259,17 +260,25 @@ export async function getBestMatchAndRival(
   scored.sort((a, b) => b.pct - a.pct);
   const best = { ...scored[0], color: "#8faecc" };
 
-  // A rival is somebody you genuinely disagree with, not merely the last name
-  // on a short list. With two friends the old rule made one of them a rival by
-  // arithmetic alone, which is both meaningless and a bit rude.
+  // Shown whenever there is somebody else to name. The only case still held
+  // back is a single friend, where the closest and the furthest would be the
+  // same person and the card would print them twice.
   const last = scored[scored.length - 1];
-  const rival =
-    scored.length >= 2 && last.pct <= best.pct - 10 && last.common >= 5
-      ? { ...last, color: "#c4756a" }
-      : null;
+  const rival = scored.length >= 2 ? { ...last, color: "#c4756a" } : null;
 
   return { bestMatch: best, rival: rival ?? best };
 }
+
+/**
+ * How many films to add of the ordinary library before a share is believed.
+ *
+ * Without it a small library dominates: four folk-horror films out of
+ * twenty-nine is 14% against a catalogue norm of 7%, which reads as twice as
+ * obsessed as somebody with forty of them out of three hundred. Pulling every
+ * share toward typical in proportion to how little evidence there is stops a
+ * thin library from out-shouting a thick one, in either direction.
+ */
+const SHARE_PRIOR = 10;
 
 /** A library as shares of the forty-three themes, for comparing two of them. */
 async function themeShares(userId: string): Promise<Record<string, number>> {
@@ -294,30 +303,50 @@ async function themeShares(userId: string): Promise<Record<string, number>> {
     }
   }
   if (films === 0) return {};
-  for (const k of Object.keys(counts)) counts[k] /= films;
-  return counts;
+
+  const shares: Record<string, number> = {};
+  for (const c of CLUSTERS) {
+    const prev = CLUSTER_PREVALENCE[c.key] ?? 0.05;
+    shares[c.key] = ((counts[c.key] ?? 0) + SHARE_PRIOR * prev) / (films + SHARE_PRIOR);
+  }
+  return shares;
 }
 
 /**
- * The angle between two libraries described as theme shares.
+ * How alike two libraries are, measured on what makes each unusual.
  *
- * Cosine rather than overlap count, so a small library and a large one that
- * lean the same way still read as alike: it compares the shape of two
- * appetites, not their size.
+ * Cosine on raw shares was nearly useless: every library carries some
+ * superheroes, some family drama, some crime, so four accounts came out
+ * between 72% and 84% of each other and the figure could not tell anybody
+ * apart. Sharing the things everybody shares is not a resemblance.
+ *
+ * Each share is therefore measured against what an ordinary library holds
+ * first, and the angle is taken between the two remainders. Now it is a
+ * comparison of what is distinctive about each person, it spans the whole
+ * range instead of a twelfth of it, and it can go properly negative: two
+ * people who over-index on opposite things are genuinely far apart, which is
+ * what "furthest" is supposed to mean.
+ *
+ * Still scale-free. A thirty-film library and a three-hundred-film one that
+ * lean the same way read as alike, because the angle between two directions
+ * says nothing about how long either arrow is.
  */
 function cosine(a: Record<string, number>, b: Record<string, number>): number {
   let dot = 0;
   let na = 0;
   let nb = 0;
   for (const c of CLUSTERS) {
-    const x = a[c.key] ?? 0;
-    const y = b[c.key] ?? 0;
+    const typical = CLUSTER_PREVALENCE[c.key] ?? 0.05;
+    const x = (a[c.key] ?? typical) - typical;
+    const y = (b[c.key] ?? typical) - typical;
     dot += x * y;
     na += x * x;
     nb += y * y;
   }
   if (na === 0 || nb === 0) return 0;
-  return dot / Math.sqrt(na * nb);
+  // −1 is opposite taste, 0 unrelated, 1 identical. Folded onto 0..1 so the
+  // blend below never has to reason about a negative share.
+  return (dot / Math.sqrt(na * nb) + 1) / 2;
 }
 
 // ---------------------------------------------------------------------------
@@ -327,12 +356,8 @@ function cosine(a: Record<string, number>, b: Record<string, number>): number {
 // is no separate "game state" table to keep in sync, except the once-a-season
 // binder stamp, which is a snapshot of this same derivation.
 
-export type SignatureFilm = {
-  slug: string;
-  title: string;
-  posterPath: string | null;
-  rating: number;
-};
+export type { SignatureFilm } from "./signature-films";
+import type { SignatureFilm } from "./signature-films";
 
 export type DecadeShare = { decade: number; count: number; pct: number };
 export type Stat = { label: string; value: string };
@@ -570,12 +595,6 @@ export async function buildHomeTasteCard(
 ): Promise<HomeTasteCardData> {
   const ratedFilms = library.filter((f) => f.rating !== null) as (LibraryFilm & { rating: number })[];
 
-  const signatureFilms: SignatureFilm[] = ratedFilms.slice(0, 4).map((f) => ({
-    slug: f.slug,
-    title: f.title,
-    posterPath: f.posterPath,
-    rating: f.rating,
-  }));
 
   const decadeCounts = new Map<number, number>();
   for (const f of ratedFilms) {
@@ -606,7 +625,7 @@ export async function buildHomeTasteCard(
       traitsHeldCount: 0,
       traitsTotal: 0,
       traitsHidden: 0,
-      signatureFilms,
+      signatureFilms: [],
       decadeBreakdown,
       ratings: [],
       profStats: [],
@@ -644,6 +663,13 @@ export async function buildHomeTasteCard(
   // binder cannot describe the same title differently.
   const read = readArchetype(taste.topGenres[0]?.name, taste.topGenres, signals);
   const archetype = taste.rated >= CLASS_THRESHOLD ? read.title : null;
+
+  // Picked after the signals, because every slot needs them: conviction is
+  // measured against this person's own mean and spread, and the last slot
+  // falls back to the theme the title is named after.
+  const signatureFilms = await pickSignatureFilms(userId, signals, read.themeKey, {
+    includePrivate,
+  });
 
   const traits = evaluateTraits(signals);
   const heldTraits = traits.filter((t) => t.held);

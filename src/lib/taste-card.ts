@@ -474,6 +474,8 @@ export type ArchetypeRead = {
   meaning: string;
   /** the title it nearly was, when there is one */
   nearMiss?: string;
+  /** the theme that named the card, for anything else that wants to agree with it */
+  themeKey: string | null;
 };
 
 type Reading = { word: string; meaning: string; score: number };
@@ -862,6 +864,7 @@ export function readArchetype(
       ` \u2014 ${times}\u00d7 what a shelf your size usually holds, and ${share}% of yours.`;
 
     return {
+      themeKey: top.cluster.key,
       title: `${top.cluster.name.replace(/^The /, `The ${modifier} `)}`,
       modifier,
       modifierMeaning,
@@ -886,6 +889,7 @@ export function readArchetype(
     : "No genre stands out in your rated films yet.";
 
   return {
+    themeKey: null,
     title: `The ${modifier} ${noun}`,
     modifier,
     modifierMeaning,

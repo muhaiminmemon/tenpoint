@@ -10,8 +10,11 @@
 // come from TMDB, on our own key, appended to a call the app already makes.
 //
 // Usage:
-//   node scripts/backfill-credits.mjs              # every film missing credits
+//   node scripts/backfill-credits.mjs              # every film missing anything
 //   node scripts/backfill-credits.mjs --limit 100  # a smaller bite
+//
+// Rate: roughly 30 a second, well inside TMDB's ceiling. A catalogue of ten
+// thousand takes about five minutes.
 //   node scripts/backfill-credits.mjs --all        # refresh films that have them
 //
 // Reads DATABASE_URL / TMDB_API_KEY from .env.local.
@@ -26,7 +29,10 @@ const arg = (name, fallback) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
-const LIMIT = arg("limit", 5000);
+// No cap by default. A default of a few thousand silently stops short on a
+// large catalogue and reports success, which reads as "everything is filled"
+// when a third of it is not.
+const LIMIT = arg("limit", 0) || 1_000_000;
 const ALL = process.argv.includes("--all");
 
 const { DATABASE_URL, TMDB_API_KEY } = process.env;
@@ -92,7 +98,26 @@ const missing = ALL
       order by popularity desc nulls last
       limit ${LIMIT}`;
 
-console.log(`\n  ${missing.length} films to fill.\n`);
+const [{ pending }] = ALL
+  ? [{ pending: missing.length }]
+  : await sql`
+      select count(*)::int as pending from films
+      where tmdb_id is not null
+        and (jsonb_typeof(cast_names) is distinct from 'array'
+             or jsonb_array_length(cast_names) = 0
+             or director is null
+             or runtime is null
+             or vote_count is null
+             or year is null
+             or genres is null
+             or jsonb_typeof(keywords) is distinct from 'array'
+             or jsonb_array_length(keywords) = 0)`;
+
+console.log(`\n  ${missing.length} films to fill.`);
+if (pending > missing.length) {
+  console.log(`  (${pending - missing.length} more are waiting; run again to continue.)`);
+}
+console.log("");
 
 let filled = 0;
 let blank = 0;

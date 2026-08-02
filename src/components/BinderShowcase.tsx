@@ -1,4 +1,8 @@
+import Link from "next/link";
 import type { AxisRow, Binder, FinishState, PersonalityRow, TierRow } from "@/lib/binder";
+import { SLOT_LABELS, SLOT_NOTES } from "@/lib/signature-films";
+import { posterUrl } from "@/lib/tmdb-urls";
+import { formatTenths, ratingColor } from "@/lib/format";
 import type { StockDef } from "@/lib/taste-card";
 import FoilLight from "./FoilLight";
 import CardGrain from "./CardGrain";
@@ -179,6 +183,84 @@ function ArchetypeSection({ binder }: { binder: Binder }) {
  */
 function segmentOpacity(i: number, total: number) {
   return total <= 1 ? 1 : 1 - (i / (total - 1)) * 0.62;
+}
+
+/**
+ * The four posters on the card, and the job each one is doing.
+ *
+ * Four unlabelled posters cannot explain themselves, and the selection is the
+ * least visible clever thing on the card: without this section nobody would
+ * ever learn that one of them is there because they rate it three points above
+ * everyone else.
+ */
+function SignatureSection({ films }: { films: Binder["signature"] }) {
+  if (films.length === 0) return null;
+
+  return (
+    <section aria-labelledby="signature" className="mb-16 scroll-mt-6">
+      <div className="flex items-center gap-3">
+        <span aria-hidden className="h-0.5 w-8 shrink-0 bg-ash" />
+        <span aria-hidden className="h-px flex-1 bg-seam" />
+      </div>
+      <div className="mt-5 max-w-[58ch]">
+        <h2 id="signature" className="display text-[26px] leading-none text-paper">
+          Signature films
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-ash">
+          The four films on your card. They are not your top four: the top of everybody&rsquo;s
+          list is the canon, and a film everyone loves says little about you. Each slot does a
+          different job instead, so the four together read as a portrait rather than a
+          leaderboard. No two of them come from the same director or the same theme unless
+          leaving a tile empty were the only alternative.
+        </p>
+      </div>
+
+      <ol className="mt-7 flex flex-col gap-5 border-b border-seam pb-6">
+        {films.map((f, i) => {
+          const poster = posterUrl(f.posterPath, "w154");
+          return (
+            <li key={f.slug} className="relative flex items-start gap-4 pt-5 first:pt-0">
+              {i > 0 && (
+                <span
+                  aria-hidden
+                  className="plate-rule absolute inset-x-0 top-0 h-px bg-seam"
+                  style={{ animationDelay: `${i * 40}ms` }}
+                />
+              )}
+              <Link
+                href={`/film/${f.slug}`}
+                className="block w-[54px] shrink-0 overflow-hidden rounded-[5px] border border-seam bg-tray"
+                style={{ aspectRatio: "2/3" }}
+              >
+                {poster && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={poster} alt="" loading="lazy" className="size-full object-cover" />
+                )}
+              </Link>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] uppercase tracking-[.14em] text-ash">
+                  {SLOT_LABELS[f.slot]}
+                </div>
+                <Link
+                  href={`/film/${f.slug}`}
+                  className="display mt-1 block text-[17px] leading-tight text-paper hover:underline"
+                >
+                  {f.title}
+                </Link>
+                <p className="mt-1 max-w-[52ch] text-sm leading-relaxed text-ash">{f.reason}</p>
+                <p className="mt-1 max-w-[52ch] text-[12.5px] leading-relaxed text-dim">
+                  {SLOT_NOTES[f.slot]}
+                </p>
+              </div>
+              <span className={`num shrink-0 text-[17px] ${ratingColor(f.rating)}`}>
+                {formatTenths(f.rating)}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
 }
 
 /**
@@ -384,6 +466,7 @@ export default function BinderShowcase({
       {!theirs && <ArchetypeSection binder={binder} />}
       <StarsSection />
       {!theirs && <ThemesSection themes={binder.themes} />}
+      {!theirs && <SignatureSection films={binder.signature} />}
       {!theirs && <PersonalitySection rows={binder.personality} />}
 
       {/* ---------------------------------------------------------------- tiers */}

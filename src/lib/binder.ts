@@ -28,6 +28,7 @@ import {
   type StockDef,
 } from "./taste-card";
 import { getTasteSignals } from "./taste-card-signals";
+import { pickSignatureFilms, type SignatureFilm } from "./signature-films";
 import {
   CLASS_THRESHOLD,
   computePersonality,
@@ -82,6 +83,8 @@ export type Binder = {
   personality: PersonalityRow[];
   /** the themes this library actually runs on, and what each one means */
   themes: ThemeReading[];
+  /** the four films on the card, and the job each one is doing */
+  signature: SignatureFilm[];
   /** null before anything is rated: no finish is in force yet */
   yoursVariant: string | null;
   yoursTier: RarityTier | null;
@@ -147,6 +150,9 @@ export async function loadBinder(user: { id: string }): Promise<Binder> {
     auras: AURA_DEFS.map((axis) => ({ axis, yours: hasCard && variant.aura === axis.name })),
     personality: computePersonality(taste, signals),
     themes: themeReadings(signals, 6),
+    signature: await pickSignatureFilms(user.id, signals, archetype?.themeKey ?? null, {
+      includePrivate: true,
+    }),
     yoursVariant,
     yoursTier: tier,
     archetype,
