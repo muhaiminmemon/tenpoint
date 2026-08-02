@@ -271,6 +271,11 @@ function PeopleSearch({ onChanged }: { onChanged: () => void }) {
   const [results, setResults] = useState<PersonResult[]>([]);
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [addError, setAddError] = useState<string | null>(null);
+  // Without these the search could only ever render results. A query that
+  // matched nothing and a request that failed both drew the same blank space,
+  // which is indistinguishable from the field being broken.
+  const [searching, setSearching] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const query = q.trim();
@@ -279,8 +284,12 @@ function PeopleSearch({ onChanged }: { onChanged: () => void }) {
     const t = setTimeout(async () => {
       if (query.length < 2) {
         setResults([]);
+        setSearching(false);
+        setFailed(false);
         return;
       }
+      setSearching(true);
+      setFailed(false);
       try {
         const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
           signal: ac.signal,
@@ -289,7 +298,13 @@ function PeopleSearch({ onChanged }: { onChanged: () => void }) {
         if (ac.signal.aborted) return;
         setResults(data.results ?? []);
       } catch {
-        if (!ac.signal.aborted) setResults([]);
+        // An aborted request is the next keystroke arriving, not a failure.
+        if (!ac.signal.aborted) {
+          setResults([]);
+          setFailed(true);
+        }
+      } finally {
+        if (!ac.signal.aborted) setSearching(false);
       }
     }, 250);
     return () => {
@@ -318,13 +333,24 @@ function PeopleSearch({ onChanged }: { onChanged: () => void }) {
       <label htmlFor="people-search" className="mb-1 block text-sm text-ash">
         Find people
       </label>
+      {/* A phone keyboard treats a bare text field as prose: it capitalises the
+          first letter and autocorrects as you go, so "hamza" is offered as
+          "Hamza" and can be rewritten into a real word outright. Case is
+          handled server-side, but a substituted word is a different query, and
+          it only ever happens on touch — which is why this read as a
+          phone-only fault. */}
       <input
         id="people-search"
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Username or name"
-        className="w-full rounded-card border border-seam bg-tray px-3 py-2 text-sm placeholder:text-ash focus:border-beam focus:outline-none"
+        autoCapitalize="none"
+        autoCorrect="off"
+        autoComplete="off"
+        spellCheck={false}
+        enterKeyHint="search"
+        className="w-full rounded-card border border-seam bg-tray px-3 py-2 text-base placeholder:text-ash focus:border-beam focus:outline-none sm:text-sm"
       />
       {results.length > 0 && (
         <ul className="mt-2 divide-y divide-seam rounded-card border border-seam bg-tray">
@@ -348,6 +374,18 @@ function PeopleSearch({ onChanged }: { onChanged: () => void }) {
             </li>
           ))}
         </ul>
+      )}
+      {q.trim().length >= 2 && !searching && results.length === 0 && (
+        <p className="mt-2 text-sm text-ash">
+          {failed ? (
+            "Couldn't reach the server. Check your connection and try again."
+          ) : (
+            <>
+              No one found. People show up here once they&apos;ve confirmed their email, so a
+              friend who just signed up may need to check their inbox first.
+            </>
+          )}
+        </p>
       )}
       {addError && <p className="mt-2 text-sm text-warn">{addError}</p>}
     </section>
