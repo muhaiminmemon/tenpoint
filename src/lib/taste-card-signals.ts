@@ -50,12 +50,14 @@ export type TasteSignals = {
   /** among rated films with a runtime on file */
   avgRuntime: number | null;
   /**
-   * Rated films at 2,000 ratings or more, anywhere.
+   * Rated films with 50,000 ratings or more, anywhere.
    *
    * The same line the personality profile's "Widely seen" band starts at, so
    * the trait, the archetype and the profile all cut the library in the same
    * place. They used to disagree: a card could call a library 95% mainstream
    * on one bar and mostly middling on another, both true and both unhelpful.
+   *
+   * Counted on IMDb rather than TMDB, for the reason given on `reach` above.
    */
   mainstreamCount: number;
   /**
@@ -170,7 +172,15 @@ export async function getTasteSignals(
     ),
     cur_f as (
       select cur.*, f.genres, f.year, f.director, f.runtime, f.vote_count, f.original_language,
-             f.cast_names, f.rt_score, f.imdb_rating
+             f.cast_names, f.rt_score, f.imdb_rating,
+             -- How many people have rated it anywhere, rather than on TMDB.
+             -- TMDB's audience is Western enough that its counts measure where
+             -- a film was released more than how many saw it: English films
+             -- here average 11,742 votes and Hindi films 787. IMDb is far from
+             -- neutral but it is not fifteen times off, and when it is missing
+             -- the TMDB count is scaled to the same order rather than left to
+             -- make every non-Hollywood film look unseen.
+             coalesce(f.imdb_votes, f.vote_count * 50) as reach
       from cur join films f on f.id = cur.film_id
     ),
     genre_counts as (
@@ -253,8 +263,8 @@ export async function getTasteSignals(
       (select count(*) from all_entries where watched_on is not null and film_year is not null and extract(year from watched_on)::int = film_year)::int as same_year_watch_count,
       (select decade from decade_counts where count >= 3 order by avg_rating desc limit 1) as top_rated_decade,
       (select avg(runtime)::float from cur_f where runtime is not null) as avg_runtime,
-      (select count(*) from cur_f where vote_count is not null and vote_count >= 2000)::int as mainstream_count,
-      (select count(*) from cur_f where vote_count is not null)::int as vote_known_count,
+      (select count(*) from cur_f where reach >= 50000)::int as mainstream_count,
+      (select count(*) from cur_f where reach is not null)::int as vote_known_count,
       coalesce((select sum(runtime)::int from cur_f where runtime is not null), 0) as total_runtime_minutes,
       (select count(*) from cur_f where genres is not null and jsonb_array_length(genres) > 0)::int as genre_tagged_count,
       (select count(*) from cur_f cf join favourites fav on fav.film_id = cf.film_id and fav.user_id = ${userId})::int as favourite_count,
@@ -278,10 +288,10 @@ export async function getTasteSignals(
       (select count(*) from cur_f where runtime >= 150)::int as run_epic,
 
       -- reach bands, over films whose vote count is on file
-      (select count(*) from cur_f where vote_count >= 10000)::int as reach_everyone,
-      (select count(*) from cur_f where vote_count >= 2000 and vote_count < 10000)::int as reach_wide,
-      (select count(*) from cur_f where vote_count >= 500 and vote_count < 2000)::int as reach_some,
-      (select count(*) from cur_f where vote_count is not null and vote_count < 500)::int as reach_few,
+      (select count(*) from cur_f where reach >= 250000)::int as reach_everyone,
+      (select count(*) from cur_f where reach >= 50000 and reach < 250000)::int as reach_wide,
+      (select count(*) from cur_f where reach >= 5000 and reach < 50000)::int as reach_some,
+      (select count(*) from cur_f where reach is not null and reach < 5000)::int as reach_few,
 
       -- viewings, split in two
       (select count(*) from all_entries where rewatch is not true)::int as view_first,
@@ -303,8 +313,8 @@ export async function getTasteSignals(
       (select count(*) from cur_f where imdb_rating is not null)::int as imdb_known_count,
 
       -- opinion axes: each side needs 10 films or the comparison is noise
-      (select case when count(*) >= 10 then avg(rating) end from cur_f where vote_count is not null and vote_count < 2000) as mean_obscure,
-      (select case when count(*) >= 10 then avg(rating) end from cur_f where vote_count >= 2000) as mean_famous,
+      (select case when count(*) >= 10 then avg(rating) end from cur_f where reach < 50000) as mean_obscure,
+      (select case when count(*) >= 10 then avg(rating) end from cur_f where reach >= 50000) as mean_famous,
       (select case when count(*) >= 10 then avg(rating) end from cur_f where year is not null and year < 1990) as mean_old,
       (select case when count(*) >= 10 then avg(rating) end from cur_f where year is not null and year >= 1990) as mean_new,
       (select case when count(*) >= 10 then avg(rating) end from cur_f where original_language = 'en') as mean_english,

@@ -44,7 +44,7 @@ export const SLOT_LABELS: Record<SignatureSlot, string> = {
 export const SLOT_NOTES: Record<SignatureSlot, string> = {
   anchor: "The film you would name first: your highest conviction, and the one most people will know.",
   divergence: "Where you and the crowd disagree most, in your favour. A film everybody loves says less about you than one only you do.",
-  deepcut: "The film you rate highly that almost nobody has rated at all.",
+  deepcut: "Of the films you rate highly, the one the fewest people anywhere have rated.",
   regular: "The film you have gone back to most. Returning to something is a signature by definition.",
   theme: "The clearest evidence for the theme your card is named after.",
 };
@@ -57,6 +57,8 @@ type Candidate = {
   director: string | null;
   imdbRating: number | null;
   voteCount: number | null;
+  /** how many people have rated it on IMDb: the least parochial count we hold */
+  imdbVotes: number | null;
   viewings: number;
   /** the most specific theme this film belongs to, for keeping the four apart */
   primaryTheme: string | null;
@@ -64,11 +66,19 @@ type Candidate = {
 };
 
 /**
- * Votes below which a low count means "nobody filled this in" rather than
- * "nobody has seen it". Two films in the test data carry zero, with no other
- * metadata either.
+ * Ratings below which a low count means "nobody filled this in" rather than
+ * "nobody has seen it".
+ *
+ * Counted on IMDb rather than TMDB, because TMDB's audience is overwhelmingly
+ * Western and its counts say more about where a film was released than about
+ * how many people saw it. Yeh Jawaani Hai Deewani carries 307 TMDB votes and
+ * 54,074 IMDb ones; 3 Idiots, 2,774 against 474,710. English films here average
+ * 11,742 TMDB votes and Hindi films 787, a fifteenfold gap that is an artefact
+ * of the platform. Ranked on that, the deep-cut slot was really a
+ * "not made in Hollywood" slot, which is a different and much worse thing to
+ * put on somebody's card.
  */
-const DEEP_CUT_FLOOR = 50;
+const DEEP_CUT_FLOOR = 1_000;
 
 /** Viewings that make a film a habit rather than a repeat. */
 const REGULAR_VIEWINGS = 3;
@@ -93,7 +103,7 @@ export async function pickSignatureFilms(
       where user_id = ${userId} and ${privacy} group by film_id
     )
     select f.slug, f.title, f.poster_path, f.director, f.imdb_rating, f.vote_count,
-           f.keywords, c.rating, coalesce(v.n, 1) as viewings
+           f.imdb_votes, f.keywords, c.rating, coalesce(v.n, 1) as viewings
     from cur c
     join films f on f.id = c.film_id
     left join views v on v.film_id = c.film_id
@@ -122,6 +132,7 @@ export async function pickSignatureFilms(
       director: (r.director as string) ?? null,
       imdbRating: (r.imdb_rating as number) ?? null,
       voteCount: (r.vote_count as number) ?? null,
+      imdbVotes: (r.imdb_votes as number) ?? null,
       viewings: r.viewings as number,
       primaryTheme,
       themes,
@@ -230,19 +241,21 @@ export async function pickSignatureFilms(
     );
   }
 
-  // 3. the deep cut: loved, and almost unrated anywhere
+  // 3. the deep cut: loved, and genuinely unrated anywhere. Films with no IMDb
+  // count on file sit this slot out rather than being guessed at from TMDB's
+  // count, which would put them straight back at the bottom.
   const buried = best(
     (s) =>
       candidates.filter(
-        (c) => free(c, s) && strong(c) && (c.voteCount ?? 0) >= DEEP_CUT_FLOOR,
+        (c) => free(c, s) && strong(c) && (c.imdbVotes ?? 0) >= DEEP_CUT_FLOOR,
       ),
-    (list) => [...list].sort((a, b) => (a.voteCount ?? 0) - (b.voteCount ?? 0))[0],
+    (list) => [...list].sort((a, b) => (a.imdbVotes ?? 0) - (b.imdbVotes ?? 0))[0],
   );
   if (buried) {
     take(
       buried,
       "deepcut",
-      `Only ${(buried.voteCount ?? 0).toLocaleString()} people have rated this anywhere.`,
+      `Only ${(buried.imdbVotes ?? 0).toLocaleString()} people have rated this on IMDb.`,
     );
   }
 
@@ -273,7 +286,7 @@ export async function pickSignatureFilms(
     const composite = (c: Candidate) =>
       z(c) +
       0.8 * norm(Math.max(0, gap(c)), maxGap) +
-      0.5 * (c.voteCount ? 1 - norm(Math.log10(c.voteCount + 1), 5) : 0) +
+      0.5 * (c.imdbVotes ? 1 - norm(Math.log10(c.imdbVotes + 1), 7) : 0) +
       0.4 * (themeKey && c.themes.has(themeKey) ? 1 : 0) +
       0.3 * norm(c.viewings, maxViews);
 
