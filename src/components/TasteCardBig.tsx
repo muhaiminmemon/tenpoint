@@ -103,8 +103,8 @@ export function TasteCardFrontBig({
             {data.archetype}
           </div>
         )}
-        {data.archetypeQuote && (
-          <p className="mx-4 mt-1.5 text-[11px] italic leading-snug text-ash">&ldquo;{data.archetypeQuote}&rdquo;</p>
+        {data.archetypeMeaning && (
+          <p className="mx-4 mt-1.5 text-[11px] leading-snug text-ash">{data.archetypeMeaning}</p>
         )}
       </div>
 

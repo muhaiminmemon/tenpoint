@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { usePresence } from "@/lib/usePresence";
 
 type Props = {
   open: boolean;
@@ -30,6 +31,7 @@ type Props = {
 export default function Sheet({ open, onClose, title, subtitle, children }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocus = useRef<HTMLElement | null>(null);
+  const { rendered, state } = usePresence(open, 180);
 
   useEffect(() => {
     if (!open) return;
@@ -78,7 +80,8 @@ export default function Sheet({ open, onClose, title, subtitle, children }: Prop
   // A portal contributes nothing where the component sits, so rendering null
   // on the server and a portal on the client leaves the in-place DOM identical
   // and hydration has nothing to reconcile.
-  if (!open || typeof document === "undefined") return null;
+  if (!rendered || typeof document === "undefined") return null;
+  const leaving = state === "out";
 
   return createPortal(
     <div className="fixed inset-0 z-40">
@@ -86,7 +89,7 @@ export default function Sheet({ open, onClose, title, subtitle, children }: Prop
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="scrim-in absolute inset-0 w-full cursor-default bg-[rgba(8,8,10,.6)] backdrop-blur-[1px]"
+        className={`${leaving ? "scrim-out" : "scrim-in"} absolute inset-0 w-full cursor-default bg-[rgba(8,8,10,.6)] backdrop-blur-[1px]`}
       />
       <div
         ref={panelRef}
@@ -94,7 +97,7 @@ export default function Sheet({ open, onClose, title, subtitle, children }: Prop
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="sheet-in absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-[20px] border-t border-seam bg-lift px-4 pb-6 pt-3 shadow-[0_-20px_50px_rgba(0,0,0,.5)] outline-none sm:inset-y-0 sm:left-auto sm:right-0 sm:max-h-none sm:w-[440px] sm:max-w-full sm:rounded-none sm:border-l sm:border-t-0 sm:px-6 sm:py-5 sm:shadow-[-20px_0_60px_rgba(0,0,0,.5)]"
+        className={`${leaving ? "sheet-out" : "sheet-in"} absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-[20px] border-t border-seam bg-lift px-4 pb-6 pt-3 shadow-[0_-20px_50px_rgba(0,0,0,.5)] outline-none sm:inset-y-0 sm:left-auto sm:right-0 sm:max-h-none sm:w-[440px] sm:max-w-full sm:rounded-none sm:border-l sm:border-t-0 sm:px-6 sm:py-5 sm:shadow-[-20px_0_60px_rgba(0,0,0,.5)]`}
       >
         {/* grab handle reads as "drag me" on touch; decorative on desktop */}
         <div aria-hidden className="mx-auto mb-3.5 h-1 w-9 rounded-full bg-seam sm:hidden" />

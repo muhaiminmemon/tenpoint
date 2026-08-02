@@ -5,6 +5,7 @@ import Link from "next/link";
 import { accentFor, formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import Sheet from "./Sheet";
+import AutoHeight from "./AutoHeight";
 
 export type DiaryRow = {
   id: string;
@@ -157,21 +158,25 @@ export default function DiaryView({ rows }: { rows: DiaryRow[] }) {
         </div>
       )}
 
-      <div className="p-4">
+      {/* A month is a fixed-size thing, and months differ by a whole row, so
+          the grid is worth easing between: paging back through the year should
+          feel like turning pages rather than the card snapping taller and
+          shorter. The key makes each month replay its own rules drawing in. */}
+      <AutoHeight innerClassName="p-4">
         {filtered.length === 0 ? (
           <p className="py-8 text-sm text-ash">
             {query ? "Nothing matches that." : "Nothing logged yet."}
           </p>
         ) : view === "calendar" ? (
           active ? (
-            <CalendarGrid monthKey={active} rows={inMonth} />
+            <CalendarGrid key={active} monthKey={active} rows={inMonth} />
           ) : (
             <p className="py-8 text-sm text-ash">No dated viewings to show.</p>
           )
         ) : (
           <Timeline rows={filtered} />
         )}
-      </div>
+      </AutoHeight>
     </div>
   );
 }

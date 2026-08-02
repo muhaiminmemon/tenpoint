@@ -19,7 +19,7 @@ import CardGrain from "./CardGrain";
  */
 
 const STATE_LABEL: Record<FinishState, string> = {
-  yours: "Yours",
+  yours: "Held now",
   held: "Held",
   unheld: "Not held",
 };
@@ -129,9 +129,6 @@ function ArchetypeSection({ binder }: { binder: Binder }) {
       ) : (
         <div className="mt-7 border-y border-seam py-6">
           <div className="display text-[30px] leading-none text-paper">{a.name}</div>
-          <p className="display mt-3 max-w-[46ch] text-[15px] leading-snug text-beam">
-            &ldquo;{a.quote}&rdquo;
-          </p>
 
           <dl className="mt-6 grid gap-x-10 gap-y-4 sm:grid-cols-2">
             <div>
@@ -250,11 +247,27 @@ function PersonalitySection({ rows }: { rows: PersonalityRow[] }) {
   );
 }
 
-export default function BinderShowcase({ binder }: { binder: Binder }) {
+export default function BinderShowcase({
+  binder,
+  /**
+   * Whose binder this is, when it is not the reader's own.
+   *
+   * A friend's binder drops the Archetype and Personality sections rather than
+   * rewording them. Both are readings *of a person* rather than finishes they
+   * hold, their sentences are generated in the data layer in the second
+   * person, and the profile that linked here already shows the archetype on
+   * the card. What remains is the catalogue, which is the part worth visiting.
+   */
+  person,
+}: {
+  binder: Binder;
+  person?: string;
+}) {
+  const theirs = person !== undefined;
   return (
     <div>
-      <ArchetypeSection binder={binder} />
-      <PersonalitySection rows={binder.personality} />
+      {!theirs && <ArchetypeSection binder={binder} />}
+      {!theirs && <PersonalitySection rows={binder.personality} />}
 
       {/* ---------------------------------------------------------------- tiers */}
       <section aria-labelledby="tiers" className="scroll-mt-6">
@@ -268,7 +281,7 @@ export default function BinderShowcase({ binder }: { binder: Binder }) {
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-ash">
             Six finishes, in order. Each one is issued at a count of rated films, so every tier
-            below yours is one you came through.
+            below the current one was genuinely passed through.
           </p>
         </div>
 
@@ -295,7 +308,7 @@ export default function BinderShowcase({ binder }: { binder: Binder }) {
                     </div>
                     <p className="mt-1 text-sm text-ash">
                       {row.tier.index === 0
-                        ? "Issued with the first film you rate."
+                        ? "Issued with the first film rated."
                         : `Issued at ${row.tier.floor} films rated.`}{" "}
                       {row.tier.effect}
                     </p>
@@ -319,8 +332,8 @@ export default function BinderShowcase({ binder }: { binder: Binder }) {
             Variants
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-ash">
-            Six stocks: the ground your card is printed on. Stock reads the genre leading your
-            rated films, so it is never chosen and it moves when your taste does. Rate enough of
+            Six stocks: the ground the card is printed on. Stock reads the genre leading the
+            rated films, so it is never chosen and it moves when taste does. Rate enough of
             something else and the card is dealt on different stock.
           </p>
         </div>
@@ -356,10 +369,10 @@ export default function BinderShowcase({ binder }: { binder: Binder }) {
             [
               {
                 title: "Accent",
-                note: "The decade you rate highest, once at least three films sit in it. Not the decade you watch most.",
+                note: "The decade rated highest, once at least three films sit in it. Not the decade watched most.",
                 rows: binder.accents,
               },
-              { title: "Aura", note: "Your average, read as a whole.", rows: binder.auras },
+              { title: "Aura", note: "The average, read as a whole.", rows: binder.auras },
             ] as { title: string; note: string; rows: AxisRow[] }[]
           ).map((group) => (
             <div key={group.title}>

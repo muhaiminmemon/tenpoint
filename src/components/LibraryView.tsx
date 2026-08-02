@@ -224,14 +224,22 @@ export default function LibraryView({ films, editable }: Props) {
             ? "No favourites yet. Tap the star on a poster to mark one."
             : "No films match those filters."}
         </p>
-      ) : view === "ledger" ? (
-        dragEnabled ? (
-          <RankedLedger films={shown} onReorder={setItems} all={items} />
-        ) : (
-          <FlatLedger films={shown} showRank={sort === "rating"} />
-        )
       ) : (
-        <Shelf films={shown} editable={editable} onToggleFavourite={toggleFavourite} />
+        // Keyed so switching between the shelf and the ledger plays an
+        // entrance. The height is deliberately not eased: these lists run to
+        // hundreds of rows, and animating between two of them would be a long
+        // slow scroll nobody asked for.
+        <div key={view} className="pop-in">
+          {view === "ledger" ? (
+            dragEnabled ? (
+              <RankedLedger films={shown} onReorder={setItems} all={items} />
+            ) : (
+              <FlatLedger films={shown} showRank={sort === "rating"} />
+            )
+          ) : (
+            <Shelf films={shown} editable={editable} onToggleFavourite={toggleFavourite} />
+          )}
+        </div>
       )}
 
       {visible.length > 0 && (

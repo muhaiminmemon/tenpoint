@@ -3,7 +3,7 @@ import { db } from "@/db";
 import type { LibraryFilm } from "@/lib/library";
 import { decadeLabel, formatTenths } from "@/lib/format";
 import {
-  archetypeQuote,
+  archetypeMeaning,
   ARCHETYPE_BY_GENRE,
   computeTier,
   computeVariant,
@@ -18,7 +18,6 @@ import {
   type Variant,
 } from "@/lib/taste-card";
 import { getTasteSignals, type TasteSignals } from "@/lib/taste-card-signals";
-import { recordHeldVariant } from "@/lib/variant-history";
 
 export type TasteProfile = {
   /** films with a rating; the basis for everything else here */
@@ -495,7 +494,8 @@ function asProfileShares(
 export type HomeTasteCardData = TasteProfile & {
   /** null until 5 films are rated — there isn't enough signal to name a class before that */
   archetype: string | null;
-  archetypeQuote: string;
+  /** the plain sentence naming the decade and genre the title came from */
+  archetypeMeaning: string;
   /** the full tiered, flippable card takes over at this threshold */
   full: boolean;
   /** how many more ratings unlock the full card; 0 once `full` is true */
@@ -579,7 +579,7 @@ export async function buildHomeTasteCard(
     return {
       ...taste,
       archetype: null,
-      archetypeQuote: "",
+      archetypeMeaning: "",
       full,
       toFull: FULL_CARD_THRESHOLD,
       tier,
@@ -633,14 +633,10 @@ export async function buildHomeTasteCard(
     ? Math.round((signals.mainstreamCount / signals.voteKnownCount) * 100)
     : null;
 
-  // The card is the only place that knows which finish is in force, so it is
-  // also where the finish gets written into the user's history.
-  await recordHeldVariant(userId, variant.name);
-
   return {
     ...taste,
     archetype,
-    archetypeQuote: archetypeQuote(taste.topGenres[0]?.name),
+    archetypeMeaning: archetypeMeaning(taste.topDecade?.decade ?? null, taste.topGenres[0]?.name),
     full,
     toFull: Math.max(0, FULL_CARD_THRESHOLD - taste.rated),
     tier,

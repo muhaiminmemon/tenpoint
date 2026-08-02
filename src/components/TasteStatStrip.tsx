@@ -14,8 +14,16 @@ type Props = {
   };
 };
 
-/** Who someone is, in one glance: what they watch, how they rate, what they love. */
-export default function TasteCard({ taste, compare }: Props) {
+/**
+ * The flat stat strip: rated, average, favourite decade, genres, director.
+ *
+ * Renamed from `TasteCard`, which collided with the actual taste card — the
+ * foil object with a tier and a finish — and made the profile look like it was
+ * showing the card when it was showing a summary. This is now used only inside
+ * the developing card, where a plain summary is the right thing: below eight
+ * rated films there is no card to show yet.
+ */
+export default function TasteStatStrip({ taste, compare }: Props) {
   if (!taste.rated) return null;
 
   return (

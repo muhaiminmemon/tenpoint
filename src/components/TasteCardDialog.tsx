@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePresence } from "@/lib/usePresence";
+import AutoHeight from "./AutoHeight";
 import { useToast } from "./Toast";
 import TasteCardFlip from "./TasteCardFlip";
 import { BinderLink } from "./TasteCardBig";
@@ -33,6 +35,7 @@ export default function TasteCardDialog({
   avatarUrl: string | null;
   memberNumber: number;
 }) {
+  const { rendered, state } = usePresence(open, 180);
   const [tab, setTab] = useState<Tab>("Card");
   const [flipped, setFlipped] = useState(false);
   const [shareFmt, setShareFmt] = useState<ShareFmt>("story");
@@ -63,7 +66,8 @@ export default function TasteCardDialog({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!rendered) return null;
+  const leaving = state === "out";
 
   const shareUrl = typeof window !== "undefined" ? `${location.origin}/${username}` : `/${username}`;
   const format = SHARE_FORMATS.find((f) => f.key === shareFmt)!;
@@ -98,7 +102,7 @@ export default function TasteCardDialog({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="scrim-in absolute inset-0 w-full cursor-default bg-[rgba(8,8,10,.78)] backdrop-blur-[4px]"
+        className={`${leaving ? "scrim-out" : "scrim-in"} absolute inset-0 w-full cursor-default bg-[rgba(8,8,10,.78)] backdrop-blur-[4px]`}
       />
       <div
         ref={panelRef}
@@ -106,7 +110,7 @@ export default function TasteCardDialog({
         aria-modal="true"
         aria-label={`${displayName}'s taste card`}
         tabIndex={-1}
-        className="sheet-in absolute inset-0 flex flex-col overflow-y-auto bg-[#111114] outline-none sm:inset-x-0 sm:top-6 sm:bottom-auto sm:mx-auto sm:max-h-[calc(100vh-48px)] sm:w-[min(872px,calc(100%-48px))] sm:rounded-2xl sm:border sm:border-seam sm:shadow-[0_40px_110px_rgba(0,0,0,.7)]"
+        className={`${leaving ? "palette-out" : "palette-in"} absolute inset-0 flex flex-col overflow-y-auto bg-[#111114] outline-none sm:inset-x-0 sm:top-6 sm:bottom-auto sm:mx-auto sm:max-h-[calc(100vh-48px)] sm:w-[min(872px,calc(100%-48px))] sm:rounded-2xl sm:border sm:border-seam sm:shadow-[0_40px_110px_rgba(0,0,0,.7)]`}
       >
         <div className="flex items-center justify-between gap-3 border-b border-[#232329] px-4 py-3.5 sm:px-5">
           <div className="flex min-w-0 items-baseline gap-3">
@@ -168,6 +172,11 @@ export default function TasteCardDialog({
           </div>
 
           <div className="min-w-0">
+            {/* Keyed on the tab so the panel replays its entrance, and wrapped
+                so the dialog eases between the three heights instead of
+                snapping to each one. */}
+            <AutoHeight>
+            <div key={tab} className="pop-in">
             {tab === "Card" && <CardTab data={data} />}
             {tab === "Traits" && <TraitsTab data={data} />}
             {tab === "Share" && (
@@ -184,6 +193,8 @@ export default function TasteCardDialog({
                 onShare={nativeShare}
               />
             )}
+            </div>
+            </AutoHeight>
           </div>
         </div>
       </div>

@@ -11,8 +11,12 @@ import { avatarSrc } from "@/lib/avatar";
 import ProfileActions, { type Relationship } from "@/components/ProfileActions";
 import Avatar from "@/components/Avatar";
 import ProfileTabs from "@/components/ProfileTabs";
-import TasteCard from "@/components/TasteCard";
-import { getMutualLoves, getTasteProfile } from "@/lib/taste";
+import ProfileTasteCard from "@/components/ProfileTasteCard";
+import ProfileReading from "@/components/ProfileReading";
+import ProfileOverlap from "@/components/ProfileOverlap";
+import TasteCardDeveloping from "@/components/TasteCardDeveloping";
+import { buildHomeTasteCard, getMutualLoves, getTasteProfile } from "@/lib/taste";
+import { friendIdsOf } from "@/lib/social";
 
 export async function generateMetadata(ctx: { params: Promise<{ username: string }> }) {
   const { username } = await ctx.params;
@@ -90,6 +94,24 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
       : null;
 
   const taste = await getTasteProfile(profile.id, { includePrivate: isOwner });
+
+  // The same card the owner sees at home, built from public entries unless the
+  // viewer *is* the owner. `buildHomeTasteCard` is a pure read: the write that
+  // records a held finish lives on the owner's own pages, so a visitor here
+  // can never stamp a finish into this account's binder history.
+  const card =
+    taste.rated > 0
+      ? await buildHomeTasteCard(
+          profile.id,
+          taste,
+          films_,
+          await friendIdsOf(profile.id),
+          { includePrivate: isOwner },
+        )
+      : null;
+
+  // Friends only, per the visibility rule for the binder.
+  const canSeeBinder = relationship.kind === "friends";
 
   // the compare snapshot only appears on someone else's profile
   const viewerTaste =
@@ -172,21 +194,45 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
         </div>
       </div>
 
-      <div className="mt-6">
-        <TasteCard
-          taste={taste}
-          compare={
-            viewer && !isOwner
-              ? {
-                  viewerMean,
-                  viewerName: "You",
-                  theirName: profile.displayName ?? profile.username,
-                  mutual,
-                }
-              : undefined
-          }
+      {card && card.full ? (
+        <div className="mt-8 flex flex-col gap-8 border-t border-seam pt-8 lg:flex-row lg:items-start lg:gap-12">
+          <div className="w-full max-w-[300px] shrink-0 self-center lg:self-start">
+            <ProfileTasteCard
+              data={card}
+              username={profile.username}
+              displayName={displayLabel}
+              avatarUrl={avatarSrc(profile.id, profile.avatarUpdatedAt)}
+              memberNumber={profile.memberNumber}
+              memberSince={new Date(profile.createdAt).getFullYear()}
+            />
+          </div>
+          <ProfileReading
+            data={card}
+            binderHref={canSeeBinder ? `/${profile.username}/binder` : undefined}
+          />
+        </div>
+      ) : card ? (
+        // Still developing. Honest rather than hidden: a card that has not been
+        // issued yet is a fact about how much they have rated, not a defect.
+        <div className="mt-8 max-w-[420px] border-t border-seam pt-8">
+          <TasteCardDeveloping data={card} hasFriend={false} />
+        </div>
+      ) : (
+        <p className="mt-8 border-t border-seam pt-8 text-sm text-ash">
+          {isOwner
+            ? "Rate a film and your card is issued."
+            : `${displayLabel} hasn't rated anything yet.`}
+        </p>
+      )}
+
+      {viewer && !isOwner && (
+        <ProfileOverlap
+          viewerMean={viewerMean}
+          theirMean={taste.mean}
+          theirName={displayLabel}
+          mutual={mutual}
         />
-      </div>
+      )}
 
       <ProfileTabs
         films={films_}

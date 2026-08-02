@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePresence } from "@/lib/usePresence";
 import { formatTenths, parseRatingInput, RATING_ANCHORS } from "@/lib/format";
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
 export default function RatingDial({ value, onCommit, busy }: Props) {
   const [draft, setDraft] = useState<string | null>(null);
   const [showAnchors, setShowAnchors] = useState(false);
+  const anchors = usePresence(showAnchors, 130);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -90,8 +92,10 @@ export default function RatingDial({ value, onCommit, busy }: Props) {
         </button>
       </div>
 
-      {showAnchors && (
-        <dl className="mb-4 rounded-card border border-seam bg-tray p-3 text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+      {anchors.rendered && (
+        <dl
+          className={`${anchors.state === "out" ? "pop-out" : "pop-in"} mb-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-card border border-seam bg-tray p-3 text-sm`}
+        >
           {RATING_ANCHORS.map((a) => (
             <div key={a.range} className="contents">
               <dt className="num text-paper">{a.range}</dt>

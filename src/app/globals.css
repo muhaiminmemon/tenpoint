@@ -366,6 +366,90 @@ body {
   }
 }
 
+/* ── Leaving ──────────────────────────────────────────────────────────────
+   Every entrance above needs its opposite, or the thing teleports away.
+
+   Exits are shorter than entrances and ease *in* rather than out: an arrival
+   decelerates into place because it is settling, while a dismissal should pick
+   up speed on its way out, the way something leaves the frame. They also
+   travel less than the entrance did — a panel that rose a full height only has
+   to clear a little of it before opacity finishes the job, which keeps a close
+   from feeling like a second animation to sit through. */
+
+@keyframes scrim-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-down {
+  to {
+    transform: translateY(14%);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-over-out {
+  to {
+    transform: translateX(22%);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-down {
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+.scrim-out {
+  animation: scrim-out 0.16s ease-in both;
+}
+
+.sheet-out {
+  animation: sheet-down 0.18s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@media (min-width: 640px) {
+  .sheet-out {
+    animation-name: slide-over-out;
+  }
+}
+
+/* The palette and the card dialog centre themselves rather than hugging an
+   edge, so they leave the way they came: straight down and out. */
+.palette-out {
+  animation: sheet-down 0.18s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@media (min-width: 640px) {
+  .palette-out {
+    animation: fade-down 0.14s ease-in both;
+  }
+}
+
+.toast-out {
+  animation: toast-out 0.18s ease-in both;
+}
+
+/* Small anchored things — a dropdown, a menu, a set of anchors under a dial.
+   They are close to their trigger and cheap to redo, so they move least. */
+.pop-in {
+  animation: fade-up 0.14s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.pop-out {
+  animation: fade-down 0.12s ease-in both;
+}
+
 /* The landing's one authored moment: the title rises a line at a time and the
    objects settle onto it, once. Everything is legible from the first frame —
    only position and shadow move, never opacity from zero, so a slow connection
@@ -424,7 +508,13 @@ body {
   .plate-rule,
   .marquee-line,
   .marquee-settle,
-  .marquee-ring {
+  .marquee-ring,
+  .scrim-out,
+  .sheet-out,
+  .palette-out,
+  .toast-out,
+  .pop-in,
+  .pop-out {
     animation: none;
   }
   /* the foil still reads as foil standing still */

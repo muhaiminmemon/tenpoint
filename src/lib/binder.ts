@@ -15,7 +15,6 @@
 import {
   ACCENT_DEFS,
   AURA_DEFS,
-  archetypeQuote,
   ARCHETYPE_BY_GENRE,
   computeTier,
   computeVariant,
@@ -33,7 +32,7 @@ import {
   getTasteProfile,
   type PersonalityTrait,
 } from "./taste";
-import { getHeldVariantNames, recordHeldVariant } from "./variant-history";
+import { getHeldVariantNames } from "./variant-history";
 
 /** Yours right now, held at some point, or never held. */
 export type FinishState = "yours" | "held" | "unheld";
@@ -78,7 +77,6 @@ export type ArchetypeRead = {
   eraMeaning: string;
   noun: string;
   nounMeaning: string;
-  quote: string;
 };
 
 export type Binder = {
@@ -115,7 +113,6 @@ export async function loadBinder(user: { id: string }): Promise<Binder> {
   );
   const yoursVariant = hasCard ? variant.name : null;
 
-  if (yoursVariant) await recordHeldVariant(user.id, yoursVariant);
   const everHeld = await getHeldVariantNames(user.id);
 
   const topGenre = taste.topGenres[0]?.name;
@@ -136,7 +133,6 @@ export async function loadBinder(user: { id: string }): Promise<Binder> {
           nounMeaning: topGenre
             ? `${topGenre} is the genre leading your rated films.`
             : "No genre leads your rated films yet.",
-          quote: archetypeQuote(topGenre),
         }
       : null;
 

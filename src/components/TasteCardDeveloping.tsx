@@ -1,5 +1,5 @@
 import Link from "next/link";
-import TasteCard from "./TasteCard";
+import TasteStatStrip from "./TasteStatStrip";
 import { FULL_CARD_THRESHOLD, type HomeTasteCardData } from "@/lib/taste";
 
 function ProgressBar({ pct }: { pct: number }) {
@@ -44,7 +44,7 @@ export default function TasteCardDeveloping({
         </div>
 
         <div className="mt-4">
-          <TasteCard taste={data} />
+          <TasteStatStrip taste={data} />
         </div>
 
         <div className="mt-4 border-t border-seam pt-3.5">

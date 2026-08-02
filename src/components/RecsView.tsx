@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePresence } from "@/lib/usePresence";
 import Link from "next/link";
 import { posterUrl } from "@/lib/tmdb-urls";
 import { errorFrom, readJson } from "@/lib/http";
@@ -189,6 +190,7 @@ function RecMenu({
   title: string;
 }) {
   const [open, setOpen] = useState(false);
+  const { rendered, state } = usePresence(open, 130);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -218,8 +220,8 @@ function RecMenu({
       >
         ⋯
       </button>
-      {open && (
-        <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-card border border-seam bg-tray-2 text-sm shadow-lg">
+      {rendered && (
+        <div className={`${state === "out" ? "pop-out" : "pop-in"} absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-card border border-seam bg-tray-2 text-sm shadow-lg`}>
           <button
             type="button"
             onClick={() => {

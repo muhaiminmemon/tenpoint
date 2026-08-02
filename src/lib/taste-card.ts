@@ -183,8 +183,8 @@ export function nextTierMilestones(
 
 // ---------------------------------------------------------------------------
 // LAYER 3 — ARCHETYPE: era (decade) × leading genre, algorithmic and never
-// chosen. Re-read every time taste changes — the same combinatorics the app
-// already used, now with a one-line flavour quote per genre reading.
+// chosen. Re-read every time taste changes, and printed with a plain line
+// saying which decade and which genre produced it.
 
 export const ERA_BY_DECADE: Record<number, string> = {
   1920: "Silent",
@@ -252,36 +252,29 @@ export const ARCHETYPE_BY_GENRE: Record<string, string> = {
 };
 
 /**
- * One plain line per archetype. It is a reading of how someone watches, not a
- * joke about them: the card is the only place the product describes a person
- * back to themselves, and a punchline there ages badly and reads as the app
- * being pleased with itself. Flat, declarative, and true of the ratings that
- * produced it.
+ * What the title actually reflects, in one sentence.
+ *
+ * "The Midnight Maximalist" is a good name and a bad explanation: nothing in
+ * it says that Midnight means the 2010s and Maximalist means action. This is
+ * the line that says so.
+ *
+ * It replaces a set of mood quotes ("Prefers the film that trusts a long
+ * silence"). Those read as character writing about the person rather than a
+ * reading of their library, and a reader who wanted to know why they had been
+ * called something got a second riddle instead of an answer. Both halves of
+ * the title come from one countable fact each, so both are stated plainly.
  */
-const QUOTE_BY_NOUN: Record<string, string> = {
-  Formalist: "Prefers the film that trusts a long silence.",
-  Populist: "Watches for the room as much as the screen.",
-  Nightcrawler: "Rates highest the films that unsettle longest.",
-  Maximalist: "Wants scale, and wants it built to be seen.",
-  Strategist: "Watches the setup more closely than the reveal.",
-  Romantic: "Rates on how much a film is willing to feel.",
-  Realist: "Prefers the record to the reconstruction.",
-  Dreamer: "Treats animation as a medium, not a genre.",
-  Futurist: "Rates an idea higher than an ending.",
-  Mythmaker: "Rates the world before the plot.",
-  Noirist: "Prefers the films where nobody comes out clean.",
-  Wanderer: "Watches anything, in any language, at any length.",
-  Detective: "Rewinds to check what the film already showed.",
-  Chronicler: "Keeps the difficult films in the record.",
-  Composer: "Remembers the score before the plot.",
-  Sentimentalist: "Rates warmth as highly as craft.",
-  Historian: "Watches with the context already in hand.",
-  Outlander: "Prefers the frontier to the city.",
-};
-
-export function archetypeQuote(topGenre: string | undefined): string {
-  const noun = topGenre ? ARCHETYPE_BY_GENRE[topGenre] : undefined;
-  return (noun && QUOTE_BY_NOUN[noun]) || "Rates everything on its own terms.";
+export function archetypeMeaning(
+  topDecade: number | null,
+  topGenre: string | undefined,
+): string {
+  const decade = topDecade === null ? null : `the ${topDecade}s`;
+  if (decade && topGenre) {
+    return `You rate more films from ${decade} than any other decade, and ${topGenre} leads them.`;
+  }
+  if (topGenre) return `${topGenre} leads your rated films. No decade leads yet.`;
+  if (decade) return `You rate more films from ${decade} than any other decade. No genre leads yet.`;
+  return "Nothing leads yet: no decade or genre is ahead of the others.";
 }
 
 export function tasteArchetype(

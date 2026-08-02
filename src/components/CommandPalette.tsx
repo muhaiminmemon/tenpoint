@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePresence } from "@/lib/usePresence";
 import { useRouter } from "next/navigation";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
@@ -25,6 +26,7 @@ type FilmHit = {
 export default function CommandPalette() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const { rendered, state } = usePresence(open, 180);
   const [q, setQ] = useState("");
   const [films, setFilms] = useState<FilmHit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -176,20 +178,20 @@ export default function CommandPalette() {
         Search films
       </button>
 
-      {open && (
+      {rendered && (
         <div className="fixed inset-0 z-50">
           <button
             type="button"
             aria-label="Close search"
             onClick={() => setOpen(false)}
-            className="scrim-in absolute inset-0 w-full cursor-default bg-[rgba(8,8,10,.62)]"
+            className={`${state === "out" ? "scrim-out" : "scrim-in"} absolute inset-0 w-full cursor-default bg-[rgba(8,8,10,.62)]`}
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-label="Search"
             onKeyDown={onKeyDown}
-            className="palette-in absolute inset-x-0 bottom-0 max-h-[85vh] overflow-hidden rounded-t-[20px] border-t border-beam-edge bg-lift shadow-[0_-20px_60px_rgba(0,0,0,.55)] sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-[8vh] sm:w-[560px] sm:max-w-[calc(100vw-2rem)] sm:max-h-none sm:-translate-x-1/2 sm:rounded-xl sm:border sm:shadow-[0_30px_80px_rgba(0,0,0,.6)]"
+            className={`${state === "out" ? "palette-out" : "palette-in"} absolute inset-x-0 bottom-0 max-h-[85vh] overflow-hidden rounded-t-[20px] border-t border-beam-edge bg-lift shadow-[0_-20px_60px_rgba(0,0,0,.55)] sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-[8vh] sm:w-[560px] sm:max-w-[calc(100vw-2rem)] sm:max-h-none sm:-translate-x-1/2 sm:rounded-xl sm:border sm:shadow-[0_30px_80px_rgba(0,0,0,.6)]`}
           >
             {/* grab handle reads as "drag me" on touch; decorative on desktop */}
             <div aria-hidden className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-seam sm:hidden" />

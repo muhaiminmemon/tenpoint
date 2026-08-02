@@ -56,18 +56,25 @@ export default function ProfileTabs({ films, diaryRows, watchlistRows, editable 
         ))}
       </div>
 
-      {tab === "library" &&
-        (films.length === 0 ? (
-          <p className="py-8 text-sm text-ash">No films logged yet.</p>
-        ) : (
-          <LibraryView films={films} editable={editable} />
-        ))}
-      {tab === "diary" && diaryRows && (
-        <ProfileDiaryTab rows={diaryRows} editable={editable} />
-      )}
-      {tab === "watchlist" && watchlistRows && (
-        <ProfileWatchlistTab rows={watchlistRows} editable={editable} />
-      )}
+      {/* Keyed on the tab so each panel plays its own entrance rather than the
+          content silently swapping under a moved underline. These lists run to
+          hundreds of rows, so the height is left alone: easing between a
+          twelve-row watchlist and a 900-row library would be a long scroll
+          animating for no one's benefit. */}
+      <div key={tab} className="pop-in">
+        {tab === "library" &&
+          (films.length === 0 ? (
+            <p className="py-8 text-sm text-ash">No films logged yet.</p>
+          ) : (
+            <LibraryView films={films} editable={editable} />
+          ))}
+        {tab === "diary" && diaryRows && (
+          <ProfileDiaryTab rows={diaryRows} editable={editable} />
+        )}
+        {tab === "watchlist" && watchlistRows && (
+          <ProfileWatchlistTab rows={watchlistRows} editable={editable} />
+        )}
+      </div>
     </div>
   );
 }

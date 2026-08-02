@@ -6,6 +6,7 @@ import { topMoviesOfYear } from "@/lib/tmdb";
 import { buildHomeTasteCard, getTasteProfile } from "@/lib/taste";
 import { getRankedLibrary, getRecentViewings } from "@/lib/library";
 import { friendIdsOf } from "@/lib/social";
+import { recordHeldVariant } from "@/lib/variant-history";
 import TopRatedBoard from "@/components/TopRatedBoard";
 import HomeLayout from "@/components/HomeLayout";
 import LandingMarquee from "@/components/LandingMarquee";
@@ -25,6 +26,12 @@ export default async function Home() {
     const tasteCard = await buildHomeTasteCard(user.id, taste, library, friendIds, {
       includePrivate: true,
     });
+
+    // Recording the held finish belongs to the owner's own visit, not to the
+    // builder: the profile renders the same card for visitors, and a write
+    // inside the builder would let a stranger's page load stamp a finish into
+    // this account's binder history.
+    if (tasteCard.variant.name) await recordHeldVariant(user.id, tasteCard.variant.name);
 
     const displayLabel = user.displayName ?? user.username;
     const hasFriend = friendIds.length > 0;
