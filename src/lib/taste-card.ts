@@ -313,11 +313,18 @@ export const FILM_GENRES = [
  * Action behind Crime is a different appetite from Action behind Comedy, and
  * now it is a different word.
  *
- * The four columns are what the runner-up genre is made of, not what it is
- * called: something in shadow, something warm, something built at scale, or
+ * Four of the six columns are what the runner-up genre is made of, not what it
+ * is called: something in shadow, something warm, something built at scale, or
  * something that could not happen.
+ *
+ * The other two are not about genre at all. If a library leans hard enough on
+ * old films or on films made outside English, that fact outranks the runner-up
+ * and picks the column itself, because it is the more interesting thing about
+ * the person. A horror library from before 1990 is a different appetite from a
+ * horror library made abroad, and both are different from horror-then-crime,
+ * so all three get their own word.
  */
-type NounFamily = "shadow" | "warmth" | "scale" | "wonder";
+type NounFamily = "shadow" | "warmth" | "scale" | "wonder" | "vintage" | "foreign";
 
 const FAMILY_BY_GENRE: Record<string, NounFamily> = {
   Horror: "shadow",
@@ -365,7 +372,11 @@ export const GENRE_PREVALENCE: Record<string, number> = {
   Comedy: 0.284,
   Drama: 0.284,
   Thriller: 0.224,
-  Family: 0.207,
+  // Family is deliberately absent, not forgotten. TMDB attaches it to almost
+  // every animated film, so it rode along on libraries whose actual appetite
+  // was Animation, and named people after a label rather than a taste. Those
+  // films still count under the genres they really are. It stays a browse
+  // filter and a genre chip; it just cannot name anybody.
   Fantasy: 0.191,
   Animation: 0.169,
   Crime: 0.142,
@@ -403,24 +414,24 @@ export function signatureGenres(
 }
 
 export const ARCHETYPE_NOUNS: Record<string, Record<NounFamily, string>> = {
-  Action: { shadow: "Enforcer", warmth: "Showstopper", scale: "Maximalist", wonder: "Vanguard" },
-  Adventure: { shadow: "Outrider", warmth: "Voyager", scale: "Wanderer", wonder: "Pathfinder" },
-  Animation: { shadow: "Night Dreamer", warmth: "Dreamer", scale: "Worldbuilder", wonder: "Animist" },
-  Comedy: { shadow: "Cynic", warmth: "Wit", scale: "Ringleader", wonder: "Trickster" },
-  Crime: { shadow: "Noirist", warmth: "Grifter", scale: "Kingpin", wonder: "Schemer" },
-  Documentary: { shadow: "Investigator", warmth: "Witness", scale: "Realist", wonder: "Speculator" },
-  Drama: { shadow: "Confessor", warmth: "Humanist", scale: "Tragedian", wonder: "Visionary" },
-  Family: { shadow: "Storykeeper", warmth: "Sentimentalist", scale: "Hearthkeeper", wonder: "Wishmaker" },
-  Fantasy: { shadow: "Spellbinder", warmth: "Mythmaker", scale: "Loremaster", wonder: "Archmage" },
-  History: { shadow: "Revisionist", warmth: "Antiquarian", scale: "Historian", wonder: "Timekeeper" },
-  Horror: { shadow: "Nightcrawler", warmth: "Ghoul", scale: "Doomsayer", wonder: "Cosmicist" },
-  Music: { shadow: "Nocturne", warmth: "Score Chaser", scale: "Maestro", wonder: "Rhapsodist" },
-  Mystery: { shadow: "Detective", warmth: "Puzzler", scale: "Cryptographer", wonder: "Occultist" },
-  Romance: { shadow: "Melancholic", warmth: "Romantic", scale: "Idealist", wonder: "Starcrossed" },
-  "Science Fiction": { shadow: "Dystopian", warmth: "Stargazer", scale: "Futurist", wonder: "Cosmologist" },
-  Thriller: { shadow: "Paranoiac", warmth: "Thrillseeker", scale: "Strategist", wonder: "Conspiracist" },
-  War: { shadow: "Survivor", warmth: "Correspondent", scale: "Chronicler", wonder: "Legendkeeper" },
-  Western: { shadow: "Outlaw", warmth: "Drifter", scale: "Pioneer", wonder: "Wayfarer" },
+  Action: { shadow: "Enforcer", warmth: "Showstopper", scale: "Maximalist", wonder: "Vanguard", vintage: "Serialist", foreign: "Border Runner" },
+  Adventure: { shadow: "Outrider", warmth: "Voyager", scale: "Wanderer", wonder: "Pathfinder", vintage: "Swashbuckler", foreign: "Nomad" },
+  Animation: { shadow: "Night Dreamer", warmth: "Dreamer", scale: "Worldbuilder", wonder: "Animist", vintage: "Cel Purist", foreign: "Ink Traveller" },
+  Comedy: { shadow: "Cynic", warmth: "Wit", scale: "Ringleader", wonder: "Trickster", vintage: "Vaudevillian", foreign: "Absurdist" },
+  Crime: { shadow: "Noirist", warmth: "Grifter", scale: "Kingpin", wonder: "Schemer", vintage: "Gumshoe", foreign: "Smuggler" },
+  Documentary: { shadow: "Investigator", warmth: "Witness", scale: "Realist", wonder: "Speculator", vintage: "Archivist", foreign: "Field Reporter" },
+  Drama: { shadow: "Confessor", warmth: "Humanist", scale: "Tragedian", wonder: "Visionary", vintage: "Classicist", foreign: "Neorealist" },
+  Family: { shadow: "Storykeeper", warmth: "Sentimentalist", scale: "Hearthkeeper", wonder: "Wishmaker", vintage: "Matinee Kid", foreign: "Folk Tale" },
+  Fantasy: { shadow: "Spellbinder", warmth: "Mythmaker", scale: "Loremaster", wonder: "Archmage", vintage: "Fabulist", foreign: "Folklorist" },
+  History: { shadow: "Revisionist", warmth: "Antiquarian", scale: "Historian", wonder: "Timekeeper", vintage: "Antiquary", foreign: "Cartographer" },
+  Horror: { shadow: "Nightcrawler", warmth: "Ghoul", scale: "Doomsayer", wonder: "Cosmicist", vintage: "Revenant", foreign: "Nightfarer" },
+  Music: { shadow: "Nocturne", warmth: "Score Chaser", scale: "Maestro", wonder: "Rhapsodist", vintage: "Crooner", foreign: "Balladeer" },
+  Mystery: { shadow: "Detective", warmth: "Puzzler", scale: "Cryptographer", wonder: "Occultist", vintage: "Sleuth", foreign: "Interpreter" },
+  Romance: { shadow: "Melancholic", warmth: "Romantic", scale: "Idealist", wonder: "Starcrossed", vintage: "Old Flame", foreign: "Farsick" },
+  "Science Fiction": { shadow: "Dystopian", warmth: "Stargazer", scale: "Futurist", wonder: "Cosmologist", vintage: "Retrofuturist", foreign: "Cosmopolite" },
+  Thriller: { shadow: "Paranoiac", warmth: "Thrillseeker", scale: "Strategist", wonder: "Conspiracist", vintage: "Cliffhanger", foreign: "Fugitive" },
+  War: { shadow: "Survivor", warmth: "Correspondent", scale: "Chronicler", wonder: "Legendkeeper", vintage: "Veteran", foreign: "Partisan" },
+  Western: { shadow: "Outlaw", warmth: "Drifter", scale: "Pioneer", wonder: "Wayfarer", vintage: "Ranger", foreign: "Borderlander" },
 };
 
 /** Kept for anything still reading the flat table: the warm column. */
@@ -738,7 +749,37 @@ export function readArchetype(
   const lead = signature[0]?.name ?? topGenre;
   const second = signature[1]?.name ?? lead;
 
-  const family: NounFamily = (second ? FAMILY_BY_GENRE[second] : undefined) ?? "scale";
+  /**
+   * Which column the leading genre is read through.
+   *
+   * Normally the runner-up genre. But an era or a language somebody leans on
+   * hard is a bigger fact about them than their second-favourite genre, so
+   * either can take the column outright once it is far enough past ordinary.
+   * The bar is deliberately high: this should name a real slant, not any
+   * library with a couple of old films in it.
+   */
+  const COLUMN_BAR = 1.2;
+  const oldZ =
+    s.yearKnownCount >= 15
+      ? ((s.eraBands[0] + s.eraBands[1]) / s.yearKnownCount - ANCHOR.oldShare.typical) /
+        ANCHOR.oldShare.spread
+      : 0;
+  const foreignZ =
+    s.languageKnownCount >= 15
+      ? (s.nonEnglishCount / s.languageKnownCount - ANCHOR.subtitleShare.typical) /
+        ANCHOR.subtitleShare.spread
+      : 0;
+
+  let family: NounFamily = (second ? FAMILY_BY_GENRE[second] : undefined) ?? "scale";
+  let column: "genre" | "vintage" | "foreign" = "genre";
+  if (oldZ >= COLUMN_BAR && oldZ >= foreignZ) {
+    family = "vintage";
+    column = "vintage";
+  } else if (foreignZ >= COLUMN_BAR) {
+    family = "foreign";
+    column = "foreign";
+  }
+
   const set = lead ? ARCHETYPE_NOUNS[lead] : undefined;
   const noun = set ? set[family] : "Cinephile";
 
@@ -750,13 +791,23 @@ export function readArchetype(
     ? Math.round((signature[0].count / s.genreTaggedCount) * 100)
     : 0;
   const times = signature[0] ? signature[0].lift.toFixed(1) : "1.0";
+  const leadClause = signature[0]
+    ? `${lead} fills ${share}% of your shelf, ${times}\u00d7 what a library that size usually carries`
+    : `${lead} leads your rated films`;
+
+  // The column is half the word, so it says which fact chose it.
+  const throughClause =
+    column === "vintage"
+      ? `, and you watch it old: ${Math.round(((s.eraBands[0] + s.eraBands[1]) / Math.max(1, s.yearKnownCount)) * 100)}% of your films predate 1990.`
+      : column === "foreign"
+        ? `, and you watch it abroad: ${Math.round((s.nonEnglishCount / Math.max(1, s.languageKnownCount)) * 100)}% of your films are not in English.`
+        : signature[1]
+          ? `, with ${second} close behind.`
+          : ".";
+
   const nounMeaning = !lead
     ? "No genre stands out in your rated films yet."
-    : signature[0]
-      ? signature[1]
-        ? `${lead} fills ${share}% of your shelf, ${times}\u00d7 what a library that size usually carries, with ${second} close behind.`
-        : `${lead} fills ${share}% of your shelf, ${times}\u00d7 what a library that size usually carries.`
-      : `${lead} leads your rated films.`;
+    : `${leadClause}${throughClause}`;
 
   const best = readings(s, lead).sort((a, b) => b.score - a.score)[0];
 
