@@ -97,6 +97,19 @@ export const films = pgTable("films", {
   slug: text("slug").notNull().unique(),
   title: text("title").notNull(),
   year: integer("year"),
+  /**
+   * TMDB's earliest release date. `year` alone cannot answer "is it out yet"
+   * for anything releasing later in the current year, and this is usually the
+   * festival premiere rather than general release — so a film someone genuinely
+   * saw at a festival is already dated in the past and stays loggable.
+   */
+  releaseDate: date("release_date"),
+  /**
+   * ISO 639-1, straight from TMDB. Stored so the language filter works against
+   * the local catalogue too: without it, choosing a critic ranking silently
+   * dropped a filter the reader had set, which is worse than not offering it.
+   */
+  originalLanguage: text("original_language"),
   posterPath: text("poster_path"),
   backdropPath: text("backdrop_path"),
   director: text("director"),
@@ -108,8 +121,37 @@ export const films = pgTable("films", {
   voteCount: integer("vote_count"),
   overview: text("overview"),
   refreshedAt: timestamp("refreshed_at", { withTimezone: true }),
+
+  /**
+   * The join key to everything outside TMDB, taken from TMDB's own
+   * `/movie/{id}` response and never inferred from a title.
+   *
+   * A wrong id here is worse than a missing one: OMDb answers a bad id with a
+   * real film's scores rather than an error, so the page would show a
+   * confident, plausible rating belonging to something else entirely.
+   */
+  imdbId: text("imdb_id"),
+
+  /** 0–100, the Tomatometer as OMDb reports it */
+  rtScore: smallint("rt_score"),
+  /** 0–100 */
+  metacritic: smallint("metacritic"),
+  /**
+   * IMDb's average in tenths (8.8 → 88), the same unit a rating is stored in
+   * everywhere else here, so nothing about it reaches a float before display.
+   */
+  imdbRating: smallint("imdb_rating"),
+  imdbVotes: integer("imdb_votes"),
+  /** separate from `refreshedAt`: scores come from a different source, on a different clock */
+  scoresRefreshedAt: timestamp("scores_refreshed_at", { withTimezone: true }),
+
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  // The critic leaderboards order by these and page through them; without an
+  // index every page is a full scan of the whole catalogue.
+  index("films_rt_score_idx").on(t.rtScore),
+  index("films_imdb_rating_idx").on(t.imdbRating),
+]);
 
 /**
  * One row per viewing. Historical ratings never change; a film's current

@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
+import Sheet from "./Sheet";
+import SignOutButton from "./SignOutButton";
 import { requestSearchOpen } from "@/lib/search-event";
 
 type IconProps = { className?: string };
@@ -94,17 +97,48 @@ function FriendsIcon({ className }: IconProps) {
   );
 }
 
-const LINKS_BEFORE_SEARCH = [
+function BrowseIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <rect x="2.75" y="2.75" width="5.5" height="7.5" rx="1.1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="11.75" y="2.75" width="5.5" height="5" rx="1.1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="2.75" y="12.75" width="5.5" height="4.5" rx="1.1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="11.75" y="10.25" width="5.5" height="7" rx="1.1" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function MoreIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <circle cx="4.5" cy="10" r="1.35" fill="currentColor" />
+      <circle cx="10" cy="10" r="1.35" fill="currentColor" />
+      <circle cx="15.5" cy="10" r="1.35" fill="currentColor" />
+    </svg>
+  );
+}
+
+/**
+ * The four a person touches dozens of times a session. Everything else lives
+ * one tap away rather than crushed into the same strip: six icons across a
+ * 390px phone gave each about 60px, and Browse and Feed had no way in at all.
+ */
+const PRIMARY = [
   { href: "/", label: "Home", Icon: HomeIcon },
-  { href: "/library", label: "Library", Icon: LibraryIcon },
+  { href: "/browse", label: "Browse", Icon: BrowseIcon },
   { href: "/diary", label: "Diary", Icon: DiaryIcon },
+  { href: "/library", label: "Library", Icon: LibraryIcon },
 ];
 
-const LINKS_AFTER_SEARCH = [
-  { href: "/watchlist", label: "Queue", Icon: QueueIcon },
-  { href: "/lists", label: "Lists", Icon: ListsIcon },
+/** Reachable, just not resident. Ordered by how often they are actually opened. */
+const SECONDARY = [
+  { href: "/watchlist", label: "Watchlist", Icon: QueueIcon },
   { href: "/friends", label: "Friends", Icon: FriendsIcon },
+  { href: "/feed", label: "Feed", Icon: DiaryIcon },
+  { href: "/lists", label: "Lists", Icon: ListsIcon },
+  { href: "/import", label: "Import", Icon: LibraryIcon },
 ];
+
 
 const itemClass =
   "flex min-h-[46px] flex-1 flex-col items-center justify-center gap-1 rounded-lg py-1.5 transition-colors [-webkit-tap-highlight-color:transparent] active:bg-tray-2";
@@ -115,30 +149,92 @@ const itemClass =
  */
 export default function BottomNav({ pendingRequests = 0 }: { pendingRequests?: number }) {
   const pathname = usePathname();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  // A destination that moved into the sheet must not take its badge with it,
+  // or a pending request becomes something you only find by looking for it.
+  const inSheet = SECONDARY.some((l) => pathname.startsWith(l.href) && l.href !== "/");
 
   return (
-    <nav
-      aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-20 flex border-t border-seam bg-[rgba(20,20,23,.97)] px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur sm:hidden"
-    >
-      {LINKS_BEFORE_SEARCH.map((item) => (
-        <NavLink key={item.href} {...item} pathname={pathname} />
-      ))}
+    <>
+      <nav
+        aria-label="Main"
+        className="fixed inset-x-0 bottom-0 z-20 flex border-t border-seam bg-[rgba(20,20,23,.97)] px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur sm:hidden"
+      >
+        {PRIMARY.map((item) => (
+          <NavLink key={item.href} {...item} pathname={pathname} />
+        ))}
 
-      <button type="button" onClick={requestSearchOpen} aria-label="Search films" className={itemClass}>
-        <SearchIcon className="size-5 text-ash" />
-        <span className="text-[10px] text-ash">Search</span>
-      </button>
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          aria-label="More destinations"
+          aria-expanded={moreOpen}
+          className={`relative ${itemClass}`}
+        >
+          <span className="relative">
+            <MoreIcon className={`size-5 ${inSheet ? "text-beam" : "text-ash"}`} />
+            {pendingRequests > 0 && (
+              <span className="absolute -right-1.5 -top-1 size-2 rounded-full bg-beam" />
+            )}
+          </span>
+          <span className={`text-[10px] ${inSheet ? "text-paper" : "text-ash"}`}>More</span>
+        </button>
+      </nav>
 
-      {LINKS_AFTER_SEARCH.map((item) => (
-        <NavLink
-          key={item.href}
-          {...item}
-          pathname={pathname}
-          badge={item.href === "/friends" ? pendingRequests : 0}
-        />
-      ))}
-    </nav>
+      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title="Go to">
+        <ul className="mt-4 grid grid-cols-3 gap-2">
+          {SECONDARY.map(({ href, label, Icon }) => (
+            <li key={href}>
+              <Link
+                href={href}
+                onClick={() => setMoreOpen(false)}
+                className="flex flex-col items-center gap-2 rounded-card border border-seam bg-tray px-2 py-4 text-center transition-colors active:bg-tray-2"
+              >
+                <span className="relative">
+                  <Icon className="size-5 text-ash" />
+                  {href === "/friends" && pendingRequests > 0 && (
+                    <span className="num absolute -right-2 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-beam px-[3px] text-[9px] font-medium text-carbon">
+                      {pendingRequests > 9 ? "9+" : pendingRequests}
+                    </span>
+                  )}
+                </span>
+                <span className="text-[11px] text-paper">{label}</span>
+              </Link>
+            </li>
+          ))}
+          <li>
+            <button
+              type="button"
+              onClick={() => {
+                setMoreOpen(false);
+                requestSearchOpen();
+              }}
+              className="flex w-full flex-col items-center gap-2 rounded-card border border-seam bg-tray px-2 py-4 text-center transition-colors active:bg-tray-2"
+            >
+              <SearchIcon className="size-5 text-ash" />
+              <span className="text-[11px] text-paper">Search</span>
+            </button>
+          </li>
+        </ul>
+
+        {/* Settings and sign out are both `hidden sm:` in the header, so on a
+            phone this sheet is the only route to either. Sign out had none at
+            all: the account could be entered but not left. */}
+        <div className="mt-3 flex gap-2">
+          <Link
+            href="/settings"
+            onClick={() => setMoreOpen(false)}
+            className="flex-1 rounded-card border border-seam px-4 py-3 text-center text-sm text-ash transition-colors active:bg-tray"
+          >
+            Settings
+          </Link>
+          <div className="flex-1 [&>button]:w-full [&>button]:rounded-card [&>button]:border [&>button]:border-seam [&>button]:px-4 [&>button]:py-3 [&>button]:text-sm">
+            <SignOutButton />
+          </div>
+        </div>
+      </Sheet>
+    </>
   );
 }
 

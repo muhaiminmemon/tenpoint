@@ -572,7 +572,6 @@ export async function buildHomeTasteCard(
     .slice(0, 4);
 
   const full = taste.rated >= FULL_CARD_THRESHOLD;
-  const tier = computeTier(taste.rated);
   const archetype = taste.rated >= CLASS_THRESHOLD ? tasteArchetype(taste.topDecade, taste.topGenres[0]) : null;
 
   if (taste.rated === 0) {
@@ -582,7 +581,8 @@ export async function buildHomeTasteCard(
       archetypeMeaning: "",
       full,
       toFull: FULL_CARD_THRESHOLD,
-      tier,
+      // Nothing rated means nothing met, so this is Common without asking.
+      tier: computeTier(0),
       milestones: null,
       variant: { name: "", stock: "", accent: "", aura: "", accentColor: "#8faecc" },
       traits: [],
@@ -607,6 +607,10 @@ export async function buildHomeTasteCard(
     getTasteSignals(userId, { includePrivate }),
     getBestMatchAndRival(userId, friendIds),
   ]);
+
+  // Computed here rather than above, because the milestones are half the
+  // answer and they need the signals.
+  const tier = computeTier(taste.rated, signals);
 
   const variant = computeVariant(
     taste.topGenres[0]?.name,
@@ -669,7 +673,7 @@ export async function buildHomeTasteCard(
       { label: "Films logged", value: String(taste.rated) },
       { label: "Hours logged", value: String(Math.round(signals.totalRuntimeMinutes / 60)) },
       { label: "Home decade", value: taste.topDecade ? decadeLabel(taste.topDecade.decade) : "—" },
-      { label: "Favourites", value: String(signals.favouriteCount) },
+      { label: "Reviews", value: String(signals.reviewCount) },
     ],
     // share of *tagged* films, not all rated films — most libraries have gaps
     // in genre metadata, and dividing by the untagged total makes an honest

@@ -4,6 +4,7 @@ import { APP_DESCRIPTION, APP_NAME } from "@/lib/brand";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { ToastProvider } from "@/components/Toast";
+import { ConfirmProvider } from "@/components/Confirm";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -38,12 +39,14 @@ export default function RootLayout({
     >
       <body className="flex min-h-screen flex-col">
         <ToastProvider>
+          <ConfirmProvider>
           <Nav />
           {/* the mobile bottom nav is fixed, so leave it room below the content */}
           <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-6 sm:pb-6">
             {children}
           </main>
           <Footer />
+          </ConfirmProvider>
         </ToastProvider>
       </body>
     </html>

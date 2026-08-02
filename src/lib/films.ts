@@ -31,6 +31,8 @@ export async function ensureFilm(movie: TmdbMovie): Promise<Film> {
       slug,
       title: movie.title,
       year,
+      releaseDate: movie.release_date || null,
+      originalLanguage: movie.original_language ?? null,
       posterPath: movie.poster_path ?? null,
       backdropPath: movie.backdrop_path ?? null,
       overview: movie.overview ?? null,
@@ -98,7 +100,8 @@ const STALE_MS = 30 * 24 * 60 * 60 * 1000;
 export async function hydrateFilm(film: Film): Promise<Film> {
   if (!film.tmdbId) return film;
   const fresh = film.refreshedAt && Date.now() - film.refreshedAt.getTime() < STALE_MS;
-  if (film.director && fresh) return film;
+  if (film.director && film.imdbId && film.releaseDate && film.originalLanguage && fresh)
+    return film;
   try {
     const details = await movieDetails(film.tmdbId);
     const updated = await db
@@ -106,6 +109,8 @@ export async function hydrateFilm(film: Film): Promise<Film> {
       .set({
         title: details.title ?? film.title,
         year: releaseYear(details) ?? film.year,
+        releaseDate: details.release_date || film.releaseDate,
+        originalLanguage: details.original_language ?? film.originalLanguage,
         posterPath: details.poster_path ?? film.posterPath,
         backdropPath: details.backdrop_path ?? film.backdropPath,
         director: directorOf(details) ?? film.director,
@@ -118,6 +123,10 @@ export async function hydrateFilm(film: Film): Promise<Film> {
         popularity: details.popularity ?? film.popularity,
         voteCount: details.vote_count ?? film.voteCount,
         overview: details.overview ?? film.overview,
+        // Taken from TMDB rather than matched on title: OMDb answers a wrong
+        // id with a real film's scores instead of an error, so a guess here
+        // would surface someone else's ratings under this film's name.
+        imdbId: details.imdb_id ?? film.imdbId,
         refreshedAt: new Date(),
       })
       .where(eq(films.id, film.id))
@@ -127,4 +136,21 @@ export async function hydrateFilm(film: Film): Promise<Film> {
     // metadata refresh is best-effort; the page still renders
     return film;
   }
+}
+
+/**
+ * Whether a film is still ahead of its own release.
+ *
+ * Compared as plain `YYYY-MM-DD` strings against the server's date, so no
+ * timezone arithmetic is involved: the question is which calendar day the
+ * release falls on, not which instant.
+ *
+ * A film with no date on file is treated as released. TMDB is missing dates
+ * for plenty of older and smaller titles, and refusing to let someone log a
+ * 1930s film because its metadata is thin would be the wrong way round — an
+ * unknown date is far more often an old film than an unreleased one.
+ */
+export function isUnreleased(film: { releaseDate: string | null }): boolean {
+  if (!film.releaseDate) return false;
+  return film.releaseDate > new Date().toISOString().slice(0, 10);
 }

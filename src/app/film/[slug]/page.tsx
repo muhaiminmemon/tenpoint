@@ -4,7 +4,9 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { diaryEntries, films, listItems, listMembers, lists, watchlist } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
-import { hydrateFilm } from "@/lib/films";
+import { hydrateFilm, isUnreleased } from "@/lib/films";
+import { criticScores } from "@/lib/omdb";
+import CriticScores from "@/components/CriticScores";
 import PosterImg from "@/components/PosterImg";
 import FilmPanel from "@/components/FilmPanel";
 import FilmStickyHeader from "@/components/FilmStickyHeader";
@@ -27,6 +29,9 @@ export default async function FilmPage(ctx: {
   let film = (await db.select().from(films).where(eq(films.slug, slug)).limit(1))[0];
   if (!film) notFound();
   film = await hydrateFilm(film);
+  // Cached on the film row and only fetched from a film's own page: the free
+  // tier is 1,000 requests a day, which a grid would spend in an afternoon.
+  const scores = await criticScores(film);
 
   const user = await getSessionUser();
   const entries = user
@@ -118,9 +123,11 @@ export default async function FilmPage(ctx: {
         {film.overview && <p className="mt-4 max-w-xl text-sm text-ash">{film.overview}</p>}
 
         <div className="mt-8 space-y-8">
+          <CriticScores scores={scores} />
           {timelinePoints.length >= 2 && <RewatchTimeline points={timelinePoints} />}
           {user ? (
             <FilmPanel
+              unreleased={isUnreleased(film)}
               film={{
                 id: film.id,
                 title: film.title,

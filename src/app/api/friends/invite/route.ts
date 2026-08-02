@@ -4,11 +4,15 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { invites } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { requireVerified } from "@/lib/http";
 
 /** Returns the user's shareable invite link, creating it on first use. */
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+
+  const unverified = requireVerified(user);
+  if (unverified) return unverified;
 
   const existing = await db
     .select()

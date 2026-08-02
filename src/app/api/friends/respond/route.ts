@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { friendRequests } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { requireVerified } from "@/lib/http";
 import { createFriendship } from "@/lib/social";
 
 const schema = z.object({
@@ -14,6 +15,9 @@ const schema = z.object({
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+
+  const unverified = requireVerified(user);
+  if (unverified) return unverified;
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bad request." }, { status: 400 });

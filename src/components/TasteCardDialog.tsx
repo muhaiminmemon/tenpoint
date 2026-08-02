@@ -239,7 +239,7 @@ function CardTab({ data }: { data: HomeTasteCardData }) {
             <span className="text-[10px] uppercase tracking-[.14em] text-ash">
               {data.tier.name} → {next.nextTier?.name}
             </span>
-            <span className="num text-[11px] text-beam">{next.met} of 6 conditions</span>
+            <span className="num text-[11px] text-beam">{next.met} of 5 conditions</span>
           </div>
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {next.milestones.map((m) => (
@@ -257,7 +257,7 @@ function CardTab({ data }: { data: HomeTasteCardData }) {
             ))}
           </div>
           <p className="mt-3 text-[12px] leading-relaxed text-dim">
-            {next.nextTier?.name} needs any three of six. The tier re-mints the moment a third one
+            {next.nextTier?.name} needs any three of five. The tier re-mints the moment a third one
             lands, whichever it is.
           </p>
         </div>

@@ -50,7 +50,7 @@ export default function ProfileOverlap({
                   <Link
                     href={`/film/${m.slug}`}
                     className="group block w-[68px]"
-                    title={`${m.title} — you ${formatTenths(m.mine)}, ${theirName} ${formatTenths(m.theirs)}`}
+                    title={`${m.title}: you ${formatTenths(m.mine)}, ${theirName} ${formatTenths(m.theirs)}`}
                   >
                     <span
                       className="relative block overflow-hidden rounded-[5px] border border-seam bg-tray"

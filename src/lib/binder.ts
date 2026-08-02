@@ -104,7 +104,7 @@ export async function loadBinder(user: { id: string }): Promise<Binder> {
   const signals = await getTasteSignals(user.id, { includePrivate: true });
 
   const hasCard = taste.rated > 0;
-  const tier = hasCard ? computeTier(taste.rated) : null;
+  const tier = hasCard ? computeTier(taste.rated, signals) : null;
   const variant = computeVariant(
     taste.topGenres[0]?.name,
     signals.topRatedDecade,

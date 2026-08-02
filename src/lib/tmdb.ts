@@ -11,10 +11,14 @@ export type TmdbMovie = {
   overview?: string;
   popularity?: number;
   vote_count?: number;
+  vote_average?: number;
+  original_language?: string;
   genre_ids?: number[];
 };
 
 export type TmdbMovieDetails = TmdbMovie & {
+  /** the join key to anything outside TMDB; absent on a few obscure entries */
+  imdb_id?: string | null;
   runtime?: number | null;
   genres?: { id: number; name: string }[];
   credits?: {
@@ -125,4 +129,50 @@ export function releaseYear(m: { release_date?: string }): number | null {
 export function directorOf(details: TmdbMovieDetails): string | null {
   const directors = details.credits?.crew?.filter((c) => c.job === "Director") ?? [];
   return directors.length ? directors.map((d) => d.name).join(", ") : null;
+}
+
+/** One page of discover results, with the pagination TMDB reports back. */
+export type DiscoverPage = {
+  results: TmdbMovie[];
+  page: number;
+  totalPages: number;
+  totalResults: number;
+};
+
+/**
+ * The browse query. Every filter here maps to a `/discover/movie` parameter,
+ * so the grid is TMDB's own index rather than anything we maintain.
+ *
+ * TMDB caps pagination at page 500, which is why browsing is filtered rather
+ * than one endless list: no single query can reach past 10,000 films, and the
+ * way to anything beyond that is to narrow the question.
+ */
+export async function discoverMovies(params: Record<string, string>): Promise<DiscoverPage> {
+  const data = await tmdb<{
+    results: TmdbMovie[];
+    page: number;
+    total_pages: number;
+    total_results: number;
+  }>("/discover/movie", { include_adult: "false", ...params });
+
+  return {
+    results: data.results ?? [],
+    page: data.page ?? 1,
+    totalPages: Math.min(data.total_pages ?? 1, 500),
+    totalResults: data.total_results ?? 0,
+  };
+}
+
+/** In cinemas now, as TMDB tracks it. */
+export async function nowPlaying(page = 1): Promise<TmdbMovie[]> {
+  const data = await tmdb<{ results: TmdbMovie[] }>("/movie/now_playing", {
+    page: String(page),
+  });
+  return data.results ?? [];
+}
+
+/** What people are actually looking at this week. */
+export async function trendingThisWeek(): Promise<TmdbMovie[]> {
+  const data = await tmdb<{ results: TmdbMovie[] }>("/trending/movie/week", {});
+  return data.results ?? [];
 }

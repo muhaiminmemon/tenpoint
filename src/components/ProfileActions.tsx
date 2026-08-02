@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useConfirm } from "./Confirm";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { errorFrom } from "@/lib/http";
@@ -24,6 +25,7 @@ export default function ProfileActions({
   viewerUsername,
   relationship,
 }: Props) {
+  const confirm = useConfirm();
   const router = useRouter();
   const [reported, setReported] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -83,8 +85,12 @@ export default function ProfileActions({
     );
 
   async function removeFriend() {
-    if (!window.confirm(`Remove ${profileUsername} as a friend? You can send a new request later.`))
-      return;
+    const ok = await confirm({
+      title: `Remove ${profileUsername} as a friend?`,
+      body: "You can send a new request later.",
+      action: "Remove",
+    });
+    if (!ok) return;
     await act(
       () =>
         fetch("/api/friends", {
@@ -97,7 +103,12 @@ export default function ProfileActions({
   }
 
   async function block() {
-    if (!window.confirm(`Block ${profileUsername}? You won't see each other's profiles.`)) return;
+    const ok = await confirm({
+      title: `Block ${profileUsername}?`,
+      body: "Neither of you will see the other's profile, and any friendship ends.",
+      action: "Block",
+    });
+    if (!ok) return;
     if (busy) return;
     setBusy(true);
     setError(null);

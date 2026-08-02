@@ -6,7 +6,7 @@ import type { TasteSignals } from "./taste-card-signals";
 
 // ---------------------------------------------------------------------------
 // LAYER 2 — RARITY: a six-tier ladder purely on films rated. Never grinded by
-// one path alone — see `nextTierMilestones` below for the "any three of six"
+// one path alone — see `nextTierMilestones` below for the "any three of five"
 // progress shown toward the next tier.
 
 export type RarityTier = {
@@ -105,18 +105,45 @@ export const RARITY_TIERS: RarityTier[] = [
   },
 ];
 
-export function computeTier(rated: number): RarityTier {
+/**
+ * The tier in force: a floor on films rated, then as far as the milestones
+ * carry you past it.
+ *
+ * Film count sets the base, so a large library is never held back by breadth it
+ * happens not to have. Above that, meeting three of a step's five conditions
+ * promotes — which is what the card has always said and, until now, never did.
+ * This is the "never grinded by one path alone" rule finally taking effect: a
+ * smaller but far-ranging library reaches the same tier by a different route.
+ *
+ * Exactly one rung, never more. Chaining looked reasonable until it was
+ * measured: the top step's conditions (17 genres, 6 decades, 60 reviews, 40
+ * rewatches) are also met at every step below it, so a 60-film library with
+ * real breadth climbed straight to Mythic — a tier that is supposed to mean
+ * five hundred films. One step is also what the card actually promises: the
+ * next tier needs any three of five, not the whole ladder.
+ *
+ * `signals` is what enables any of this; without them the count-only floor is
+ * returned, so a caller that has not loaded signals degrades to the old
+ * behaviour instead of throwing.
+ */
+export function computeTier(rated: number, signals?: TasteSignals): RarityTier {
   let tier = RARITY_TIERS[0];
   for (const t of RARITY_TIERS) {
     if (rated >= t.floor) tier = t;
   }
-  return tier;
+  if (!signals) return tier;
+
+  const next = RARITY_TIERS[tier.index + 1];
+  if (!next) return tier;
+
+  const met = milestonesAt(tier.index, signals).filter((m) => m.met).length;
+  return met >= MILESTONES_TO_PROMOTE ? next : tier;
 }
 
 // ---------------------------------------------------------------------------
-// LAYER 2b — MILESTONES: six real signals, "any three of six" reached moves
-// the ladder faster than film count alone would. Targets step up per
-// transition; the Epic→Legendary row mirrors the design doc's own numbers.
+// LAYER 2b — MILESTONES: five real signals. Meeting three genuinely promotes,
+// on top of the film-count floor, so breadth is a real second route up the
+// ladder rather than a progress bar that decided nothing.
 
 export type Milestone = { label: string; detail: string; met: boolean };
 
@@ -124,7 +151,6 @@ type MilestoneTargets = {
   films: number;
   genres: number;
   decades: number;
-  favourites: number;
   reviews: number;
   rewatches: number;
 };
@@ -132,24 +158,31 @@ type MilestoneTargets = {
 // Every target here is a fact about the films themselves (count, breadth,
 // curation) rather than time elapsed in the app — a bulk Letterboxd import
 // should land exactly where the same taste, logged natively, would.
+// Favourites used to be the fifth condition and was removed: the only control
+// that sets one lives inside the library's shelf view, so a tier could be
+// gated on an action most people never find. A milestone nobody can reach is
+// not a target, it is a wall.
 const MILESTONE_TARGETS: MilestoneTargets[] = [
-  { films: 25, genres: 5, decades: 2, favourites: 2, reviews: 3, rewatches: 2 },
-  { films: 75, genres: 8, decades: 3, favourites: 5, reviews: 8, rewatches: 5 },
-  { films: 150, genres: 11, decades: 4, favourites: 10, reviews: 15, rewatches: 10 },
-  { films: 300, genres: 15, decades: 5, favourites: 20, reviews: 25, rewatches: 20 },
-  { films: 500, genres: 17, decades: 6, favourites: 35, reviews: 60, rewatches: 40 },
+  { films: 25, genres: 5, decades: 2, reviews: 3, rewatches: 2 },
+  { films: 75, genres: 8, decades: 3, reviews: 8, rewatches: 5 },
+  { films: 150, genres: 11, decades: 4, reviews: 15, rewatches: 10 },
+  { films: 300, genres: 15, decades: 5, reviews: 25, rewatches: 20 },
+  { films: 500, genres: 17, decades: 6, reviews: 60, rewatches: 40 },
 ];
 
-/** Progress toward the *next* tier, or null already at Mythic. */
-export function nextTierMilestones(
-  tier: RarityTier,
-  s: TasteSignals,
-): { milestones: Milestone[]; met: number; nextTier: RarityTier | null } | null {
-  const next = RARITY_TIERS[tier.index + 1];
-  if (!next) return null;
-  const t = MILESTONE_TARGETS[tier.index];
+/**
+ * The five conditions for one step up the ladder.
+ *
+ * Extracted so the gate and the progress display read the same list. They used
+ * to be separate: the card printed "needs any three of five" while the tier was
+ * decided by film count alone, so someone could meet three conditions, watch
+ * the interface confirm it, and stay exactly where they were.
+ */
+export function milestonesAt(stepIndex: number, s: TasteSignals): Milestone[] {
+  const t = MILESTONE_TARGETS[stepIndex];
+  if (!t) return [];
 
-  const milestones: Milestone[] = [
+  return [
     { label: `${t.films} films logged`, detail: `${s.rated} / ${t.films}`, met: s.rated >= t.films },
     {
       label: `${t.genres} genres watched`,
@@ -162,11 +195,6 @@ export function nextTierMilestones(
       met: s.distinctDecades >= t.decades,
     },
     {
-      label: `${t.favourites} favourites marked`,
-      detail: `${s.favouriteCount} / ${t.favourites}`,
-      met: s.favouriteCount >= t.favourites,
-    },
-    {
       label: `${t.reviews} reviews written`,
       detail: `${s.reviewCount} reviews`,
       met: s.reviewCount >= t.reviews,
@@ -177,7 +205,19 @@ export function nextTierMilestones(
       met: s.rewatchEntryCount >= t.rewatches,
     },
   ];
+}
 
+/** Three of the five. The bar the card has always advertised. */
+export const MILESTONES_TO_PROMOTE = 3;
+
+/** Progress toward the *next* tier, or null already at Mythic. */
+export function nextTierMilestones(
+  tier: RarityTier,
+  s: TasteSignals,
+): { milestones: Milestone[]; met: number; nextTier: RarityTier | null } | null {
+  const next = RARITY_TIERS[tier.index + 1];
+  if (!next) return null;
+  const milestones = milestonesAt(tier.index, s);
   return { milestones, met: milestones.filter((m) => m.met).length, nextTier: next };
 }
 

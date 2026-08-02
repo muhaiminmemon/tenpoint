@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { diaryEntries, films } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { isUnreleased } from "@/lib/films";
 import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 
 const schema = z.object({
@@ -27,8 +28,25 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Bad request." }, { status: 400 });
   const { filmId, watchedOn, rating, review, spoiler, private: priv, rewatch } = parsed.data;
 
-  const film = await db.select({ id: films.id }).from(films).where(eq(films.id, filmId)).limit(1);
-  if (!film[0]) return NextResponse.json({ error: "Film not found." }, { status: 404 });
+  const film = (
+    await db
+      .select({ id: films.id, title: films.title, releaseDate: films.releaseDate })
+      .from(films)
+      .where(eq(films.id, filmId))
+      .limit(1)
+  )[0];
+  if (!film) return NextResponse.json({ error: "Film not found." }, { status: 404 });
+
+  // Enforced here rather than only in the UI: the field is disabled on the
+  // film page, but the endpoint is the thing that actually writes, and a
+  // record that claims someone watched a film before it existed is exactly
+  // the kind of dishonesty this diary is built to refuse.
+  if (isUnreleased(film)) {
+    return NextResponse.json(
+      { error: `${film.title} isn't out yet. It can be logged once it's released.` },
+      { status: 409 },
+    );
+  }
 
   const created = await db
     .insert(diaryEntries)

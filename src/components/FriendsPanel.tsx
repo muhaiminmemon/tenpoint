@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { errorFrom, readJson } from "@/lib/http";
 import Avatar from "./Avatar";
+import { useConfirm } from "./Confirm";
 
 type Friend = {
   id: string;
@@ -41,6 +42,7 @@ type Props = {
 };
 
 export default function FriendsPanel({ me, friends, incoming, outgoing }: Props) {
+  const confirm = useConfirm();
   const router = useRouter();
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -112,7 +114,12 @@ export default function FriendsPanel({ me, friends, incoming, outgoing }: Props)
 
   async function remove(friend: Friend) {
     const label = friend.displayName ?? friend.username;
-    if (!window.confirm(`Remove ${label} as a friend? You can send a new request later.`)) return;
+    const ok = await confirm({
+      title: `Remove ${label} as a friend?`,
+      body: "You can send a new request later.",
+      action: "Remove",
+    });
+    if (!ok) return;
     await act(
       () =>
         fetch("/api/friends", {

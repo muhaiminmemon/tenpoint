@@ -172,10 +172,24 @@ export default function CommandPalette() {
       <button
         type="button"
         onClick={openPalette}
-        className="hidden items-center gap-2 rounded-card border border-seam px-3 py-1.5 text-xs text-ash hover:text-paper sm:flex"
+        aria-label="Search films"
+        className="flex items-center gap-2 rounded-card border border-seam px-2.5 py-1.5 text-xs text-ash hover:text-paper sm:px-3"
       >
-        <span aria-hidden>⌕</span>
-        Search films
+        <svg
+          aria-hidden
+          viewBox="0 0 20 20"
+          className="size-4 shrink-0"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        >
+          <circle cx="9" cy="9" r="5.25" />
+          <path d="m13 13 3.5 3.5" />
+        </svg>
+        {/* The label is desktop-only: on a phone the icon carries it, and the
+            header has a logo and an avatar to fit alongside. */}
+        <span className="hidden sm:inline">Search films</span>
       </button>
 
       {rendered && (

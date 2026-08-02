@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LogSheet, { type LogPayload } from "./LogSheet";
+import { useConfirm } from "./Confirm";
 import ViewingCard, { type Viewing } from "./ViewingCard";
 import { useToast } from "./Toast";
 import { formatTenths } from "@/lib/format";
@@ -19,6 +20,8 @@ type Film = {
 
 type Props = {
   film: Film;
+  /** true while the film is still ahead of its release date */
+  unreleased?: boolean;
   entries: Viewing[];
   inWatchlist: boolean;
   watchlistSource: string | null;
@@ -29,11 +32,13 @@ const SECTION = "text-[11px] uppercase tracking-[0.14em] text-ash";
 
 export default function FilmPanel({
   film,
+  unreleased = false,
   entries,
   inWatchlist,
   watchlistSource,
   lists,
 }: Props) {
+  const confirm = useConfirm();
   const router = useRouter();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
@@ -157,7 +162,12 @@ export default function FilmPanel({
   }
 
   async function deleteViewing(v: Viewing) {
-    if (!window.confirm("Delete this viewing? This can't be undone.")) return;
+    const ok = await confirm({
+      title: "Delete this viewing?",
+      body: "The rating and anything written with it go too. This can't be undone.",
+      action: "Delete",
+    });
+    if (!ok) return;
     const res = await request(() => fetch(`/api/entries/${v.id}`, { method: "DELETE" }));
     if (!res) return;
     toast({ message: "Viewing deleted" });
@@ -214,13 +224,22 @@ export default function FilmPanel({
     <div>
       {/* actions read as one quiet toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setLogOpen(true)}
-          className="display rounded-card bg-paper px-4 py-2.5 text-sm font-medium text-carbon hover:bg-white"
-        >
-          {isRewatch ? "Log a rewatch" : "Log a viewing"}
-        </button>
+        {/* Not disabled-and-silent: a dead button invites clicking it and says
+            nothing. The reason replaces the control, and the watchlist stays
+            available because wanting to see it is the whole point. */}
+        {unreleased ? (
+          <p className="rounded-card border border-seam bg-tray px-4 py-2.5 text-sm text-ash">
+            Not out yet. It can be logged from its release date.
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setLogOpen(true)}
+            className="display rounded-card bg-paper px-4 py-2.5 text-sm font-medium text-carbon hover:bg-white"
+          >
+            {isRewatch ? "Log a rewatch" : "Log a viewing"}
+          </button>
+        )}
         <button
           type="button"
           onClick={toggleWatchlist}

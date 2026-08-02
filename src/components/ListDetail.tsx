@@ -24,6 +24,7 @@ import { posterUrl } from "@/lib/tmdb-urls";
 import { errorFrom } from "@/lib/http";
 import type { ListRole } from "@/lib/lists";
 import Avatar from "./Avatar";
+import { useConfirm } from "./Confirm";
 import ListCover from "./ListCover";
 import BulkAddSheet, { type BulkAddFilm } from "./BulkAddSheet";
 
@@ -67,6 +68,7 @@ export default function ListDetail({
   myUserId,
   libraryFilms,
 }: Props) {
+  const confirm = useConfirm();
   const router = useRouter();
   const canEdit = myRole === "owner" || myRole === "editor";
   const [renaming, setRenaming] = useState(false);
@@ -199,7 +201,14 @@ export default function ListDetail({
 
   async function removeMember(userId: string) {
     const leaving = userId === myUserId;
-    if (leaving && !window.confirm(`Leave "${list.title}"? You'll lose access to it.`)) return;
+    if (leaving) {
+      const ok = await confirm({
+        title: `Leave "${list.title}"?`,
+        body: "You'll lose access to it unless someone adds you back.",
+        action: "Leave",
+      });
+      if (!ok) return;
+    }
     const ok = await act(
       () =>
         fetch(`/api/lists/${list.id}/members`, {
@@ -215,14 +224,12 @@ export default function ListDetail({
   }
 
   async function deleteList() {
-    if (
-      !window.confirm(
-        `Delete "${list.title}" for everyone? Its ${items.length} film${
-          items.length === 1 ? "" : "s"
-        } and all members go with it. This can't be undone.`,
-      )
-    )
-      return;
+    const confirmed = await confirm({
+      title: `Delete "${list.title}" for everyone?`,
+      body: `Its ${items.length} film${items.length === 1 ? "" : "s"} and all members go with it. This can't be undone.`,
+      action: "Delete",
+    });
+    if (!confirmed) return;
     const ok = await act(
       () => fetch(`/api/lists/${list.id}`, { method: "DELETE" }),
       "Couldn't delete this list.",
