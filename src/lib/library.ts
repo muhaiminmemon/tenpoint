@@ -8,6 +8,8 @@ export type LibraryFilm = {
   year: number | null;
   posterPath: string | null;
   director: string | null;
+  /** billed leads, for searching the library by who is in a film */
+  cast: string[];
   /** tenths, from the most recent *rated* entry; null = watched, never rated */
   rating: number | null;
   entryCount: number;
@@ -54,6 +56,7 @@ export async function getRankedLibrary(
       f.year,
       f.poster_path,
       f.director,
+      f.cast_names,
       r.rating,
       s.entry_count,
       s.last_watched,
@@ -75,6 +78,11 @@ export async function getRankedLibrary(
     year: r.year as number | null,
     posterPath: r.poster_path as string | null,
     director: r.director as string | null,
+    // The full billed list, not a trim of it. Cutting to the leads would make
+    // a supporting name silently return nothing, which reads as a broken
+    // filter; measured on a 246-film library the tail costs 16KB before
+    // compression, and repeated names compress well.
+    cast: Array.isArray(r.cast_names) ? (r.cast_names as string[]) : [],
     rating: r.rating as number | null,
     entryCount: r.entry_count as number,
     lastWatched: r.last_watched as string | null,

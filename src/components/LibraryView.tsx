@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { useUrlState } from "@/lib/useUrlState";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   DndContext,
@@ -23,6 +24,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import { useProgressiveList } from "@/lib/useProgressiveList";
+import { useScrollMemory } from "@/lib/useScrollMemory";
 import type { LibraryFilm } from "@/lib/library";
 
 type Props = {
@@ -77,7 +79,22 @@ const SAVED_VIEWS: { key: SavedView; label: string }[] = [
 
 const SAVED_KEYS = SAVED_VIEWS.map((v) => v.key);
 
+/**
+ * The active filter text, so a row can say why it is on screen.
+ *
+ * Filtering on cast means a search for an actor returns films whose titles
+ * have nothing to do with what was typed, and a list that answers "Pacino"
+ * with eleven unexplained titles looks broken rather than thorough. A row that
+ * matched on a name prints that name in place of the director.
+ *
+ * A context rather than a prop: the query would otherwise be threaded through
+ * three layout components that have no interest in it.
+ */
+const MatchQuery = createContext("");
+
 export default function LibraryView({ films, editable }: Props) {
+  const pathname = usePathname();
+  const params = useSearchParams();
   const [view, setView] = useUrlState<"ledger" | "shelf">("view", "shelf", VIEWS);
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useUrlState<SortMode>("sort", "rating", SORT_MODES);
@@ -97,7 +114,8 @@ export default function LibraryView({ films, editable }: Props) {
       out = out.filter(
         (x) =>
           x.title.toLowerCase().includes(q) ||
-          (x.director ?? "").toLowerCase().includes(q),
+          (x.director ?? "").toLowerCase().includes(q) ||
+          x.cast.some((c) => c.toLowerCase().includes(q)),
       );
     }
     const thisYear = String(new Date().getFullYear());
@@ -161,7 +179,11 @@ export default function LibraryView({ films, editable }: Props) {
     } satisfies Record<SavedView, number>;
   }, [items]);
 
-  const { visible: shown, hasMore, total, sentinelRef } = useProgressiveList(visible, 30);
+  // Keyed on the whole query, since a different sort or slice is a different
+  // list and its position is not this one's.
+  const memory = `${pathname}?${params.toString()}`;
+  useScrollMemory(memory);
+  const { visible: shown, hasMore, total, sentinelRef } = useProgressiveList(visible, 30, memory);
 
   return (
     <div>
@@ -192,8 +214,8 @@ export default function LibraryView({ films, editable }: Props) {
           type="search"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter title or director"
-          aria-label="Filter library"
+          placeholder="Title, director or cast"
+          aria-label="Filter library by title, director or cast"
           className="w-48 rounded-card border border-seam bg-tray px-3 py-1.5 text-sm placeholder:text-dim focus:border-beam focus:outline-none"
         />
         <select
@@ -246,6 +268,7 @@ export default function LibraryView({ films, editable }: Props) {
         // hundreds of rows, and animating between two of them would be a long
         // slow scroll nobody asked for.
         <div key={view} className="pop-in">
+          <MatchQuery.Provider value={filter.trim().toLowerCase()}>
           {view === "ledger" ? (
             dragEnabled ? (
               <RankedLedger films={shown} onReorder={setItems} all={items} />
@@ -255,6 +278,7 @@ export default function LibraryView({ films, editable }: Props) {
           ) : (
             <Shelf films={shown} editable={editable} onToggleFavourite={toggleFavourite} />
           )}
+          </MatchQuery.Provider>
         </div>
       )}
 
@@ -378,6 +402,17 @@ function FlatLedger({ films, showRank }: { films: LibraryFilm[]; showRank: boole
   );
 }
 
+/** The cast member the current filter matched, when that is why a row is here. */
+function useBilledMatch(film: LibraryFilm): string | null {
+  const q = useContext(MatchQuery);
+  if (!q) return null;
+  // Only when the obvious fields miss. A search for "Nolan" that already
+  // matched the director should keep saying so.
+  if (film.title.toLowerCase().includes(q)) return null;
+  if ((film.director ?? "").toLowerCase().includes(q)) return null;
+  return film.cast.find((c) => c.toLowerCase().includes(q)) ?? null;
+}
+
 function LedgerRow({
   film,
   rank,
@@ -393,6 +428,7 @@ function LedgerRow({
   });
 
   const poster = posterUrl(film.posterPath, "w154");
+  const billed = useBilledMatch(film);
 
   return (
     <li
@@ -426,7 +462,7 @@ function LedgerRow({
           )}
         </Link>
         <span className="block truncate text-xs text-ash">
-          {[film.year, film.director].filter(Boolean).join(" · ")}
+          {[film.year, billed ? `with ${billed}` : film.director].filter(Boolean).join(" · ")}
           {film.entryCount > 1 ? ` · watched ${film.entryCount}×` : ""}
         </span>
       </span>
@@ -459,10 +495,31 @@ function Shelf({
 }) {
   return (
     <ul className="fade-up grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-      {films.map((film) => {
-        const poster = posterUrl(film.posterPath, "w342");
-        return (
-          <li key={film.filmId} className="group relative">
+      {films.map((film) => (
+        <ShelfTile
+          key={film.filmId}
+          film={film}
+          editable={editable}
+          onToggleFavourite={onToggleFavourite}
+        />
+      ))}
+    </ul>
+  );
+}
+
+function ShelfTile({
+  film,
+  editable,
+  onToggleFavourite,
+}: {
+  film: LibraryFilm;
+  editable: boolean;
+  onToggleFavourite: (filmId: string, next: boolean) => void;
+}) {
+  const poster = posterUrl(film.posterPath, "w342");
+  const billed = useBilledMatch(film);
+  return (
+          <li className="group relative">
             <Link href={`/film/${film.slug}`} className="block">
               {poster ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -483,6 +540,9 @@ function Shelf({
                   {film.rating !== null ? formatTenths(film.rating) : ""}
                 </span>
               </span>
+              {billed && (
+                <span className="mt-0.5 block truncate text-[11px] text-dim">with {billed}</span>
+              )}
             </Link>
             {editable && (
               <button
@@ -505,8 +565,5 @@ function Shelf({
               </button>
             )}
           </li>
-        );
-      })}
-    </ul>
   );
 }

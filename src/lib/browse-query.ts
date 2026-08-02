@@ -8,13 +8,20 @@
 import { and, desc, gte, isNotNull, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { films } from "@/db/schema";
-import { discoverMovies, type DiscoverPage, type TmdbMovie } from "./tmdb";
+import {
+  discoverMovies,
+  searchMovies,
+  searchPeople,
+  type DiscoverPage,
+  type TmdbMovie,
+} from "./tmdb";
 import {
   BROWSE_GENRES,
   RUNTIMES,
   SORTS,
   normalise,
   type BrowseFilters,
+  type QueryAs,
 } from "./browse";
 
 /**
@@ -44,20 +51,168 @@ export type BrowseResult = {
   page: number;
   totalPages: number;
   totalResults: number;
+  /** what a typed query turned out to mean, when there was one */
+  match?: QueryMatch;
+};
+
+/**
+ * The reading the page took of what somebody typed, and its receipt.
+ *
+ * A search box that silently decides "Kubrick" means the director is right
+ * almost every time and infuriating the once it is not. Every field here
+ * exists so the page can say what it did and offer the other reading in one
+ * click.
+ */
+export type QueryMatch = {
+  kind: QueryAs;
+  /** the heading: "Films with Christopher Nolan", "Titles matching alien" */
+  heading: string;
+  /** the reading not taken, when it would return anything */
+  otherLabel?: string;
+  other?: QueryAs;
+  /** filters this reading could not honour, named so nobody hunts for them */
+  dropped?: string[];
 };
 
 export async function runBrowse(f: BrowseFilters): Promise<BrowseResult> {
   const filters = normalise(f);
-  return filters.source === "tmdb" ? runTmdb(filters) : runLeaderboard(filters);
+  if (filters.source !== "tmdb") return runLeaderboard(filters);
+  return filters.q ? runQuery(filters) : runTmdb(filters);
 }
 
-async function runTmdb(f: BrowseFilters): Promise<DiscoverPage> {
+/** Accents off, punctuation off, case off: how two names are compared. */
+function fold(s: string): string {
+  return s
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Whether a typed string is a person or a title.
+ *
+ * Both readings are asked for at once and the stronger one wins, because
+ * neither alone is enough. "Kubrick" is a director and also a documentary
+ * called Kubrick; "Alien" is a film and also somebody's actual name. So a
+ * person has to be genuinely well known, and a film sharing the spelling only
+ * takes precedence when it is a film people have heard of. The vote floor is
+ * what separates Ridley Scott's Alien from an obscure short of the same name.
+ */
+async function resolveQuery(q: string, forced: QueryAs | null) {
+  const nq = fold(q);
+  const [people, titles] = await Promise.all([
+    searchPeople(q).catch(() => []),
+    searchMovies(q).catch(() => []),
+  ]);
+
+  const person = people[0];
+  const namedExactly = person
+    ? (() => {
+        const n = fold(person.name);
+        return n === nq || n.split(" ").includes(nq) || n.startsWith(nq);
+      })()
+    : false;
+  const wellKnown = (person?.popularity ?? 0) >= 2;
+
+  const sameName = titles
+    .slice(0, 6)
+    .filter((m) => fold(m.title) === nq)
+    .reduce((max, m) => Math.max(max, m.vote_count ?? 0), 0);
+
+  const personFits = Boolean(person) && namedExactly && wellKnown;
+  const kind: QueryAs =
+    forced ?? (personFits && sameName < 400 ? "person" : "title");
+
+  return { kind, person: personFits ? person : undefined, titles };
+}
+
+/**
+ * A text query against TMDB's whole index.
+ *
+ * The person reading runs through `/discover` with `with_people`, which is why
+ * it is worth resolving names at all: every filter and every sort keeps
+ * working, the counts are real and the pages go as deep as anything else. The
+ * title reading has to use `/search`, which honours a year and nothing else,
+ * so the rest are applied to what comes back and the ones that cannot be are
+ * named rather than quietly ignored.
+ */
+async function runQuery(f: BrowseFilters): Promise<BrowseResult> {
+  const { kind, person, titles } = await resolveQuery(f.q, f.as);
+
+  if (kind === "person" && person) {
+    const page = await runTmdb(f, { with_people: String(person.id) });
+    const role =
+      person.known_for_department === "Directing"
+        ? "director"
+        : person.known_for_department === "Writing"
+          ? "writer"
+          : "actor";
+    return {
+      ...page,
+      match: {
+        kind: "person",
+        heading: `Films with ${person.name}, ${role}`,
+        other: titles.length ? "title" : undefined,
+        otherLabel: titles.length ? "Search titles instead" : undefined,
+      },
+    };
+  }
+
+  const found = await searchMovies(f.q, f.year ?? undefined);
+  const band = RUNTIMES.find((r) => r.key === f.runtime);
+  const dropped: string[] = [];
+  if (band) dropped.push("runtime");
+
+  const results = found.filter((m) => {
+    if (f.genre && !(m.genre_ids ?? []).includes(f.genre)) return false;
+    if (f.language && m.original_language !== f.language) return false;
+    if (f.minRating && (m.vote_average ?? 0) * 10 < f.minRating) return false;
+    if (f.decade && !f.year) {
+      const y = Number.parseInt((m.release_date ?? "").slice(0, 4), 10);
+      if (!Number.isFinite(y) || y < f.decade || y > f.decade + 9) return false;
+    }
+    return true;
+  });
+
+  return {
+    results: results.map((m) => ({
+      ...m,
+      score:
+        typeof m.vote_average === "number" && m.vote_average > 0
+          ? m.vote_average.toFixed(1)
+          : undefined,
+    })),
+    page: 1,
+    // Relevance order is the answer to a title search, and there is no second
+    // page of it worth walking: past the first twenty, a search that has not
+    // found the film needs different words rather than another page.
+    totalPages: 1,
+    totalResults: results.length,
+    match: {
+      kind: "title",
+      heading: `Titles matching \u201c${f.q}\u201d`,
+      other: person ? "person" : undefined,
+      otherLabel: person ? `Search for ${person.name} instead` : undefined,
+      dropped: dropped.length ? dropped : undefined,
+    },
+  };
+}
+
+async function runTmdb(
+  f: BrowseFilters,
+  extra: Record<string, string> = {},
+): Promise<DiscoverPage> {
   const sort = SORTS.find((s) => s.key === f.sort) ?? SORTS[0];
 
   const params: Record<string, string> = {
     sort_by: sort.tmdb,
     page: String(f.page),
-    "vote_count.gte": String(voteFloor(f)),
+    // A person's filmography is a few dozen films, not a chart: the floor that
+    // keeps a chart honest would hide half of it.
+    "vote_count.gte": String(extra.with_people ? 0 : voteFloor(f)),
+    ...extra,
   };
 
   if (f.genre) params.with_genres = String(f.genre);
@@ -119,6 +274,26 @@ async function runLeaderboard(f: BrowseFilters): Promise<BrowseResult> {
   if (band?.gte) where.push(gte(films.runtime, band.gte));
   if (band?.lte) where.push(lte(films.runtime, band.lte));
   if (f.language) where.push(sql`${films.originalLanguage} = ${f.language}`);
+  if (f.q) {
+    // One condition over all three fields, which is the whole advantage of
+    // ranking locally: TMDB needs a name resolved to an id before it can be
+    // asked about, and this table already holds who directed and who is in
+    // every film it ranks.
+    const like = `%${f.q}%`;
+    where.push(sql`(
+      ${films.title} ilike ${like}
+      or ${films.director} ilike ${like}
+      or exists (
+        -- guarded: jsonb_array_elements_text raises on a row holding anything
+        -- but an array, and one such row would fail the whole query
+        select 1 from jsonb_array_elements_text(
+          case when jsonb_typeof(${films.castNames}) = 'array'
+               then ${films.castNames} else '[]'::jsonb end
+        ) as c
+        where c ilike ${like}
+      )
+    )`);
+  }
   // Both scales happen to land on 0–100: IMDb is stored in tenths (8.8 → 88)
   // and the Tomatometer is already a percentage, so one comparison covers both.
   if (f.minRating) where.push(gte(column, f.minRating));
@@ -163,5 +338,8 @@ async function runLeaderboard(f: BrowseFilters): Promise<BrowseResult> {
     page: f.page,
     totalPages: Math.max(1, Math.ceil(count / LEADERBOARD_PER_PAGE)),
     totalResults: count,
+    match: f.q
+      ? { kind: "title", heading: `Matching \u201c${f.q}\u201d in title, director or cast` }
+      : undefined,
   };
 }

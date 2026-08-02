@@ -6,21 +6,15 @@ import AutoHeight from "./AutoHeight";
 import { useToast } from "./Toast";
 import TasteCardFlip from "./TasteCardFlip";
 import { BinderLink } from "./TasteCardBig";
-import { formatTenths } from "@/lib/format";
+import { SHARE_FORMATS, shareImageUrl, type ShareFmt } from "@/lib/share-card";
 import type { HomeTasteCardData } from "@/lib/taste";
 
 type Tab = "Card" | "Traits" | "Share";
-type ShareFmt = "story" | "square" | "wide";
-
-const SHARE_FORMATS: { key: ShareFmt; label: string; aspect: string; caption: string }[] = [
-  { key: "story", label: "Story 9:16", aspect: "9 / 16", caption: "1080 × 1920 · PNG" },
-  { key: "square", label: "Square 1:1", aspect: "1 / 1", caption: "1080 × 1080 · PNG" },
-  { key: "wide", label: "Wide 16:9", aspect: "16 / 9", caption: "1920 × 1080 · PNG" },
-];
 
 export default function TasteCardDialog({
   open,
   onClose,
+  initialTab = "Card",
   data,
   username,
   displayName,
@@ -29,6 +23,8 @@ export default function TasteCardDialog({
 }: {
   open: boolean;
   onClose: () => void;
+  /** which panel to land on; "Share" when opened by a share button */
+  initialTab?: Tab;
   data: HomeTasteCardData;
   username: string;
   displayName: string;
@@ -36,7 +32,15 @@ export default function TasteCardDialog({
   memberNumber: number;
 }) {
   const { rendered, state } = usePresence(open, 180);
-  const [tab, setTab] = useState<Tab>("Card");
+  const [tab, setTab] = useState<Tab>(initialTab);
+  // Reopening from a different button lands on that button's panel rather than
+  // wherever the last visit left off. Compared in state rather than a ref, so
+  // nothing is read during render that React does not track.
+  const [openedOn, setOpenedOn] = useState(initialTab);
+  if (open && openedOn !== initialTab) {
+    setOpenedOn(initialTab);
+    setTab(initialTab);
+  }
   const [flipped, setFlipped] = useState(false);
   const [shareFmt, setShareFmt] = useState<ShareFmt>("story");
   const [hideNums, setHideNums] = useState(false);
@@ -79,21 +83,6 @@ export default function TasteCardDialog({
     } catch {
       toast({ message: "Couldn't copy the link.", tone: "warn" });
     }
-  }
-
-  async function nativeShare() {
-    const text = `${data.archetype ?? "My taste card"}: ${data.rated} films, ${
-      data.mean !== null ? formatTenths(data.mean) : "—"
-    } average.`;
-    if (typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share({ title: "My taste card", text, url: shareUrl });
-      } catch {
-        // cancelled — nothing to do
-      }
-      return;
-    }
-    await copyLink();
   }
 
   return (
@@ -153,22 +142,16 @@ export default function TasteCardDialog({
               flipped={flipped}
               onFlip={() => setFlipped((f) => !f)}
             />
-            <div className="mx-auto mt-3 flex w-full max-w-[368px] gap-2 sm:max-w-[320px]">
-              <button
-                type="button"
-                onClick={() => setFlipped((f) => !f)}
-                className="flex-1 rounded-card border border-seam bg-tray py-2 text-[12.5px] text-ash hover:text-paper"
-              >
-                {flipped ? "Show front ⇄" : "Show back ⇄"}
-              </button>
-              <button
-                type="button"
-                onClick={nativeShare}
-                className="display flex-1 rounded-card bg-paper py-2 text-[12.5px] font-medium text-carbon hover:bg-white"
-              >
-                Share
-              </button>
-            </div>
+            {/* Flipping only. Sharing lives in its own panel one row up, and
+                two buttons for it put the same action in two places with two
+                different meanings. */}
+            <button
+              type="button"
+              onClick={() => setFlipped((f) => !f)}
+              className="mx-auto mt-3 block w-full max-w-[368px] rounded-card border border-seam bg-tray py-2 text-[12.5px] text-ash hover:text-paper sm:max-w-[320px]"
+            >
+              {flipped ? "Show front ⇄" : "Show back ⇄"}
+            </button>
           </div>
 
           <div className="min-w-0">
@@ -181,16 +164,13 @@ export default function TasteCardDialog({
             {tab === "Traits" && <TraitsTab data={data} />}
             {tab === "Share" && (
               <ShareTab
-                data={data}
                 username={username}
-                displayName={displayName}
                 format={format}
                 shareFmt={shareFmt}
                 setShareFmt={setShareFmt}
                 hideNums={hideNums}
                 setHideNums={setHideNums}
                 onCopy={copyLink}
-                onShare={nativeShare}
               />
             )}
             </div>
@@ -348,28 +328,81 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
 }
 
 function ShareTab({
-  data,
   username,
-  displayName,
   format,
   shareFmt,
   setShareFmt,
   hideNums,
   setHideNums,
   onCopy,
-  onShare,
 }: {
-  data: HomeTasteCardData;
   username: string;
-  displayName: string;
   format: (typeof SHARE_FORMATS)[number];
   shareFmt: ShareFmt;
   setShareFmt: (f: ShareFmt) => void;
   hideNums: boolean;
   setHideNums: (v: boolean) => void;
   onCopy: () => void;
-  onShare: () => void;
 }) {
+  const { toast } = useToast();
+  const src = shareImageUrl(username, shareFmt, hideNums);
+
+  /**
+   * The image itself, held ready before anybody presses anything.
+   *
+   * `navigator.share` has to be called from the gesture that asked for it, and
+   * on iOS an await in between is enough to lose that permission. Fetching the
+   * moment the format changes means the press has a file already in hand. The
+   * preview above uses the same URL, so this is the browser cache, not a
+   * second download.
+   */
+  // Stored with the URL it came from, so a format change invalidates it
+  // without an extra render pass to clear it first.
+  const [held, setHeld] = useState<{ src: string; file: File | null }>({ src, file: null });
+  const file = held.src === src ? held.file : null;
+  const loading = !file;
+
+  useEffect(() => {
+    let live = true;
+    fetch(src)
+      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+      .then((blob) => {
+        if (!live) return;
+        setHeld({ src, file: new File([blob], `${username}-taste-card.png`, { type: "image/png" }) });
+      })
+      .catch(() => {
+        if (live) setHeld({ src, file: null });
+      });
+    return () => {
+      live = false;
+    };
+  }, [src, username]);
+
+  const canShareFile =
+    typeof navigator !== "undefined" &&
+    Boolean(file) &&
+    Boolean(navigator.canShare?.({ files: [file as File] }));
+
+  function download() {
+    if (!file) return;
+    const href = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = file.name;
+    a.click();
+    URL.revokeObjectURL(href);
+    toast({ message: "Card saved." });
+  }
+
+  async function shareFile() {
+    if (!file) return;
+    try {
+      await navigator.share({ files: [file], title: "My taste card" });
+    } catch {
+      // cancelled, or refused mid-flight: the download is still there
+    }
+  }
+
   return (
     <div>
       <div className="flex gap-1.5">
@@ -378,7 +411,7 @@ function ShareTab({
             key={f.key}
             type="button"
             onClick={() => setShareFmt(f.key)}
-            className={`flex-1 rounded-card py-1.5 text-[12px] ${
+            className={`flex-1 rounded-card py-1.5 text-[12px] transition-colors ${
               f.key === shareFmt
                 ? "bg-paper text-carbon"
                 : "border border-seam bg-tray text-ash hover:text-paper"
@@ -389,39 +422,27 @@ function ShareTab({
         ))}
       </div>
 
+      {/* The preview is the file. Not a sketch of it, not a smaller version
+          built from the same numbers: the same URL that gets shared, so what
+          somebody looks at here is exactly what leaves. */}
       <div
-        className="mx-auto mt-4 overflow-hidden rounded-xl border-[1.5px] border-transparent bg-[linear-gradient(158deg,#191922,#0d0d11)] shadow-[0_18px_44px_rgba(0,0,0,.55)] transition-[width] duration-300"
-        style={{ width: format.key === "story" ? "196px" : format.key === "square" ? "268px" : "330px", aspectRatio: format.aspect }}
+        className="mx-auto mt-4 overflow-hidden rounded-xl border border-seam bg-[#0e0e10] shadow-[0_18px_44px_rgba(0,0,0,.55)] transition-[width,aspect-ratio] duration-300"
+        style={{
+          width: shareFmt === "story" ? "204px" : shareFmt === "square" ? "276px" : "336px",
+          aspectRatio: format.aspect,
+        }}
       >
-        <div className="flex size-full flex-col p-3.5">
-          <div className="flex items-start justify-between">
-            <span className="display text-[11px] text-beam">@{username}</span>
-            <span className="flex flex-col items-end gap-px">
-              <span className="text-[8px] uppercase tracking-[.2em]" style={{ color: data.tier.labelColor }}>
-                ◆ {data.tier.name}
-              </span>
-              <span className="display text-[9px] uppercase tracking-[.08em]" style={{ color: data.variant.accentColor }}>
-                {data.variant.name}
-              </span>
-            </span>
-          </div>
-          <div className="mt-auto">
-            <div className="text-[8px] uppercase tracking-[.16em] text-[#8a8a92]">Archetype</div>
-            <div className="display mt-0.5 text-[16px] leading-tight text-paper">{data.archetype ?? displayName}</div>
-            <div className="num mt-1 text-[9px] text-[#c9b48a]">{data.traitsHeldCount} traits held</div>
-            <div className="mt-2 flex items-end justify-between">
-              <span className="text-[9px] text-ash">tenpoint.site/{username}</span>
-              <span
-                className="num text-[22px] leading-none text-paper transition-all"
-                style={{ opacity: hideNums ? 0.14 : 1, filter: hideNums ? "blur(7px)" : "none" }}
-              >
-                {data.mean !== null ? formatTenths(data.mean) : "—"}
-              </span>
-            </div>
-          </div>
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt="Your taste card, as it will be shared"
+          className="size-full object-contain transition-opacity duration-300"
+          style={{ opacity: loading ? 0.35 : 1 }}
+        />
       </div>
-      <div className="num mt-2 text-center text-[10px] uppercase tracking-[.1em] text-dim">{format.caption}</div>
+      <div className="num mt-2 text-center text-[10px] uppercase tracking-[.1em] text-dim">
+        {format.caption}
+      </div>
 
       <button
         type="button"
@@ -430,7 +451,9 @@ function ShareTab({
       >
         <span>
           <span className="block text-[13px] text-paper">Hide my numbers</span>
-          <span className="mt-0.5 block text-[11px] text-ash">Shares the class and the reel, not the average.</span>
+          <span className="mt-0.5 block text-[11px] text-ash">
+            Shares the class and the reel, not the average.
+          </span>
         </span>
         <span
           className={`relative h-[18px] w-8 shrink-0 rounded-full transition-colors ${hideNums ? "bg-beam" : "bg-seam"}`}
@@ -442,24 +465,33 @@ function ShareTab({
         </span>
       </button>
 
-      <div className="mt-1 flex flex-col">
+      <div className="mt-3 flex gap-2">
+        {canShareFile && (
+          <button
+            type="button"
+            onClick={shareFile}
+            className="display flex-1 rounded-card bg-paper py-2.5 text-[13px] font-medium text-carbon transition-colors hover:bg-white"
+          >
+            Share image
+          </button>
+        )}
         <button
           type="button"
-          onClick={onCopy}
-          className="flex items-center gap-3 border-t border-[#1e1e24] py-2.5 text-left hover:bg-[#16161a]"
+          onClick={download}
+          disabled={!file}
+          className={`${canShareFile ? "flex-1 border border-seam bg-tray text-ash hover:text-paper" : "display flex-1 bg-paper font-medium text-carbon hover:bg-white"} rounded-card py-2.5 text-[13px] transition-colors disabled:opacity-50`}
         >
-          <span className="num w-5 text-center text-[13px] text-beam">⧉</span>
-          <span className="flex-1 text-[13px] text-paper">Copy card link</span>
-        </button>
-        <button
-          type="button"
-          onClick={onShare}
-          className="flex items-center gap-3 border-t border-[#1e1e24] py-2.5 text-left hover:bg-[#16161a]"
-        >
-          <span className="num w-5 text-center text-[13px] text-beam">↗</span>
-          <span className="flex-1 text-[13px] text-paper">Share…</span>
+          {loading ? "Drawing card…" : "Save image"}
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={onCopy}
+        className="mt-2 w-full py-2 text-[12px] text-ash transition-colors hover:text-paper"
+      >
+        Or copy a link to your profile
+      </button>
     </div>
   );
 }

@@ -60,6 +60,21 @@ export async function searchMovies(query: string, year?: number): Promise<TmdbMo
   return data.results ?? [];
 }
 
+export type TmdbPerson = {
+  id: number;
+  name: string;
+  popularity?: number;
+  profile_path?: string | null;
+  /** TMDB's own guess at what they are known for: Directing, Acting, Writing */
+  known_for_department?: string;
+};
+
+/** People, so a browse query can mean a director or somebody in the cast. */
+export async function searchPeople(query: string): Promise<TmdbPerson[]> {
+  const data = await tmdb<{ results: TmdbPerson[] }>("/search/person", { query });
+  return data.results ?? [];
+}
+
 export async function movieDetails(tmdbId: number): Promise<TmdbMovieDetails> {
   return tmdb<TmdbMovieDetails>(`/movie/${tmdbId}`, {
     append_to_response: "credits,keywords",

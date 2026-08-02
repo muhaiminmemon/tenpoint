@@ -6,7 +6,6 @@ import { useToast } from "./Toast";
 import TasteCardDialog from "./TasteCardDialog";
 import TiltCard from "./TiltCard";
 import TasteCardFace from "./TasteCardFace";
-import { formatTenths } from "@/lib/format";
 import { RARITY_TIERS } from "@/lib/taste-card";
 import type { HomeTasteCardData } from "@/lib/taste";
 
@@ -38,6 +37,10 @@ export default function TasteFoilCard({
   hasFriend: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  // Which panel the dialog opens on. "Share card" and "View card" are two
+  // doors into the same object, and sharing now means an image the dialog
+  // draws, so the button opens that panel rather than pushing a link.
+  const [openTab, setOpenTab] = useState<"Card" | "Share">("Card");
   const [justReminted, setJustReminted] = useState(false);
   const { toast } = useToast();
   const { tier } = data;
@@ -74,27 +77,6 @@ export default function TasteFoilCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, tier.name, tier.index]);
 
-  async function share() {
-    const url = typeof window !== "undefined" ? `${location.origin}/${username}` : `/${username}`;
-    const text = `${data.archetype ?? "My taste card"}: ${data.rated} films, ${
-      data.mean !== null ? formatTenths(data.mean) : "—"
-    } average.`;
-    if (typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share({ title: "My taste card", text, url });
-        return;
-      } catch {
-        return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      toast({ message: "Profile link copied." });
-    } catch {
-      toast({ message: "Couldn't copy the link.", tone: "warn" });
-    }
-  }
-
   return (
     <div>
       {/* The tilt wraps the button alone, never this outer div: a transform
@@ -103,7 +85,10 @@ export default function TasteFoilCard({
       <TiltCard radius="20px">
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpenTab("Card");
+          setOpen(true);
+        }}
         className={`block w-full rounded-[20px] p-px text-left ${justReminted ? "card-tier-pop" : ""}`}
         style={{ background: tier.border, boxShadow: tier.glow === "none" ? undefined : tier.glow }}
       >
@@ -121,14 +106,20 @@ export default function TasteFoilCard({
       <div className="mx-auto mt-4 flex w-full gap-2.5">
         <button
           type="button"
-          onClick={share}
+          onClick={() => {
+            setOpenTab("Share");
+            setOpen(true);
+          }}
           className="display flex-1 rounded-card bg-paper py-2.5 text-[13px] font-medium text-carbon hover:bg-white"
         >
           Share card
         </button>
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setOpenTab("Card");
+            setOpen(true);
+          }}
           className="flex-1 rounded-card border border-seam bg-tray py-2.5 text-[13px] text-ash hover:text-paper"
         >
           View card →
@@ -152,6 +143,7 @@ export default function TasteFoilCard({
       <TasteCardDialog
         open={open}
         onClose={() => setOpen(false)}
+        initialTab={openTab}
         data={data}
         username={username}
         displayName={displayName}

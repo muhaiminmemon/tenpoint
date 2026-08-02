@@ -78,7 +78,14 @@ async function Grid({ filters }: { filters: ReturnType<typeof parseFilters> }) {
       <div className="mt-10 max-w-[48ch]">
         <p className="display text-[17px] text-paper">Nothing matches that.</p>
         <p className="mt-2 text-sm leading-relaxed text-ash">
-          {leaderboard ? (
+          {filters.q ? (
+            <>
+              Nothing came back for &ldquo;{filters.q}&rdquo;
+              {isFiltered({ ...filters, q: "" })
+                ? " with the current filters. Clearing one is usually enough."
+                : ". Check the spelling, or try a surname on its own."}
+            </>
+          ) : leaderboard ? (
             <>
               Critic rankings only cover films whose scores we already hold, which is a much
               smaller set than TMDB&apos;s whole index and grows as the catalogue fills in.
@@ -95,14 +102,43 @@ async function Grid({ filters }: { filters: ReturnType<typeof parseFilters> }) {
     );
   }
 
+  const match = page.match;
+  // A filter named below as set aside must not also be listed here as though
+  // it were in force.
+  const described = match?.dropped?.includes("runtime")
+    ? { ...filters, runtime: null }
+    : filters;
+
   return (
     <>
       <div className="mt-6 flex flex-wrap items-baseline justify-between gap-3">
-        <p className="text-[12.5px] text-ash">{describeFilters(filters)}</p>
+        <p className="text-[12.5px] text-ash">{describeFilters(described, match?.heading)}</p>
         <p className="num text-[12.5px] text-dim">
           {page.totalResults.toLocaleString()} films
         </p>
       </div>
+
+      {/* The receipt for a guess. A search box that decides "Kubrick" means
+          the director is right nearly every time; this is the one click back
+          for the time it is not. */}
+      {(match?.other || match?.dropped) && (
+        <p className="mt-1.5 text-[12.5px] text-dim">
+          {match.other && (
+            <Link
+              href={`/browse${filtersToQuery({ ...filters, as: match.other, page: 1 })}`}
+              className="underline underline-offset-2 transition-colors hover:text-paper"
+            >
+              {match.otherLabel}
+            </Link>
+          )}
+          {match.dropped && (
+            <span className={match.other ? "ml-2" : ""}>
+              A title search cannot filter by {match.dropped.join(" or ")}, so that one is
+              set aside here.
+            </span>
+          )}
+        </p>
+      )}
 
       <ul className="mt-4 grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 lg:grid-cols-6">
         {page.results.map((m) => (

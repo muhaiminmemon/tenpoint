@@ -100,7 +100,16 @@ const STALE_MS = 30 * 24 * 60 * 60 * 1000;
 export async function hydrateFilm(film: Film): Promise<Film> {
   if (!film.tmdbId) return film;
   const fresh = film.refreshedAt && Date.now() - film.refreshedAt.getTime() < STALE_MS;
-  if (film.director && film.imdbId && film.releaseDate && film.originalLanguage && fresh)
+  if (
+    film.director &&
+    film.imdbId &&
+    film.releaseDate &&
+    film.originalLanguage &&
+    // The library is searched by cast, so an empty list is a gap worth one
+    // call rather than a film that stays unfindable by anyone in it.
+    film.castNames?.length &&
+    fresh
+  )
     return film;
   try {
     const details = await movieDetails(film.tmdbId);

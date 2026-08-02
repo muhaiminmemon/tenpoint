@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Sheet from "./Sheet";
 import {
@@ -8,6 +8,7 @@ import {
   DECADES,
   EMPTY_FILTERS,
   LANGUAGES,
+  MAX_QUERY,
   MIN_RATINGS,
   RUNTIMES,
   SORTS,
@@ -41,12 +42,39 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
   const [pending, startTransition] = useTransition();
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  // The box is typed into, so it holds its own text; the URL is the truth it
+  // syncs back from when a search arrives from anywhere else (a link, the back
+  // button, the clear button).
+  const [text, setText] = useState(filters.q);
+  const lastQ = useRef(filters.q);
+  useEffect(() => {
+    if (lastQ.current !== filters.q) {
+      lastQ.current = filters.q;
+      setText(filters.q);
+    }
+  }, [filters.q]);
+
   function apply(next: Partial<Filters>) {
     startTransition(() => {
       router.replace(`/browse${filtersToQuery({ ...filters, ...next, page: 1 })}`, {
         scroll: false,
       });
     });
+  }
+
+  /**
+   * Submitted rather than typed into.
+   *
+   * Every keystroke here would be a navigation and two TMDB calls, on our key,
+   * for a query nobody has finished writing. Enter, or the button, is also
+   * what a search field is expected to do.
+   */
+  function search(e: React.FormEvent) {
+    e.preventDefault();
+    const q = text.trim().slice(0, MAX_QUERY);
+    if (q === filters.q) return;
+    // A new search should not inherit the last one's guess about what it meant.
+    apply({ q, as: null });
   }
 
   const leaderboard = filters.source !== "tmdb";
@@ -141,6 +169,52 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
       className={`transition-opacity duration-200 ${pending ? "opacity-60" : "opacity-100"}`}
       aria-busy={pending}
     >
+      <form onSubmit={search} className="mb-3 flex items-center gap-2" role="search">
+        <label className="relative flex min-w-0 flex-1 items-center sm:max-w-[320px]">
+          <span className="sr-only">Search by title, director or cast</span>
+          <svg
+            aria-hidden
+            viewBox="0 0 20 20"
+            className="pointer-events-none absolute left-3 size-4 text-dim"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          >
+            <circle cx="9" cy="9" r="5.5" />
+            <path d="m13.5 13.5 3 3" />
+          </svg>
+          <input
+            type="search"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={MAX_QUERY}
+            placeholder="Title, director or cast"
+            aria-label="Search by title, director or cast"
+            // 16px on touch, like the selects, or iOS zooms the page in.
+            className={`${CONTROL_H} w-full rounded-full border border-seam bg-tray pl-9 pr-3 text-base text-paper placeholder:text-dim transition-colors hover:border-dim focus:border-beam focus:outline-none sm:text-[12.5px]`}
+          />
+        </label>
+        <button
+          type="submit"
+          className={`${CONTROL_H} shrink-0 rounded-full border border-seam px-4 text-[13px] text-ash transition-colors hover:border-dim hover:text-paper sm:text-[12.5px]`}
+        >
+          Search
+        </button>
+        {filters.q && (
+          <button
+            type="button"
+            onClick={() => {
+              setText("");
+              apply({ q: "", as: null });
+            }}
+            className="shrink-0 px-1 text-[12.5px] text-ash transition-colors hover:text-paper"
+          >
+            Clear
+          </button>
+        )}
+      </form>
+
       {/* Sorting only applies to TMDB's index: choosing IMDb or the
           Tomatometer already names the order. */}
       {!leaderboard && (

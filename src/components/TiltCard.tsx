@@ -61,33 +61,28 @@ export default function TiltCard({
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const glareRef = useRef<HTMLSpanElement>(null);
+  /** where a touch went down, so a drag can be told apart from a tap */
+  const startRef = useRef<{ x: number; y: number } | null>(null);
+  /** set once a touch has travelled far enough to count as handling the card */
+  const draggingRef = useRef(false);
 
   const finePointer = useMediaQuery(FINE_POINTER);
   const reduced = useMediaQuery(REDUCED_MOTION);
-  const active = finePointer && !reduced;
+  const active = !reduced;
 
-  const onEnter = useCallback(() => {
-    if (!active) return;
-    // Promoted only while in use: `will-change` is itself a containing block,
-    // and leaving one on every card permanently is worse than the paint it
-    // saves.
-    if (frameRef.current) frameRef.current.style.willChange = "transform";
-  }, [active]);
+  /** Distance in px before a touch stops being a tap and starts being a drag. */
+  const DRAG_THRESHOLD = 8;
 
-  const onMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!active || e.pointerType !== "mouse") return;
-      const frame = frameRef.current;
-      if (!frame) return;
-
+  const paint = useCallback(
+    (frame: HTMLDivElement, clientX: number, clientY: number, lift: number) => {
       const rect = frame.getBoundingClientRect();
-      const dx = (e.clientX - rect.left) / rect.width - 0.5;
-      const dy = (e.clientY - rect.top) / rect.height - 0.5;
+      const dx = (clientX - rect.left) / rect.width - 0.5;
+      const dy = (clientY - rect.top) / rect.height - 0.5;
 
       frame.style.transition = "none";
       frame.style.transform =
         `perspective(1100px) rotateX(${(-dy * 2 * maxTilt).toFixed(2)}deg)` +
-        ` rotateY(${(dx * 2 * maxTilt).toFixed(2)}deg) scale(1.015)`;
+        ` rotateY(${(dx * 2 * maxTilt).toFixed(2)}deg) scale(${lift})`;
 
       const light = glareRef.current;
       if (light) {
@@ -97,10 +92,64 @@ export default function TiltCard({
           ` rgba(255,255,255,${glare}), rgba(255,255,255,0) 68%)`;
       }
     },
-    [active, maxTilt, glare],
+    [maxTilt, glare],
+  );
+
+  const onEnter = useCallback(() => {
+    if (!active || !finePointer) return;
+    // Promoted only while in use: `will-change` is itself a containing block,
+    // and leaving one on every card permanently is worse than the paint it
+    // saves.
+    if (frameRef.current) frameRef.current.style.willChange = "transform";
+  }, [active, finePointer]);
+
+  /**
+   * A touch begins as a tap until it proves otherwise.
+   *
+   * The card is a button first, so a finger landing on it must not tilt
+   * anything — that was the whole reason touch was excluded. What is safe is
+   * *movement*: once a finger has travelled past the threshold it is plainly
+   * handling the card rather than pressing it, and from there the tilt follows
+   * it exactly as the cursor does.
+   */
+  const onDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!active || e.pointerType === "mouse") return;
+      startRef.current = { x: e.clientX, y: e.clientY };
+      draggingRef.current = false;
+      if (frameRef.current) frameRef.current.style.willChange = "transform";
+    },
+    [active],
+  );
+
+  const onMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!active) return;
+      const frame = frameRef.current;
+      if (!frame) return;
+
+      if (e.pointerType === "mouse") {
+        if (!finePointer) return;
+        paint(frame, e.clientX, e.clientY, 1.015);
+        return;
+      }
+
+      const start = startRef.current;
+      if (!start) return;
+      if (!draggingRef.current) {
+        const far = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+        if (far < DRAG_THRESHOLD) return;
+        draggingRef.current = true;
+      }
+      // A touch is holding the card, so it lifts a little further than a
+      // cursor merely passing over one.
+      paint(frame, e.clientX, e.clientY, 1.03);
+    },
+    [active, finePointer, paint],
   );
 
   const onLeave = useCallback(() => {
+    startRef.current = null;
     const frame = frameRef.current;
     if (frame) {
       frame.style.transition = "transform 420ms cubic-bezier(0.22, 1, 0.36, 1)";
@@ -114,12 +163,34 @@ export default function TiltCard({
     }
   }, []);
 
+  /**
+   * A drag must not also open the card.
+   *
+   * Released after handling it, the browser still fires a click on the button
+   * underneath. Caught here in the capture phase, before it reaches the button
+   * at all, and only when a drag actually happened — a plain tap is untouched.
+   */
+  const onClickCapture = useCallback((e: React.MouseEvent) => {
+    if (!draggingRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    draggingRef.current = false;
+  }, []);
+
   return (
     <div
       ref={frameRef}
       onPointerEnter={onEnter}
+      onPointerDown={onDown}
       onPointerMove={onMove}
+      onPointerUp={onLeave}
+      onPointerCancel={onLeave}
       onPointerLeave={onLeave}
+      onClickCapture={onClickCapture}
+      // `pan-y` keeps the page scrollable through the card while claiming
+      // sideways movement for the tilt. `none` would trap vertical scrolling
+      // on a card that fills most of a phone screen.
+      style={{ touchAction: "pan-y" }}
       className={`relative ${className}`}
     >
       {children}

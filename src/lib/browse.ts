@@ -82,6 +82,16 @@ export function yearOptions(): number[] {
   return Array.from({ length: last - FIRST_YEAR + 1 }, (_, i) => last - i);
 }
 
+/**
+ * What a typed query is taken to mean.
+ *
+ * Left to itself the page decides, because the answer is usually obvious and
+ * making someone pick a category before typing is a tax on every search. The
+ * explicit values exist for the times it guesses wrong: they are what the
+ * "search titles instead" link sets.
+ */
+export type QueryAs = "person" | "title";
+
 export type BrowseFilters = {
   source: Source;
   sort: SortKey;
@@ -93,8 +103,15 @@ export type BrowseFilters = {
   runtime: RuntimeBand | null;
   /** minimum average out of 10, in tenths to stay off floats */
   minRating: number | null;
+  /** free text: a title, a director or somebody in the cast */
+  q: string;
+  /** null lets the page work out which of those the text is */
+  as: QueryAs | null;
   page: number;
 };
+
+/** Long enough for any real name or title, short enough to bound the URL. */
+export const MAX_QUERY = 80;
 
 export const DEFAULT_SORT: SortKey = "popular";
 
@@ -107,6 +124,8 @@ export const EMPTY_FILTERS: BrowseFilters = {
   language: null,
   runtime: null,
   minRating: null,
+  q: "",
+  as: null,
   page: 1,
 };
 
@@ -125,6 +144,7 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
   const sourceRaw = one("src");
   const langRaw = one("lang");
   const runtimeRaw = one("len");
+  const asRaw = one("as");
   const year = num("year");
   const years = yearOptions();
 
@@ -137,6 +157,8 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
     language: LANGUAGES.some((l) => l.code === langRaw) ? (langRaw as string) : null,
     runtime: RUNTIMES.some((r) => r.key === runtimeRaw) ? (runtimeRaw as RuntimeBand) : null,
     minRating: MIN_RATINGS.includes(num("min") ?? -1) ? num("min") : null,
+    q: (one("q") ?? "").trim().slice(0, MAX_QUERY),
+    as: asRaw === "person" || asRaw === "title" ? asRaw : null,
     page: Math.min(Math.max(num("page") ?? 1, 1), 500),
   };
 
@@ -156,6 +178,10 @@ export function normalise(f: BrowseFilters): BrowseFilters {
 
   // A year is inside a decade, so the narrower one wins and the other clears.
   if (out.year !== null) out.decade = null;
+
+  // An interpretation with nothing to interpret is a parameter that outlives
+  // the search that produced it.
+  if (!out.q) out.as = null;
 
   // The rating source changes which number the grid is ordered by, not which
   // films it can ask about: the local catalogue carries language, vote counts,
@@ -178,6 +204,8 @@ export function filtersToQuery(f: Partial<BrowseFilters>): string {
   if (full.language) p.set("lang", full.language);
   if (full.runtime) p.set("len", full.runtime);
   if (full.minRating) p.set("min", String(full.minRating));
+  if (full.q) p.set("q", full.q);
+  if (full.as) p.set("as", full.as);
   if (full.page && full.page > 1) p.set("page", String(full.page));
   const s = p.toString();
   return s ? `?${s}` : "";
@@ -193,12 +221,13 @@ export function isFiltered(f: BrowseFilters): boolean {
     f.year !== null ||
     f.language !== null ||
     f.runtime !== null ||
-    f.minRating !== null
+    f.minRating !== null ||
+    f.q !== ""
   );
 }
 
-/** A short human sentence naming what the grid is currently showing. */
-export function describeFilters(f: BrowseFilters): string {
+/** The filters other than the text query, as a trailing clause. */
+function narrowing(f: BrowseFilters): string {
   const bits: string[] = [];
   if (f.language) bits.push(LANGUAGES.find((l) => l.code === f.language)?.name ?? "");
   if (f.genre) bits.push(BROWSE_GENRES.find((g) => g.id === f.genre)?.name ?? "");
@@ -206,13 +235,27 @@ export function describeFilters(f: BrowseFilters): string {
   else if (f.decade) bits.push(`${f.decade}s`);
   if (f.runtime) bits.push(RUNTIMES.find((r) => r.key === f.runtime)?.label ?? "");
 
-  const subject = bits.filter(Boolean).join(" · ") || "All films";
-  const floor = f.minRating ? `, rated ${(f.minRating / 10).toFixed(1)}+` : "";
+  const floor = f.minRating ? `rated ${(f.minRating / 10).toFixed(1)}+` : "";
+  return [...bits.filter(Boolean), floor].filter(Boolean).join(" · ");
+}
 
+/**
+ * A short human sentence naming what the grid is currently showing.
+ *
+ * `heading` is what the query resolved to, which only the layer that ran it
+ * knows: "Films with Christopher Nolan" reads better than the text somebody
+ * typed, and it is also the receipt for a guess they can overturn.
+ */
+export function describeFilters(f: BrowseFilters, heading?: string): string {
+  const narrowed = narrowing(f);
+
+  if (heading) return [heading, narrowed].filter(Boolean).join(" · ");
+
+  const subject = narrowed || "All films";
   if (f.source !== "tmdb") {
     const label = SOURCES.find((s) => s.key === f.source)?.label ?? "";
-    return `${subject}${floor}, by ${label}`;
+    return `${subject}, by ${label}`;
   }
   const sort = SORTS.find((s) => s.key === f.sort)?.label ?? "";
-  return `${subject}${floor}, ${sort.toLowerCase()}`;
+  return `${subject}, ${sort.toLowerCase()}`;
 }
