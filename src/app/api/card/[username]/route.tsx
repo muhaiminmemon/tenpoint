@@ -177,6 +177,13 @@ function Poster({
   const stock = stockDef(variant.stock);
   const size = SHARE_SIZES[fmt];
   const ground = stock?.material ?? "linear-gradient(158deg,#18181e,#0f0f13)";
+  const chips = (
+    data.themeDNA.length > 0
+      ? data.themeDNA
+      : data.genreShare.map((g) => ({ ...g, lift: 0 }))
+  )
+    .slice(0, 3)
+    .sort((a, b) => b.pct - a.pct);
 
   // The card keeps its proportions on every canvas; only how much room is left
   // around it changes. A story has height to spare, a wide frame does not.
@@ -307,9 +314,9 @@ function Poster({
             </span>
           </div>
 
-          {(data.themeDNA.length > 0 ? data.themeDNA : data.genreShare).length > 0 && (
+          {chips.length > 0 && (
             <div style={{ display: "flex", gap: px(10), marginTop: px(26) }}>
-              {(data.themeDNA.length > 0 ? data.themeDNA : data.genreShare).slice(0, 3).map((g) => (
+              {chips.map((g) => (
                 <div
                   key={g.name}
                   style={{

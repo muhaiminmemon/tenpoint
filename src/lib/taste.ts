@@ -566,7 +566,7 @@ export type HomeTasteCardData = TasteProfile & {
   heroStats: Stat[];
   genreShare: { name: string; pct: number }[];
   /** the themes the library runs on, for the DNA strip on the back */
-  themeDNA: { name: string; pct: number }[];
+  themeDNA: { name: string; pct: number; lift: number }[];
 };
 
 /** the point at which the archetype names itself */

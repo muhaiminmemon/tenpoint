@@ -771,13 +771,35 @@ function signatureClusters(s: TasteSignals) {
    */
   const PRIOR = 5;
 
-  return CLUSTERS.map((c) => {
+  const ranked = CLUSTERS.map((c) => {
     const count = s.clusters[c.key] ?? 0;
     const expected = total * (CLUSTER_PREVALENCE[c.key] ?? 0.05);
     return { cluster: c, count, lift: (count + PRIOR) / (expected + PRIOR) };
   })
     .filter((r) => r.count >= floor)
     .sort((a, b) => b.lift - a.lift || b.count - a.count);
+
+  /**
+   * A near-tie goes to the bigger theme.
+   *
+   * Somebody concentrated in one genre has three sibling themes at the top,
+   * separated by a couple of points of catalogue prevalence rather than by
+   * anything about them: fifty-one slashers can lose to forty-six occult films
+   * purely because the catalogue holds slightly more slashers. That is noise
+   * deciding a name, and it flips as the library grows.
+   *
+   * So within a tenth of the leader, the theme carrying more films wins. It is
+   * the more substantial claim, and it is the one that stays put.
+   */
+  const lead = ranked[0];
+  if (lead) {
+    const contenders = ranked.filter((r) => r.lift >= lead.lift * 0.9);
+    const biggest = contenders.reduce((a, b) => (b.count > a.count ? b : a), lead);
+    if (biggest !== lead) {
+      return [biggest, ...ranked.filter((r) => r !== biggest)];
+    }
+  }
+  return ranked;
 }
 
 /**
@@ -798,14 +820,21 @@ export type ThemeReading = {
   note: string;
   count: number;
   pct: number;
+  /** how many times more of it this library holds than an ordinary one */
+  lift: number;
 };
 
 export function themeReadings(s: TasteSignals, take = 5): ThemeReading[] {
   const total = s.clusterFilmCount;
   if (total <= 0) return [];
-  // Distinctiveness decides which themes make the list; share decides the
-  // order they are printed in. Ranking by one and printing the other gave
-  // 11%, 14%, 24% down a row, which reads as broken however true it is.
+  /**
+   * Ordered by the multiple, and the multiple is what gets printed.
+   *
+   * These were ordered by distinctiveness and printed as share, which put the
+   * theme that named the card *below* a bigger one and left the list looking
+   * like it disagreed with the title. Whatever decides the order has to be the
+   * number on the page.
+   */
   return signatureClusters(s)
     .slice(0, take)
     .map((r) => ({
@@ -814,12 +843,15 @@ export function themeReadings(s: TasteSignals, take = 5): ThemeReading[] {
       note: r.cluster.note,
       count: r.count,
       pct: Math.round((r.count / total) * 100),
-    }))
-    .sort((a, b) => b.pct - a.pct);
+      lift: r.lift,
+    }));
 }
 
-export function themeDNA(s: TasteSignals, take = 5): { name: string; pct: number }[] {
-  return themeReadings(s, take).map(({ name, pct }) => ({ name, pct }));
+export function themeDNA(
+  s: TasteSignals,
+  take = 5,
+): { name: string; pct: number; lift: number }[] {
+  return themeReadings(s, take).map(({ name, pct, lift }) => ({ name, pct, lift }));
 }
 
 export function readArchetype(

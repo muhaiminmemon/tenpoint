@@ -302,8 +302,10 @@ function ThemesSection({ themes, person }: { themes: Binder["themes"]; person?: 
         <p className="mt-3 text-sm leading-relaxed text-ash">
           The names on the back of {person ? "their" : "your"} card, and what each one counts. A
           film joins a theme by what it is about rather than what it is filed under, so one film
-          can belong to several. These are chosen for how far past ordinary each sits in{" "}
-          {person ? "their" : "your"} library, then printed largest first.
+          can belong to several. The multiple is the figure that matters: it is how much more of
+          that theme {person ? "their" : "your"} library holds than an ordinary one of the same
+          size, and the theme at the top of this list is the one the card is named after. A big
+          theme with a small multiple is just a theme everybody watches.
         </p>
       </div>
 
@@ -318,10 +320,10 @@ function ThemesSection({ themes, person }: { themes: Binder["themes"]; person?: 
             <div className="flex items-baseline gap-3">
               <dt className="display flex-1 text-[17px] leading-tight text-paper">{t.name}</dt>
               <dd className="num shrink-0 text-[13px] text-dim">
-                {t.count} {t.count === 1 ? "film" : "films"}
+                {t.count} {t.count === 1 ? "film" : "films"} · {t.pct}%
               </dd>
-              <dd className="num w-12 shrink-0 text-right text-[17px] leading-tight text-beam">
-                {t.pct}%
+              <dd className="num w-14 shrink-0 text-right text-[17px] leading-tight text-beam">
+                {t.lift.toFixed(1)}&times;
               </dd>
             </div>
             <dd className="mt-1.5 max-w-[62ch] text-sm leading-relaxed text-ash">{t.note}.</dd>

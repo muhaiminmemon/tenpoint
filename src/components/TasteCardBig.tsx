@@ -36,12 +36,17 @@ export function TasteCardFrontBig({
   // Themes, not genre tags. Genre tags gave nearly everybody the same three
   // lines; a theme is the thing a library keeps returning to. Falls back to
   // genres for a library too new for any theme to have emerged.
-  const dnaSource = data.themeDNA.length > 0 ? data.themeDNA : data.genreShare.slice(0, 5);
-  const genreDNA = dnaSource.map((g) => ({
-    label: g.name,
-    pct: g.pct,
-    dot: accentFor(g.name),
-  }));
+  // The multiple, in the order the multiple decided. Genres have no multiple,
+  // so a library too new for themes keeps showing shares.
+  const themed = data.themeDNA.length > 0;
+  const dnaSource = themed
+    ? data.themeDNA
+    : data.genreShare.slice(0, 5).map((g) => ({ ...g, lift: 0 }));
+  // Same rule as the chips on the front: chosen by distinctiveness, printed
+  // and ordered by share, so the bars, the numbers and the order all agree.
+  const genreDNA = [...dnaSource]
+    .sort((a, b) => b.pct - a.pct)
+    .map((g) => ({ label: g.name, pct: g.pct, dot: accentFor(g.name) }));
   const signature = data.signatureFilms[0];
 
   return (
@@ -137,7 +142,7 @@ export function TasteCardFrontBig({
                     style={{ width: `${Math.max(4, d.pct)}%` }}
                   />
                 </span>
-                <span className="num w-6 shrink-0 text-right text-[10px] text-ash">{d.pct}%</span>
+
               </div>
             ))}
           </div>

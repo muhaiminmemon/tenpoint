@@ -45,7 +45,22 @@ export default function TasteCardFace({
   const { tier, variant } = data;
   const stock = stockDef(variant.stock);
   // Genres only until a library is big enough for a theme to emerge.
-  const chips = (data.themeDNA.length > 0 ? data.themeDNA : data.genreShare).slice(0, 3);
+  /**
+   * Chosen by distinctiveness, printed by share.
+   *
+   * The themes are picked for how far past ordinary each sits, but the card
+   * prints the plain figure: what portion of the shelf each one fills. So the
+   * three are sorted by that same figure, because whatever number is on the
+   * page has to be the one the order is in. The multiple that chose them is a
+   * binder fact, not a card fact.
+   */
+  const chips = (
+    data.themeDNA.length > 0
+      ? data.themeDNA
+      : data.genreShare.map((g) => ({ ...g, lift: 0 }))
+  )
+    .slice(0, 3)
+    .sort((a, b) => b.pct - a.pct);
 
   // Two materials, one per axis the card actually has. The rim is the tier,
   // because rarity should stay the loudest signal; the ground is the stock.
