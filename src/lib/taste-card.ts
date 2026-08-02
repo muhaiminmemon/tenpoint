@@ -478,7 +478,6 @@ type Reading = { word: string; meaning: string; score: number };
 type Anchor = { typical: number; spread: number };
 
 const ANCHOR = {
-  runtime: { typical: 118, spread: 12 },
   oldShare: { typical: 0.1, spread: 0.12 },
   wideShare: { typical: 0.8, spread: 0.15 },
   mean: { typical: 70, spread: 12 },
@@ -494,7 +493,9 @@ const ANCHOR = {
   // noise: six tenths of a point.
   obscureLift: { typical: 0, spread: 6 },
   oldLift: { typical: 0, spread: 6 },
-  longLift: { typical: 0, spread: 6 },
+  foreignLift: { typical: 0, spread: 6 },
+  oneFace: { typical: 4, spread: 3 },
+  languages: { typical: 4, spread: 2.5 },
   crowdBias: { typical: -2, spread: 10 },
   reviewRate: { typical: 0.12, spread: 0.16 },
   perfectShare: { typical: 0.03, spread: 0.08 },
@@ -532,16 +533,6 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     if (!side) return;
     out.push({ word: side[0], meaning: side[1], score: Math.abs(z) });
   };
-
-  if (s.runtimeKnownCount >= 15 && s.avgRuntime !== null) {
-    const mins = Math.round(s.avgRuntime);
-    axis(
-      s.avgRuntime,
-      ANCHOR.runtime,
-      ["Marathon", `Your films run ${mins} minutes on average.`],
-      ["Brisk", `Your films run ${mins} minutes on average.`],
-    );
-  }
 
   if (s.yearKnownCount >= 15) {
     const old = (s.eraBands[0] + s.eraBands[1]) / s.yearKnownCount;
@@ -619,6 +610,23 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       ["Loyal", `You have rated ${s.maxDirectorCount} films by one director.`],
       null,
     );
+    // The cast equivalent, which says something the director axis does not: a
+    // person can follow a face across films by twelve different directors.
+    axis(
+      s.maxCastCount,
+      ANCHOR.oneFace,
+      ["Repertory", `The same actor turns up in ${s.maxCastCount} films you have rated.`],
+      null,
+    );
+  }
+
+  if (s.languageKnownCount >= 15) {
+    axis(
+      s.distinctLanguages,
+      ANCHOR.languages,
+      ["Polyglot", `You have rated films in ${s.distinctLanguages} different languages.`],
+      null,
+    );
   }
 
   if (s.imdbKnownCount >= 15) {
@@ -669,13 +677,13 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     );
   }
 
-  if (s.meanLong !== null && s.meanShort !== null) {
-    const lift = s.meanLong - s.meanShort;
+  if (s.meanForeign !== null && s.meanEnglish !== null) {
+    const lift = s.meanForeign - s.meanEnglish;
     axis(
       lift,
-      ANCHOR.longLift,
-      ["Patient", `You rate long films ${tenths(lift)} higher than short ones.`],
-      ["Impatient", `You rate short films ${tenths(lift)} higher than long ones.`],
+      ANCHOR.foreignLift,
+      ["Worldly", `You rate films made outside English ${tenths(lift)} higher than English ones.`],
+      ["Homegrown", `You rate English-language films ${tenths(lift)} higher than the rest.`],
     );
   }
 
@@ -734,15 +742,20 @@ export function readArchetype(
   const set = lead ? ARCHETYPE_NOUNS[lead] : undefined;
   const noun = set ? set[family] : "Cinephile";
 
+  // The multiple, not just the share. "38% Family" is a number anybody could
+  // have; "38%, nearly twice what a shelf that size usually carries" is the
+  // reason this word and not another, and it is the only part a reader cannot
+  // work out for themselves.
   const share = signature[0]
     ? Math.round((signature[0].count / s.genreTaggedCount) * 100)
     : 0;
+  const times = signature[0] ? signature[0].lift.toFixed(1) : "1.0";
   const nounMeaning = !lead
     ? "No genre stands out in your rated films yet."
     : signature[0]
       ? signature[1]
-        ? `${lead} runs through ${share}% of your library, far more than most, with ${second} behind it.`
-        : `${lead} runs through ${share}% of your library, far more than most.`
+        ? `${lead} fills ${share}% of your shelf, ${times}\u00d7 what a library that size usually carries, with ${second} close behind.`
+        : `${lead} fills ${share}% of your shelf, ${times}\u00d7 what a library that size usually carries.`
       : `${lead} leads your rated films.`;
 
   const best = readings(s, lead).sort((a, b) => b.score - a.score)[0];

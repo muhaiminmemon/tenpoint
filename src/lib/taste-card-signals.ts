@@ -123,8 +123,8 @@ export type TasteSignals = {
   meanFamous: number | null;
   meanOld: number | null;
   meanNew: number | null;
-  meanLong: number | null;
-  meanShort: number | null;
+  meanEnglish: number | null;
+  meanForeign: number | null;
   /** average signed distance from the IMDb score, in tenths */
   imdbBias: number | null;
 };
@@ -259,8 +259,8 @@ export async function getTasteSignals(
       (select case when count(*) >= 10 then avg(rating) end from cur_f where vote_count >= 2000) as mean_famous,
       (select case when count(*) >= 10 then avg(rating) end from cur_f where year is not null and year < 1990) as mean_old,
       (select case when count(*) >= 10 then avg(rating) end from cur_f where year is not null and year >= 1990) as mean_new,
-      (select case when count(*) >= 10 then avg(rating) end from cur_f where runtime >= 130) as mean_long,
-      (select case when count(*) >= 10 then avg(rating) end from cur_f where runtime is not null and runtime <= 100) as mean_short,
+      (select case when count(*) >= 10 then avg(rating) end from cur_f where original_language = 'en') as mean_english,
+      (select case when count(*) >= 10 then avg(rating) end from cur_f where original_language is not null and original_language <> 'en') as mean_foreign,
       (select case when count(*) >= 15 then avg(rating - imdb_rating) end from cur_f where imdb_rating is not null) as imdb_bias
   `);
 
@@ -318,8 +318,8 @@ export async function getTasteSignals(
     meanFamous: maybe(r, "mean_famous"),
     meanOld: maybe(r, "mean_old"),
     meanNew: maybe(r, "mean_new"),
-    meanLong: maybe(r, "mean_long"),
-    meanShort: maybe(r, "mean_short"),
+    meanEnglish: maybe(r, "mean_english"),
+    meanForeign: maybe(r, "mean_foreign"),
     imdbBias: maybe(r, "imdb_bias"),
   };
 }
