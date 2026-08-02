@@ -361,25 +361,45 @@ function ShareTab({
    */
   // Stored with the URL it came from, so a format change invalidates it
   // without an extra render pass to clear it first.
-  const [held, setHeld] = useState<{ src: string; file: File | null }>({ src, file: null });
-  const file = held.src === src ? held.file : null;
-  const loading = !file;
+  /**
+   * Held with the URL it came from and with whether it failed.
+   *
+   * A failure used to be stored as "no file yet", which is the same state as
+   * "still drawing", so anything that went wrong left the panel saying
+   * "Drawing card…" for ever with the button disabled and no way to retry.
+   * A card that cannot be drawn has to say so.
+   */
+  const [held, setHeld] = useState<{ src: string; file: File | null; failed: boolean }>({
+    src,
+    file: null,
+    failed: false,
+  });
+  const [attempt, setAttempt] = useState(0);
+  const current = held.src === src ? held : null;
+  const file = current?.file ?? null;
+  const failed = current?.failed ?? false;
+  const loading = !file && !failed;
 
   useEffect(() => {
     let live = true;
-    fetch(src)
+    const timeout = AbortSignal.timeout(30_000);
+    fetch(src, { signal: timeout })
       .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
       .then((blob) => {
         if (!live) return;
-        setHeld({ src, file: new File([blob], `${username}-taste-card.png`, { type: "image/png" }) });
+        setHeld({
+          src,
+          file: new File([blob], `${username}-taste-card.png`, { type: "image/png" }),
+          failed: false,
+        });
       })
       .catch(() => {
-        if (live) setHeld({ src, file: null });
+        if (live) setHeld({ src, file: null, failed: true });
       });
     return () => {
       live = false;
     };
-  }, [src, username]);
+  }, [src, username, attempt]);
 
   const canShareFile =
     typeof navigator !== "undefined" &&
@@ -468,7 +488,23 @@ function ShareTab({
         </span>
       </button>
 
-      <div className="mt-3 flex gap-2">
+      {failed && (
+        <div className="mt-3 rounded-card border border-seam bg-[#1a1a1f] px-3 py-2.5">
+          <p className="text-[12.5px] text-paper">That card wouldn&apos;t draw.</p>
+          <p className="mt-0.5 text-[11.5px] leading-snug text-ash">
+            Usually a poster that failed to load. Try again, or pick another size.
+          </p>
+          <button
+            type="button"
+            onClick={() => setAttempt((n) => n + 1)}
+            className="mt-2 rounded-card border border-seam px-3 py-1.5 text-[12px] text-paper transition-colors hover:border-dim"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      <div className={`mt-3 flex gap-2 ${failed ? "hidden" : ""}`}>
         {canShareFile && (
           <button
             type="button"

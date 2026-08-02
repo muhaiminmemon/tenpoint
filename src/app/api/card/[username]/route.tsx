@@ -90,34 +90,66 @@ export async function GET(
   );
 
   const size = SHARE_SIZES[fmt];
-  return new ImageResponse(
-    (
-      <Poster
-        data={data}
-        username={profile.username}
-        displayName={profile.displayName ?? profile.username}
-        memberSince={profile.createdAt?.getFullYear() ?? new Date().getFullYear()}
-        avatarUrl={(() => {
-          const rel = avatarSrc(profile.id, profile.avatarUpdatedAt);
-          // Satori fetches images itself, so a site-relative path is not
-          // something it can resolve.
-          return rel ? `${publicOrigin(req)}${rel}` : null;
-        })()}
-        fmt={fmt}
-        hideNums={hideNums}
-      />
-    ),
-    {
-      ...size,
-      fonts: await loadFonts(),
-      headers: {
-        // Private to the person who asked: the same URL renders different
-        // things for an owner and a stranger.
-        "Cache-Control": "private, max-age=60",
-        "Content-Disposition": `inline; filename="${profile.username}-taste-card.png"`,
-      },
+  const fonts = await loadFonts();
+  const avatarUrl = (() => {
+    const rel = avatarSrc(profile.id, profile.avatarUpdatedAt);
+    // Satori fetches images itself, so a site-relative path is not something
+    // it can resolve.
+    return rel ? `${publicOrigin(req)}${rel}` : null;
+  })();
+
+  /**
+   * Drawn to a buffer rather than streamed, so a failure can be caught.
+   *
+   * Satori fetches every remote image itself and throws when one will not
+   * load, and that happens while the response is streaming: constructing the
+   * ImageResponse succeeds and the error arrives later, where nothing can
+   * catch it. The panel asking for the image then waits for a body that never
+   * comes, which is the card that "keeps drawing".
+   *
+   * Reading it here forces the render inside a try, at the cost of holding one
+   * PNG in memory.
+   */
+  const draw = async (withImages: boolean) => {
+    const res = new ImageResponse(
+      (
+        <Poster
+          data={data}
+          username={profile.username}
+          displayName={profile.displayName ?? profile.username}
+          memberSince={profile.createdAt?.getFullYear() ?? new Date().getFullYear()}
+          avatarUrl={withImages ? avatarUrl : null}
+          fmt={fmt}
+          hideNums={hideNums}
+          withImages={withImages}
+        />
+      ),
+      { ...size, fonts },
+    );
+    return Buffer.from(await res.arrayBuffer());
+  };
+
+  let png: Buffer;
+  try {
+    png = await draw(true);
+  } catch {
+    // One poster that will not load should cost the posters, not the card.
+    try {
+      png = await draw(false);
+    } catch {
+      return new Response("Could not draw this card", { status: 500 });
+    }
+  }
+
+  return new Response(new Uint8Array(png), {
+    headers: {
+      "Content-Type": "image/png",
+      // Private to the person who asked: the same URL renders different things
+      // for an owner and a stranger.
+      "Cache-Control": "private, max-age=60",
+      "Content-Disposition": `inline; filename="${profile.username}-taste-card.png"`,
     },
-  );
+  });
 }
 
 /** The card, scaled to fill whichever canvas was asked for. */
@@ -129,6 +161,7 @@ function Poster({
   avatarUrl,
   fmt,
   hideNums,
+  withImages = true,
 }: {
   data: HomeTasteCardData;
   username: string;
@@ -137,6 +170,8 @@ function Poster({
   avatarUrl: string | null;
   fmt: ShareFmt;
   hideNums: boolean;
+  /** false on the retry after a remote image refused to load */
+  withImages?: boolean;
 }) {
   const { tier, variant } = data;
   const stock = stockDef(variant.stock);
@@ -298,7 +333,7 @@ function Poster({
             </div>
           )}
 
-          {data.signatureFilms.length > 0 && (
+          {withImages && data.signatureFilms.length > 0 && (
             <div style={{ display: "flex", gap: px(12), marginTop: px(30) }}>
               {data.signatureFilms.slice(0, 4).map((f) => {
                 const w = Math.round((cardW - px(76) - px(36)) / 4);
