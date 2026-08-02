@@ -3,7 +3,7 @@ import { avatarSrc } from "@/lib/avatar";
 import { wallPosters } from "@/lib/posters";
 import { getGlobalTopRated } from "@/lib/leaderboard";
 import { topMoviesOfYear } from "@/lib/tmdb";
-import { buildHomeTasteCard, getTasteProfile } from "@/lib/taste";
+import { buildHomeTasteCard, getTasteProfile, markTierSeen } from "@/lib/taste";
 import { getRankedLibrary, getRecentViewings } from "@/lib/library";
 import { friendIdsOf } from "@/lib/social";
 import { recordHeldVariant } from "@/lib/variant-history";
@@ -32,6 +32,11 @@ export default async function Home() {
     // inside the builder would let a stranger's page load stamp a finish into
     // this account's binder history.
     if (tasteCard.variant.name) await recordHeldVariant(user.id, tasteCard.variant.name);
+
+    // Arriving at the home page is what counts as seeing it, since the card is
+    // right here. Storing the tier rather than a timestamp means a later rise
+    // flags again on its own.
+    if (tasteCard.tier.name !== user.tierSeen) await markTierSeen(user.id, tasteCard.tier.name);
 
     const displayLabel = user.displayName ?? user.username;
     const hasFriend = friendIds.length > 0;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useUrlNumber, useUrlState } from "@/lib/useUrlState";
 import Link from "next/link";
 import { accentFor, formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
@@ -27,6 +28,8 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+const DIARY_VIEWS = ["calendar", "timeline"] as const;
+
 /** Sunday-first, as in the design. */
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -40,7 +43,7 @@ function monthLabel(key: string): string {
 }
 
 export default function DiaryView({ rows }: { rows: DiaryRow[] }) {
-  const [view, setView] = useState<"calendar" | "timeline">("calendar");
+  const [view, setView] = useUrlState<"calendar" | "timeline">("view", "calendar", DIARY_VIEWS);
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -58,7 +61,9 @@ export default function DiaryView({ rows }: { rows: DiaryRow[] }) {
     return [...keys].sort().reverse();
   }, [filtered]);
 
-  const [monthIndex, setMonthIndex] = useState(0);
+  // Bounded by the months that actually exist, so a stale link lands on the
+  // nearest real month instead of an empty grid.
+  const [monthIndex, setMonthIndex] = useUrlNumber("m", 0, Math.max(0, months.length - 1));
   const active = months[Math.min(monthIndex, months.length - 1)] ?? null;
 
   const inMonth = useMemo(
@@ -119,7 +124,7 @@ export default function DiaryView({ rows }: { rows: DiaryRow[] }) {
             <div className="flex gap-1">
               <button
                 type="button"
-                onClick={() => setMonthIndex((i) => Math.min(months.length - 1, i + 1))}
+                onClick={() => setMonthIndex(Math.min(months.length - 1, monthIndex + 1))}
                 disabled={monthIndex >= months.length - 1}
                 aria-label="Older month"
                 className="rounded-card border border-seam px-2 py-1 text-xs text-ash hover:text-paper disabled:opacity-40"
@@ -128,7 +133,7 @@ export default function DiaryView({ rows }: { rows: DiaryRow[] }) {
               </button>
               <button
                 type="button"
-                onClick={() => setMonthIndex((i) => Math.max(0, i - 1))}
+                onClick={() => setMonthIndex(Math.max(0, monthIndex - 1))}
                 disabled={monthIndex <= 0}
                 aria-label="Newer month"
                 className="rounded-card border border-seam px-2 py-1 text-xs text-ash hover:text-paper disabled:opacity-40"

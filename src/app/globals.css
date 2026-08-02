@@ -303,12 +303,21 @@ body {
   }
 }
 
-@keyframes card-flash-out {
-  0% {
-    opacity: 0.85;
+/* The re-mint: light raking across the card, the way it does when you tilt
+   foil into a lamp.
+
+   This replaced a radial white blob that faded out, which read as a camera
+   flash rather than as the surface doing something. A band travelling the
+   diagonal is the same gesture the tier's own foil makes continuously, played
+   once and hard, so the moment belongs to the object rather than being staged
+   on top of it. It sweeps twice: the second pass is dimmer and slightly later,
+   which is how a real sheet catches a light source on the way past. */
+@keyframes card-remint {
+  from {
+    transform: translateX(-150%) skewX(-18deg);
   }
-  100% {
-    opacity: 0;
+  to {
+    transform: translateX(260%) skewX(-18deg);
   }
 }
 
@@ -316,8 +325,46 @@ body {
   animation: card-tier-pop 1.1s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.card-flash-out {
-  animation: card-flash-out 1.2s ease-out;
+.card-remint {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.card-remint::before,
+.card-remint::after {
+  content: "";
+  position: absolute;
+  top: -25%;
+  bottom: -25%;
+  width: 34%;
+  filter: blur(3px);
+  animation: card-remint 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.card-remint::before {
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(255, 255, 255, 0.08) 24%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0.08) 76%,
+    transparent
+  );
+}
+
+/* The trailing catch: warmer, softer, and a beat behind. */
+.card-remint::after {
+  width: 22%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(217, 178, 95, 0.32) 50%,
+    transparent
+  );
+  animation-delay: 0.16s;
 }
 
 /* The binder sets itself like a page being ruled: every row is legible from the
@@ -504,7 +551,8 @@ body {
   .card-float-a,
   .card-float-b,
   .card-tier-pop,
-  .card-flash-out,
+  .card-remint::before,
+  .card-remint::after,
   .plate-rule,
   .marquee-line,
   .marquee-settle,

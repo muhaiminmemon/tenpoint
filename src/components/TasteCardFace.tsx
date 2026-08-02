@@ -57,16 +57,9 @@ export default function TasteCardFace({
         {stock?.texture && (
           <span aria-hidden className="absolute inset-0" style={{ backgroundImage: stock.texture }} />
         )}
-        {flashing && (
-          <div
-            aria-hidden
-            className="card-flash-out pointer-events-none absolute inset-0 z-10"
-            style={{
-              background:
-                "radial-gradient(circle at 50% 40%, rgba(255,255,255,.9), rgba(217,178,95,.3) 45%, transparent 72%)",
-            }}
-          />
-        )}
+        {/* Sits above the grain and the foil, so the sweep reads as light
+            crossing the finished surface rather than another layer under it. */}
+        {flashing && <span aria-hidden className="card-remint z-20" />}
         <CardGrain intensity={tier.sheenOp} strength={CARD_GRAIN} />
         <FoilLight intensity={tier.sheenOp * CARD_FOIL} sweepSec={tier.sweepSec} />
 

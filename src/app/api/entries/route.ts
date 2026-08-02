@@ -4,6 +4,8 @@ import { z } from "zod";
 import { db } from "@/db";
 import { diaryEntries, films } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { revalidateAfterEntryChange } from "@/lib/revalidate";
+import { syncUserTier } from "@/lib/taste";
 import { isUnreleased } from "@/lib/films";
 import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 
@@ -62,5 +64,7 @@ export async function POST(req: Request) {
     })
     .returning();
 
+  await syncUserTier(user.id);
+  revalidateAfterEntryChange(user.username);
   return NextResponse.json({ entry: created[0] });
 }

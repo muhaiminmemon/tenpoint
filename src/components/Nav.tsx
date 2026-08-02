@@ -4,6 +4,7 @@ import { avatarSrc } from "@/lib/avatar";
 import { APP_SLUG } from "@/lib/brand";
 import { isAdmin } from "@/lib/admin";
 import { pendingRequestCountFor } from "@/lib/social";
+import { hasUnseenTier } from "@/lib/taste";
 import SignOutButton from "./SignOutButton";
 import NavLinks from "./NavLinks";
 import Avatar from "./Avatar";
@@ -14,6 +15,8 @@ import VerifyBanner from "./VerifyBanner";
 export default async function Nav() {
   const user = await getSessionUser();
   const pendingRequests = user ? await pendingRequestCountFor(user.id) : 0;
+  // Free: it reads off the session user, which is already loaded.
+  const cardChanged = user ? hasUnseenTier(user) : false;
 
   return (
     <>
@@ -31,7 +34,7 @@ export default async function Nav() {
             <>
               {/* the full link set needs room; phones get the bottom bar instead */}
               <div className="hidden sm:block">
-                <NavLinks pendingRequests={pendingRequests} />
+                <NavLinks pendingRequests={pendingRequests} cardChanged={cardChanged} />
               </div>
               <div className="ml-auto flex items-center gap-3">
                 <CommandPalette />
@@ -84,7 +87,7 @@ export default async function Nav() {
         </div>
       </header>
       {user && !user.emailVerifiedAt && <VerifyBanner email={user.email} />}
-      {user && <BottomNav pendingRequests={pendingRequests} />}
+      {user && <BottomNav pendingRequests={pendingRequests} cardChanged={cardChanged} />}
     </>
   );
 }

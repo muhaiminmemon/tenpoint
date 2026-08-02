@@ -4,6 +4,8 @@ import { z } from "zod";
 import { db } from "@/db";
 import { diaryEntries } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { revalidateAfterEntryChange } from "@/lib/revalidate";
+import { syncUserTier } from "@/lib/taste";
 
 const patchSchema = z.object({
   watchedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -32,6 +34,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     .returning();
   if (!updated[0]) return NextResponse.json({ error: "Entry not found." }, { status: 404 });
 
+  await syncUserTier(user.id);
+  revalidateAfterEntryChange(user.username);
   return NextResponse.json({ entry: updated[0] });
 }
 
@@ -46,5 +50,7 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
     .returning({ id: diaryEntries.id });
   if (!deleted[0]) return NextResponse.json({ error: "Entry not found." }, { status: 404 });
 
+  await syncUserTier(user.id);
+  revalidateAfterEntryChange(user.username);
   return NextResponse.json({ ok: true });
 }

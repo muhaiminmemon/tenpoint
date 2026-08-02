@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useUrlState } from "@/lib/useUrlState";
 import Link from "next/link";
 import {
   DndContext,
@@ -39,6 +40,19 @@ type SortMode =
   | "recent"
   | "most-watched";
 
+/** The allow-lists the URL is validated against, so a hand-typed value cannot
+    put the view into a state the component never handles. */
+const VIEWS = ["shelf", "ledger"] as const;
+const SORT_MODES = [
+  "rating",
+  "rating-asc",
+  "title",
+  "year-new",
+  "year-old",
+  "recent",
+  "most-watched",
+] as const;
+
 const SORT_LABELS: Record<SortMode, string> = {
   rating: "Rating, high to low",
   "rating-asc": "Rating, low to high",
@@ -61,11 +75,13 @@ const SAVED_VIEWS: { key: SavedView; label: string }[] = [
   { key: "unrated", label: "No rating" },
 ];
 
+const SAVED_KEYS = SAVED_VIEWS.map((v) => v.key);
+
 export default function LibraryView({ films, editable }: Props) {
-  const [view, setView] = useState<"ledger" | "shelf">("shelf");
+  const [view, setView] = useUrlState<"ledger" | "shelf">("view", "shelf", VIEWS);
   const [filter, setFilter] = useState("");
-  const [sort, setSort] = useState<SortMode>("rating");
-  const [saved, setSaved] = useState<SavedView>("all");
+  const [sort, setSort] = useUrlState<SortMode>("sort", "rating", SORT_MODES);
+  const [saved, setSaved] = useUrlState<SavedView>("show", "all", SAVED_KEYS);
   const [items, setItems] = useState(films);
   const [prevFilms, setPrevFilms] = useState(films);
   if (films !== prevFilms) {

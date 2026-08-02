@@ -147,7 +147,13 @@ const itemClass =
  * Thumb-reachable navigation on phones. Hidden from `sm` up, where the top bar
  * has room for the full set of links plus the desktop search button.
  */
-export default function BottomNav({ pendingRequests = 0 }: { pendingRequests?: number }) {
+export default function BottomNav({
+  pendingRequests = 0,
+  cardChanged = false,
+}: {
+  pendingRequests?: number;
+  cardChanged?: boolean;
+}) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -162,7 +168,12 @@ export default function BottomNav({ pendingRequests = 0 }: { pendingRequests?: n
         className="fixed inset-x-0 bottom-0 z-20 flex border-t border-seam bg-[rgba(20,20,23,.97)] px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur sm:hidden"
       >
         {PRIMARY.map((item) => (
-          <NavLink key={item.href} {...item} pathname={pathname} />
+          <NavLink
+            key={item.href}
+            {...item}
+            pathname={pathname}
+            dot={item.href === "/" && cardChanged}
+          />
         ))}
 
         <button
@@ -244,18 +255,27 @@ function NavLink({
   Icon,
   pathname,
   badge = 0,
+  dot = false,
 }: {
   href: string;
   label: string;
   Icon: (p: IconProps) => React.JSX.Element;
   pathname: string;
   badge?: number;
+  /** an unnumbered mark, for something there is only ever one of */
+  dot?: boolean;
 }) {
   const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
   return (
     <Link href={href} aria-current={active ? "page" : undefined} className={`relative ${itemClass}`}>
       <span className="relative">
         <Icon className={`size-5 ${active ? "text-beam" : "text-ash"}`} />
+        {dot && (
+          <span
+            aria-label="Your card changed"
+            className="absolute -right-1 -top-0.5 size-2 rounded-full bg-gold"
+          />
+        )}
         {badge > 0 && (
           <span className="num absolute -right-2 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-beam px-[3px] text-[9px] font-medium text-carbon">
             {badge > 9 ? "9+" : badge}

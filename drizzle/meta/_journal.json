@@ -71,6 +71,13 @@
       "when": 1785650747407,
       "tag": "0009_soft_ezekiel_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785652831232,
+      "tag": "0010_aromatic_skin",
+      "breakpoints": true
     }
   ]
 }

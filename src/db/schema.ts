@@ -28,6 +28,17 @@ export const users = pgTable("users", {
    * earlier account is later deleted; a live COUNT(*)-based rank would.
    */
   memberNumber: serial("member_number").notNull().unique(),
+
+  /**
+   * The tier in force, and the one the reader has already been shown.
+   *
+   * Kept on the row rather than derived per request because the nav renders on
+   * every page and deriving a tier costs five queries. It is recomputed only
+   * when a rating changes, which is the only thing that can move it, so the
+   * write happens once per log instead of once per page view.
+   */
+  tier: text("tier"),
+  tierSeen: text("tier_seen"),
   /**
    * Version stamp for the avatar, not the image itself. The bytes live in
    * `avatars`, so no query that joins `users` ever drags a blob along, and
@@ -437,6 +448,8 @@ export const safeUserColumns = {
   email: users.email,
   bio: users.bio,
   memberNumber: users.memberNumber,
+  tier: users.tier,
+  tierSeen: users.tierSeen,
   avatarUpdatedAt: users.avatarUpdatedAt,
   emailVerifiedAt: users.emailVerifiedAt,
   privacy: users.privacy,

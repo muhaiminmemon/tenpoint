@@ -1,5 +1,6 @@
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { users } from "@/db/schema";
 import type { LibraryFilm } from "@/lib/library";
 import { decadeLabel, formatTenths } from "@/lib/format";
 import {
@@ -11,6 +12,7 @@ import {
   evaluateTraits,
   FILM_GENRES,
   tierStanding,
+  RARITY_TIERS,
   tasteArchetype,
   type RarityTier,
   type TierStanding,
@@ -690,3 +692,43 @@ export async function buildHomeTasteCard(
 }
 
 export { ERA_BY_DECADE, ARCHETYPE_BY_GENRE };
+
+/**
+ * Recomputes the stored tier after something that could have moved it.
+ *
+ * Called from the write path rather than on render: a rating is the only thing
+ * that changes a tier, and there are far fewer ratings than page views. The
+ * nav then reads the answer off the session user it already has, so badging
+ * the home tab costs nothing per request.
+ *
+ * `tierSeen` is left alone here. It is the reader's acknowledgement, and only
+ * looking at the card should move it.
+ */
+export async function syncUserTier(userId: string): Promise<void> {
+  const [taste, signals] = await Promise.all([
+    getTasteProfile(userId, { includePrivate: true }),
+    getTasteSignals(userId, { includePrivate: true }),
+  ]);
+  const tier = taste.rated > 0 ? tierStanding(taste.rated, signals).tier.name : null;
+  await db.update(users).set({ tier }).where(eq(users.id, userId));
+}
+
+/** Marks the current tier as seen, so the nav stops flagging it. */
+export async function markTierSeen(userId: string, tier: string): Promise<void> {
+  await db.update(users).set({ tierSeen: tier }).where(eq(users.id, userId));
+}
+
+/**
+ * Whether the reader has a tier change waiting that they have not looked at.
+ *
+ * Only upward moves are flagged. A tier can fall when private entries are
+ * hidden or an entry is deleted, and telling somebody their card went down is
+ * not a notification, it is a poke.
+ */
+export function hasUnseenTier(user: { tier: string | null; tierSeen: string | null }): boolean {
+  if (!user.tier || user.tier === user.tierSeen) return false;
+  if (!user.tierSeen) return false;
+  const now = RARITY_TIERS.findIndex((t) => t.name === user.tier);
+  const seen = RARITY_TIERS.findIndex((t) => t.name === user.tierSeen);
+  return now > seen;
+}

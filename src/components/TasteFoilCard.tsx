@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useToast } from "./Toast";
 import TasteCardDialog from "./TasteCardDialog";
@@ -42,26 +42,37 @@ export default function TasteFoilCard({
   const { toast } = useToast();
   const { tier } = data;
 
-  // A one-time flash the moment the account's tier goes up from last visit —
-  // no modal, no confetti, just the card re-foiling in place. `lastSeenTier`
-  // is per-browser, not persisted server-side: it's a courtesy animation,
-  // not a source of truth.
+  // The moment the tier goes up, played once, in place. `lastSeenTier` is
+  // per-browser rather than server state: it is a courtesy animation, not a
+  // record of anything.
+  //
+  // The ref is what makes it survive a double-invoked effect. Without it the
+  // first pass wrote the new tier to storage, so the second pass compared the
+  // tier against itself, found no change, and the sweep never played in
+  // development at all.
+  const announced = useRef<string | null>(null);
+
   useEffect(() => {
+    if (announced.current === tier.name) return;
+    announced.current = tier.name;
+
     const key = `tenpoint:lastSeenTier:${userId}`;
     const prev = localStorage.getItem(key);
     localStorage.setItem(key, tier.name);
     if (!prev || prev === tier.name) return;
+
     const prevIndex = RARITY_TIERS.findIndex((t) => t.name === prev);
     if (prevIndex === -1 || tier.index <= prevIndex) return;
+
     toast({ message: `Your card just re-minted. ${tier.name} now.` });
-    const start = setTimeout(() => setJustReminted(true), 0);
-    const end = setTimeout(() => setJustReminted(false), 1200);
-    return () => {
-      clearTimeout(start);
-      clearTimeout(end);
-    };
+    // Both deferred, neither cleared. Off the effect body so a synchronous
+    // re-render mid-commit is never triggered, and uncancelled so a teardown
+    // cannot swallow the reset and leave the sweep latched on. The guard above
+    // is what stops it firing twice.
+    setTimeout(() => setJustReminted(true), 0);
+    setTimeout(() => setJustReminted(false), 1400);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, tier.name]);
+  }, [userId, tier.name, tier.index]);
 
   async function share() {
     const url = typeof window !== "undefined" ? `${location.origin}/${username}` : `/${username}`;
