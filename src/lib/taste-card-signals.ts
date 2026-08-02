@@ -1,4 +1,5 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
+import { CLUSTERS, KEYWORD_STOPLIST } from "./archetype-clusters";
 import { db } from "@/db";
 
 /** The raw counts every trait, milestone and variant axis is read off. */
@@ -125,6 +126,13 @@ export type TasteSignals = {
   meanNew: number | null;
   meanEnglish: number | null;
   meanForeign: number | null;
+
+  /** how many rated films fall into each themed cluster, and the denominator */
+  clusters: Record<string, number>;
+  clusterFilmCount: number;
+  /** who the recurring face and the recurring director actually are */
+  topCastName: string | null;
+  topDirectorName: string | null;
   /** average signed distance from the IMDb score, in tenths */
   imdbBias: number | null;
 };
@@ -248,6 +256,8 @@ export async function getTasteSignals(
       coalesce((select max(count) from genre_counts), 0)::int as top_genre_count,
       (select count(distinct original_language) from cur_f where original_language is not null)::int as distinct_languages,
       coalesce((select max(count) from cast_counts), 0)::int as max_cast_count,
+      (select actor from cast_counts order by count desc, actor limit 1) as top_cast_name,
+      (select director from director_counts order by count desc, director limit 1) as top_director_name,
       (select count(*) from cur_f where year between 1950 and 1969)::int as mid_century_count,
       (select count(*) from cur_f where rating >= 80 and rt_score >= 90)::int as critics_agree_count,
       (select count(*) from cur_f where rating >= 80 and rt_score < 50)::int as against_grain_count,
@@ -321,7 +331,48 @@ export async function getTasteSignals(
     meanEnglish: maybe(r, "mean_english"),
     meanForeign: maybe(r, "mean_foreign"),
     imdbBias: maybe(r, "imdb_bias"),
+    topCastName: (r.top_cast_name as string) ?? null,
+    topDirectorName: (r.top_director_name as string) ?? null,
+    ...(await clusterCounts(userId, privacy)),
   };
+}
+
+/**
+ * Which themed clusters a library falls into, counted once per film.
+ *
+ * Done in a second pass rather than the big query because the keyword-to-theme
+ * map lives in code, not in the database: a film carrying three keywords from
+ * one cluster is one film in that cluster, and expressing that in SQL would
+ * mean shipping four hundred mappings into the statement.
+ */
+async function clusterCounts(
+  userId: string,
+  privacy: SQL,
+): Promise<{ clusters: Record<string, number>; clusterFilmCount: number }> {
+  const rows = await db.execute(sql`
+    with cur as (
+      select distinct on (d.film_id) d.film_id
+      from diary_entries d
+      where d.user_id = ${userId} and d.rating is not null and ${privacy}
+      order by d.film_id, d.watched_on desc nulls last, d.created_at desc
+    )
+    select cur.film_id, f.keywords
+    from cur join films f on f.id = cur.film_id
+    where jsonb_typeof(f.keywords) = 'array' and jsonb_array_length(f.keywords) > 0
+  `);
+
+  const counts: Record<string, number> = {};
+  let films = 0;
+  for (const row of rows as unknown as Record<string, unknown>[]) {
+    films++;
+    const held = new Set(
+      (row.keywords as string[]).map((k) => k.toLowerCase()).filter((k) => !KEYWORD_STOPLIST.has(k)),
+    );
+    for (const c of CLUSTERS) {
+      if (c.keywords.some((k) => held.has(k))) counts[c.key] = (counts[c.key] ?? 0) + 1;
+    }
+  }
+  return { clusters: counts, clusterFilmCount: films };
 }
 
 const num = (r: Record<string, unknown>, key: string) => (r[key] as number) ?? 0;

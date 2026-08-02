@@ -1,4 +1,5 @@
 import type { TasteSignals } from "./taste-card-signals";
+import { CLUSTERS, CLUSTER_PREVALENCE } from "./archetype-clusters";
 
 // ---------------------------------------------------------------------------
 // LAYER 1 — LEVEL: films watched, mostly. Ticks up forever, no ceiling. Lives
@@ -471,6 +472,8 @@ export type ArchetypeRead = {
   nounMeaning: string;
   /** both halves as one sentence, for the card */
   meaning: string;
+  /** the title it nearly was, when there is one */
+  nearMiss?: string;
 };
 
 type Reading = { word: string; meaning: string; score: number };
@@ -508,7 +511,6 @@ const ANCHOR = {
   oneFace: { typical: 4, spread: 3 },
   languages: { typical: 4, spread: 2.5 },
   crowdBias: { typical: -2, spread: 10 },
-  reviewRate: { typical: 0.12, spread: 0.16 },
   perfectShare: { typical: 0.03, spread: 0.08 },
   decimalShare: { typical: 0.6, spread: 0.35 },
 } satisfies Record<string, Anchor>;
@@ -560,7 +562,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       wide,
       ANCHOR.wideShare,
-      ["Headline", `${pct(wide)}% of your films have been rated by thousands of people.`],
+      ["Bellwether", `${pct(wide)}% of your films have been rated by thousands of people.`],
       ["Underground", `${pct(1 - wide)}% of your films have fewer than 2,000 ratings anywhere.`],
     );
   }
@@ -570,7 +572,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.mean,
       ANCHOR.mean,
-      ["Generous", `Your average rating is ${avg}.`],
+      ["Openhanded", `Your average rating is ${avg}.`],
       ["Exacting", `Your average rating is ${avg}.`],
     );
   }
@@ -579,8 +581,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.ratingStdDev,
       ANCHOR.spreadOfRatings,
-      ["Volatile", "Your ratings swing hard in both directions."],
-      ["Steady", "Your ratings cluster close together."],
+      ["Mercurial", "Your ratings swing hard in both directions."],
+      ["Steadfast", "Your ratings cluster close together."],
     );
   }
 
@@ -610,7 +612,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       again,
       ANCHOR.rewatchShare,
       ["Devoted", `${pct(again)}% of your viewings are rewatches.`],
-      ["Onward", "You almost never watch the same film twice."],
+      ["Ever-Restless", "You almost never watch the same film twice."],
     );
   }
 
@@ -618,7 +620,12 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.maxDirectorCount,
       ANCHOR.oneDirector,
-      ["Loyal", `You have rated ${s.maxDirectorCount} films by one director.`],
+      [
+        "Loyal",
+        s.topDirectorName
+          ? `You have rated ${s.maxDirectorCount} films directed by ${s.topDirectorName}.`
+          : `You have rated ${s.maxDirectorCount} films by one director.`,
+      ],
       null,
     );
     // The cast equivalent, which says something the director axis does not: a
@@ -626,7 +633,12 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.maxCastCount,
       ANCHOR.oneFace,
-      ["Repertory", `The same actor turns up in ${s.maxCastCount} films you have rated.`],
+      [
+        "Repertory",
+        s.topCastName
+          ? `${s.topCastName} turns up in ${s.maxCastCount} films you have rated.`
+          : `The same actor turns up in ${s.maxCastCount} films you have rated.`,
+      ],
       null,
     );
   }
@@ -646,7 +658,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       gap,
       ANCHOR.criticGap,
       ["Contrarian", `${pct(gap)}% of your ratings sit far from the IMDb crowd.`],
-      ["Orthodox", `${pct(1 - gap)}% of your ratings land close to the IMDb crowd.`],
+      ["True North", `${pct(1 - gap)}% of your ratings land close to the IMDb crowd.`],
     );
   }
 
@@ -672,7 +684,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
         `You rate the least-known films in your library ${tenths(lift)} higher than the famous ones.`,
       ],
       [
-        "Populist",
+        "Kingmaker",
         `You rate the famous films in your library ${tenths(lift)} higher than the obscure ones.`,
       ],
     );
@@ -684,7 +696,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       lift,
       ANCHOR.oldLift,
       ["Nostalgist", `You rate films made before 1990 ${tenths(lift)} higher than newer ones.`],
-      ["Presentist", `You rate films made since 1990 ${tenths(lift)} higher than older ones.`],
+      ["Frontrunner", `You rate films made since 1990 ${tenths(lift)} higher than older ones.`],
     );
   }
 
@@ -694,7 +706,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       lift,
       ANCHOR.foreignLift,
       ["Worldly", `You rate films made outside English ${tenths(lift)} higher than English ones.`],
-      ["Homegrown", `You rate English-language films ${tenths(lift)} higher than the rest.`],
+      ["Purist", `You rate English-language films ${tenths(lift)} higher than the rest.`],
     );
   }
 
@@ -702,18 +714,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.imdbBias,
       ANCHOR.crowdBias,
-      ["Enthusiast", `You rate ${tenths(s.imdbBias)} above the IMDb score on average.`],
+      ["Believer", `You rate ${tenths(s.imdbBias)} above the IMDb score on average.`],
       ["Skeptic", `You rate ${tenths(s.imdbBias)} below the IMDb score on average.`],
-    );
-  }
-
-  if (s.totalEntryCount >= 20) {
-    const wrote = s.reviewCount / s.totalEntryCount;
-    axis(
-      wrote,
-      ANCHOR.reviewRate,
-      ["Annotator", `You write something about ${pct(wrote)}% of what you watch.`],
-      ["Wordless", "You almost never write anything down."],
     );
   }
 
@@ -730,12 +732,32 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       decimals,
       ANCHOR.decimalShare,
-      ["Precise", `${pct(decimals)}% of your ratings use the decimal.`],
-      ["Blunt", `${pct(1 - decimals)}% of your ratings are round numbers.`],
+      ["Precisionist", `${pct(decimals)}% of your ratings use the decimal.`],
+      ["Broadstroke", `${pct(1 - decimals)}% of your ratings are round numbers.`],
     );
   }
 
   return out;
+}
+
+/**
+ * The clusters a library leans on, most distinctive first.
+ *
+ * Same arithmetic as everything else here: your share of a theme against how
+ * much of the catalogue carries it, so a theme that is everywhere has to be
+ * everywhere in *your* library before it names you. Four films minimum, or a
+ * single heist would make somebody a thief.
+ */
+function signatureClusters(s: TasteSignals) {
+  const total = s.clusterFilmCount;
+  if (total <= 0) return [];
+  const floor = Math.max(4, Math.round(total * 0.02));
+  return CLUSTERS.map((c) => {
+    const count = s.clusters[c.key] ?? 0;
+    return { cluster: c, count, lift: count / total / (CLUSTER_PREVALENCE[c.key] ?? 0.05) };
+  })
+    .filter((r) => r.count >= floor)
+    .sort((a, b) => b.lift - a.lift || b.count - a.count);
 }
 
 export function readArchetype(
@@ -743,83 +765,73 @@ export function readArchetype(
   topGenres: { name: string; count: number }[],
   s: TasteSignals,
 ): ArchetypeRead {
-  // Signature rather than biggest: see `GENRE_PREVALENCE`. Falls back to the
-  // raw leader for a library too small for any genre to clear the floor.
+  const themes = signatureClusters(s);
+  const best = readings(s, topGenre).sort((a, b) => b.score - a.score)[0];
+  const modifier = best?.word ?? "Unwritten";
+  const modifierMeaning =
+    best?.meaning ?? "Not enough on file yet to say what stands out about how you watch.";
+
+  // ---- the noun, from what the library keeps returning to -----------------
+  if (themes[0]) {
+    const top = themes[0];
+    const share = Math.round((top.count / s.clusterFilmCount) * 100);
+    const times = top.lift.toFixed(1);
+
+    /**
+     * The runner-up, and how close it came.
+     *
+     * A title is more interesting for the one it nearly was, and the number is
+     * real: this is how many more films of that theme would have overtaken the
+     * winner, given both are measured against how common they are.
+     */
+    let nearMiss: string | undefined;
+    const next = themes[1];
+    if (next) {
+      const needed = Math.ceil(
+        top.lift * (CLUSTER_PREVALENCE[next.cluster.key] ?? 0.05) * s.clusterFilmCount -
+          next.count,
+      );
+      nearMiss =
+        needed > 0 && needed <= 8
+          ? `${needed} more ${needed === 1 ? "film" : "films"} about ${next.cluster.note} and you would be ${next.cluster.name}.`
+          : `Closest behind: ${next.cluster.name}.`;
+    }
+
+    const nounMeaning =
+      `${top.count} of your films are about ${top.cluster.note}` +
+      ` \u2014 ${times}\u00d7 what a shelf your size usually holds, and ${share}% of yours.`;
+
+    return {
+      title: `${top.cluster.name.replace(/^The /, `The ${modifier} `)}`,
+      modifier,
+      modifierMeaning,
+      noun: top.cluster.name.replace(/^The /, ""),
+      nounMeaning,
+      nearMiss,
+      meaning: `${nounMeaning} ${modifierMeaning}`,
+    };
+  }
+
+  // ---- fallback: too few films for any theme to stand out ------------------
+  // The genre reading, which needs nothing but a handful of tags, so a new
+  // library still gets a title rather than a blank.
   const signature = signatureGenres(topGenres, s.genreTaggedCount);
   const lead = signature[0]?.name ?? topGenre;
   const second = signature[1]?.name ?? lead;
-
-  /**
-   * Which column the leading genre is read through.
-   *
-   * Normally the runner-up genre. But an era or a language somebody leans on
-   * hard is a bigger fact about them than their second-favourite genre, so
-   * either can take the column outright once it is far enough past ordinary.
-   * The bar is deliberately high: this should name a real slant, not any
-   * library with a couple of old films in it.
-   */
-  const COLUMN_BAR = 1.2;
-  const oldZ =
-    s.yearKnownCount >= 15
-      ? ((s.eraBands[0] + s.eraBands[1]) / s.yearKnownCount - ANCHOR.oldShare.typical) /
-        ANCHOR.oldShare.spread
-      : 0;
-  const foreignZ =
-    s.languageKnownCount >= 15
-      ? (s.nonEnglishCount / s.languageKnownCount - ANCHOR.subtitleShare.typical) /
-        ANCHOR.subtitleShare.spread
-      : 0;
-
-  let family: NounFamily = (second ? FAMILY_BY_GENRE[second] : undefined) ?? "scale";
-  let column: "genre" | "vintage" | "foreign" = "genre";
-  if (oldZ >= COLUMN_BAR && oldZ >= foreignZ) {
-    family = "vintage";
-    column = "vintage";
-  } else if (foreignZ >= COLUMN_BAR) {
-    family = "foreign";
-    column = "foreign";
-  }
-
+  const family: NounFamily = (second ? FAMILY_BY_GENRE[second] : undefined) ?? "scale";
   const set = lead ? ARCHETYPE_NOUNS[lead] : undefined;
   const noun = set ? set[family] : "Cinephile";
-
-  // The multiple, not just the share. "38% Family" is a number anybody could
-  // have; "38%, nearly twice what a shelf that size usually carries" is the
-  // reason this word and not another, and it is the only part a reader cannot
-  // work out for themselves.
-  const share = signature[0]
-    ? Math.round((signature[0].count / s.genreTaggedCount) * 100)
-    : 0;
-  const times = signature[0] ? signature[0].lift.toFixed(1) : "1.0";
-  const leadClause = signature[0]
-    ? `${lead} fills ${share}% of your shelf, ${times}\u00d7 what a library that size usually carries`
-    : `${lead} leads your rated films`;
-
-  // The column is half the word, so it says which fact chose it.
-  const throughClause =
-    column === "vintage"
-      ? `, and you watch it old: ${Math.round(((s.eraBands[0] + s.eraBands[1]) / Math.max(1, s.yearKnownCount)) * 100)}% of your films predate 1990.`
-      : column === "foreign"
-        ? `, and you watch it abroad: ${Math.round((s.nonEnglishCount / Math.max(1, s.languageKnownCount)) * 100)}% of your films are not in English.`
-        : signature[1]
-          ? `, with ${second} close behind.`
-          : ".";
-
-  const nounMeaning = !lead
-    ? "No genre stands out in your rated films yet."
-    : `${leadClause}${throughClause}`;
-
-  const best = readings(s, lead).sort((a, b) => b.score - a.score)[0];
+  const nounMeaning = lead
+    ? `${lead} leads your rated films. Rate more and a theme takes over from the genre.`
+    : "No genre stands out in your rated films yet.";
 
   return {
-    title: `The ${best?.word ?? "Unwritten"} ${noun}`,
-    modifier: best?.word ?? "Unwritten",
-    modifierMeaning:
-      best?.meaning ??
-      "Not enough on file yet to say what stands out about how you watch.",
+    title: `The ${modifier} ${noun}`,
+    modifier,
+    modifierMeaning,
     noun,
     nounMeaning,
-    meaning: `${nounMeaning} ${best?.meaning ?? ""}`.trim(),
+    meaning: `${nounMeaning} ${modifierMeaning}`,
   };
 }
 

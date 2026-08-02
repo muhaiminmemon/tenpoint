@@ -115,15 +115,14 @@ function ArchetypeSection({ binder }: { binder: Binder }) {
           Archetype
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
-          Your title is two readings joined. The first word is whichever thing your library is
-          furthest from ordinary on, out of seventeen measured. Some read what you watch: how
-          long your films run, how old they are, how widely seen. Others read what you make of
-          it: whether you hold the obscure half of your shelf above the famous half, whether you
-          land above or below the crowd, whether you return to things. That second kind is what
-          separates two people who have watched all the same films. The second word comes from
-          the genre leading your ratings, read through the one behind it, so the same leading
-          genre reads differently depending on what keeps it company. You never pick either, and
-          both are re-read every time your taste moves.
+          Your title is two readings joined. The second word is the thing your films keep
+          returning to, found by theme rather than genre: not &ldquo;Thriller&rdquo; but the
+          heists, the time loops, the houses that will not let go. It is weighed against how
+          common that theme is, so it names what you watch unusually much of rather than what
+          everyone watches. The first word is how you watch: whichever measure your library sits
+          furthest from ordinary on, including several that read your opinions rather than your
+          shelf, which is what separates two people who have seen all the same films. You never
+          pick either, and both are re-read every time your taste moves.
         </p>
       </div>
 
@@ -135,6 +134,9 @@ function ArchetypeSection({ binder }: { binder: Binder }) {
       ) : (
         <div className="mt-7 border-y border-seam py-6">
           <div className="display text-[30px] leading-none text-paper">{a.title}</div>
+          {a.nearMiss && (
+            <p className="mt-2 text-[13px] text-dim">{a.nearMiss}</p>
+          )}
 
           <dl className="mt-6 grid gap-x-10 gap-y-4 sm:grid-cols-2">
             <div>

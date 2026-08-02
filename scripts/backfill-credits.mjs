@@ -37,7 +37,7 @@ const sql = postgres(DATABASE_URL);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function credits(tmdbId) {
-  const url = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=credits`;
+  const url = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=credits,keywords`;
   const res = await fetch(url);
   if (res.status === 429) {
     const err = new Error("TMDB rate limit");
@@ -58,6 +58,9 @@ async function credits(tmdbId) {
     releaseDate: d.release_date || null,
     genres: (d.genres ?? []).map((g) => g.name),
     originalLanguage: d.original_language ?? null,
+    // The archetype's second word is built from these. They cost nothing
+    // extra: the same response already carries them.
+    keywords: (d.keywords?.keywords ?? []).map((k) => k.name).filter(Boolean),
     // Billing order, which is the order TMDB returns. Ten is what the app
     // already stores, so a film hydrated on a page visit and one filled in
     // here hold the same thing.
@@ -83,7 +86,9 @@ const missing = ALL
              or runtime is null
              or vote_count is null
              or year is null
-             or genres is null)
+             or genres is null
+             or jsonb_typeof(keywords) is distinct from 'array'
+             or jsonb_array_length(keywords) = 0)
       order by popularity desc nulls last
       limit ${LIMIT}`;
 
@@ -106,7 +111,7 @@ for (const f of missing) {
     continue;
   }
 
-  if (c && (c.cast.length || c.director || c.runtime || c.voteCount !== null)) {
+  if (c && (c.cast.length || c.director || c.runtime || c.voteCount !== null || c.keywords.length)) {
     await sql`
       update films set
         director = coalesce(${c.director}, director),
@@ -117,7 +122,8 @@ for (const f of missing) {
         year = coalesce(${c.year}, year),
         release_date = coalesce(${c.releaseDate}, release_date),
         original_language = coalesce(${c.originalLanguage}, original_language),
-        genres = coalesce(${c.genres.length ? sql.json(c.genres) : null}, genres)
+        genres = coalesce(${c.genres.length ? sql.json(c.genres) : null}, genres),
+        keywords = coalesce(${c.keywords.length ? sql.json(c.keywords) : null}, keywords)
       where id = ${f.id}`;
     filled++;
   } else {
@@ -136,7 +142,9 @@ const [totals] = await sql`
          count(runtime)::int with_runtime,
          count(vote_count)::int with_votes,
          count(*) filter (where jsonb_typeof(cast_names) = 'array'
-                          and jsonb_array_length(cast_names) > 0)::int with_cast
+                          and jsonb_array_length(cast_names) > 0)::int with_cast,
+         count(*) filter (where jsonb_typeof(keywords) = 'array'
+                          and jsonb_array_length(keywords) > 0)::int with_keywords
   from films`;
 
 console.log(`\n\n  catalogue: ${totals.total} films`);
@@ -144,5 +152,6 @@ console.log(`  with a director: ${totals.with_director}`);
 console.log(`  with a cast list: ${totals.with_cast}`);
 console.log(`  with a runtime: ${totals.with_runtime}`);
 console.log(`  with an audience count: ${totals.with_votes}`);
+console.log(`  with keywords: ${totals.with_keywords}`);
 
 await sql.end();
