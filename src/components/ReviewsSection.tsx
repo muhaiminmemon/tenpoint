@@ -137,6 +137,11 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
             role="tab"
             aria-selected={tab === t}
             href={`/film/${filmSlug}?reviews=${t}`}
+            // Switching the feed is not arriving somewhere new. Left to
+            // itself a link scrolls to the top of the page, which on a phone
+            // throws you back past the whole film to change one word.
+            scroll={false}
+            replace
             className={`rounded-card px-3 py-1 ${
               tab === t ? "bg-tray-2 text-paper" : "text-ash hover:text-paper"
             }`}

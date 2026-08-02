@@ -4,16 +4,14 @@ import { users } from "@/db/schema";
 import type { LibraryFilm } from "@/lib/library";
 import { decadeLabel, formatTenths } from "@/lib/format";
 import {
-  archetypeMeaning,
+  readArchetype,
   ARCHETYPE_BY_GENRE,
   computeTier,
   computeVariant,
   ERA_BY_DECADE,
   evaluateTraits,
-  FILM_GENRES,
   tierStanding,
   RARITY_TIERS,
-  tasteArchetype,
   type RarityTier,
   type TierStanding,
   type Trait,
@@ -235,262 +233,172 @@ export type Stat = { label: string; value: string };
  * reading needs is too thin to divide by, and `meaning` states exactly what
  * was counted, which is what the binder prints.
  */
-export type PersonalityTrait = {
+/**
+ * One band of a profile: a slice of a stated whole.
+ *
+ * `count` is what it is a count of, so the figure on screen can be checked
+ * against the library rather than taken on trust.
+ */
+export type PersonalityBand = {
   label: string;
-  /** this reading's share of the whole profile; across a profile these sum to exactly 100 */
+  /** share of this axis, as a whole number; the bands of an axis sum to 100 */
   pct: number;
-  /** the reading on its own terms, as a share of the films it was counted from */
-  rawPct: number;
-  /** the exact films behind it, e.g. "113 of 246 rated films" */
-  basis: string;
-  /** the rule, in the reader's own terms */
-  meaning: string;
+  count: number;
 };
 
 /**
- * How many films have to sit behind a reading before it is one.
+ * One reading of how somebody watches, as a partition.
  *
- * Three, the same floor `topRatedDecade` already uses to decide a decade can
- * be your highest-rated. Two long films is an accident of what was on; three
- * is the beginning of a habit.
+ * The old model was sixteen overlapping readings (Optimism, Rewatcher,
+ * Marathoner) divided by each other to force a total of 100. Nothing was a
+ * share of anything real: a film could be counted by five of them, so
+ * "Optimism 11%" was 11% of no set of films that exists, and the same reading
+ * printed 62% on the card and 11% in the binder because the two surfaces
+ * showed different halves of the fudge.
+ *
+ * A partition fixes it at the root. Every film that carries the field falls
+ * into exactly one band, so the shares add to 100 because they are shares,
+ * not because they were scaled until they did. Every number is then the same
+ * number everywhere it appears, and it means one plain thing: this many of
+ * your films, out of this many.
  */
-const READING_FLOOR = 3;
+export type PersonalityAxis = {
+  key: string;
+  /** the question the axis answers, e.g. "How you rate" */
+  title: string;
+  /** the axis in one plain sentence */
+  note: string;
+  /** what the bands are shares of, e.g. "246 rated films" */
+  basis: string;
+  bands: PersonalityBand[];
+};
 
 /**
- * How much of the library must carry a field before a reading may divide by
- * it. TMDB metadata arrives lazily, so a reading taken from the hydrated few
+ * How much of the library must carry a field before an axis is drawn.
+ *
+ * TMDB metadata arrives lazily, so an axis taken from the hydrated few
  * describes them rather than the person.
  */
 const COVERAGE_FLOOR = 0.5;
 const COVERAGE_MIN_FILMS = 20;
 
-/** The 1900s through the 2020s: the decades a film can plausibly sit in. */
-const DECADES_ON_THE_MAP = 13;
-
 /**
- * Every reading of how someone rates that their library actually produced.
+ * Every axis the library actually supports.
  *
  * Pure, and the single source for both the card and the binder: the binder
- * exists to explain the number the card shows, so the two computing it
- * separately is the one way this feature could start lying.
+ * exists to explain the numbers the card shows, and the two computing them
+ * separately is exactly how they came to disagree.
  *
- * Two rules decide what comes back, and both are about not overstating:
- *
- * - Every reading is a share of a stated denominator, and that denominator is
- *   the films that actually carry the field it needs. This rules out an index
- *   on an invented scale, and rules out reporting "not hydrated yet" as a fact
- *   about taste.
- * - A reading with fewer than `READING_FLOOR` films behind it is not returned
- *   at all. It is not shown greyed, listed as missing, or counted against a
- *   total, because a reading is a description rather than something to
- *   collect: the ones that don't describe you are simply not about you. It
- *   also means this can never become a list of things to go and earn.
+ * An axis with too little behind it is not returned at all. It is not shown
+ * empty, greyed, or as something to go and earn: an axis nobody's library
+ * supports is not a fact about them.
  */
 export function computePersonality(
   taste: TasteProfile,
   signals: TasteSignals,
-): PersonalityTrait[] {
+): PersonalityAxis[] {
   const rated = taste.rated;
-
-  /** A reading is only honest if enough of the library carries the field. */
   const covered = (known: number) =>
     known >= COVERAGE_MIN_FILMS && rated > 0 && known / rated >= COVERAGE_FLOOR;
 
-  const readings: (Omit<PersonalityTrait, "pct"> & { weight: number })[] = [];
-  const add = (label: string, count: number, of: number, unit: string, meaning: string) => {
-    if (of <= 0 || count < READING_FLOOR) return;
-    const rawPct = Math.min(100, Math.round((count / of) * 100));
-    readings.push({
-      label,
-      rawPct,
-      weight: count / of,
-      basis: `${count} of ${of} ${unit}`,
-      meaning,
+  const out: PersonalityAxis[] = [];
+  const axis = (
+    key: string,
+    title: string,
+    note: string,
+    unit: string,
+    labels: string[],
+    counts: number[],
+  ) => {
+    const total = counts.reduce((a, b) => a + b, 0);
+    if (total < COVERAGE_MIN_FILMS) return;
+    out.push({
+      key,
+      title,
+      note,
+      basis: `${total} ${unit}`,
+      bands: shareOut(labels, counts, total),
     });
   };
 
-  const films = "rated films";
-  const viewings = "logged viewings";
-
-  // --- how the scale itself gets used: true of anyone who rates at all ---
-  add("Optimism", signals.positiveCount, rated, films, "Ratings that reach 7.0.");
-  add(
-    "Consistency",
-    signals.nearMeanCount,
-    rated,
-    films,
-    "Ratings landing within 1.0 of your own average.",
+  axis(
+    "rating",
+    "How you rate",
+    "Where your ratings land. Everyone's shape is different: some libraries are nearly all sevens and eights, some use the whole scale.",
+    rated === 1 ? "rated film" : "rated films",
+    ["Loved, 8.5 and up", "Liked, 7.0 to 8.4", "Fair, 5.5 to 6.9", "Didn't work, under 5.5"],
+    signals.ratingBands,
   );
-  add(
-    "Hot-take",
-    signals.perfectTenCount + signals.toughCriticCount,
-    rated,
-    films,
-    "Ratings at the ends of the scale: a flat 10.0, or 3.0 and below.",
-  );
-  add(
-    "Precisionist",
-    signals.decimalRatingCount,
-    rated,
-    films,
-    "Ratings that land off the round point, using the tenths rather than the whole number.",
-  );
-  add(
-    "Perfectionist",
-    signals.perfectTenCount,
-    rated,
-    films,
-    "Ratings that are a flat 10.0.",
-  );
-
-  // --- what the diary says about how you watch ---
-  add(
-    "Rewatcher",
-    signals.rewatchEntryCount,
-    signals.totalEntryCount,
-    viewings,
-    "Viewings that are rewatches rather than first times.",
-  );
-  add(
-    "Critic",
-    signals.reviewCount,
-    signals.totalEntryCount,
-    viewings,
-    "Viewings you wrote something about.",
-  );
-  add(
-    "Curator",
-    signals.favouriteCount,
-    rated,
-    films,
-    "Rated films you also marked a favourite.",
-  );
-
-  // --- breadth, which needs the metadata to be there to mean anything ---
-  if (covered(signals.genreTaggedCount)) {
-    add(
-      "Explorer",
-      signals.distinctGenres,
-      FILM_GENRES.length,
-      "genres a film can carry",
-      "How much of the map you have been on.",
-    );
-    const topGenre = taste.topGenres[0];
-    if (topGenre) {
-      add(
-        "Specialist",
-        topGenre.count,
-        signals.genreTaggedCount,
-        "genre-tagged films",
-        `Films carrying ${topGenre.name}, the genre that leads your ratings.`,
-      );
-    }
-  }
 
   if (covered(signals.yearKnownCount)) {
-    add(
-      "Range",
-      signals.distinctDecades,
-      DECADES_ON_THE_MAP,
-      "decades from the 1900s on",
-      "Decades of film you have rated in.",
-    );
-    add(
-      "Archivist",
-      signals.preSeventyCount,
-      signals.yearKnownCount,
-      "dated films",
-      "Films released before 1970.",
-    );
-    add(
-      "Modernist",
-      signals.modernCount,
-      signals.yearKnownCount,
-      "dated films",
-      "Films released in 2010 or later.",
+    axis(
+      "era",
+      "When your films are from",
+      "The years your library is drawn from, by release date.",
+      "films with a release year on file",
+      ["Before 1970", "1970s and 80s", "1990s and 2000s", "2010 onward"],
+      signals.eraBands,
     );
   }
 
   if (covered(signals.runtimeKnownCount)) {
-    add(
-      "Marathoner",
-      signals.longFilmCount,
-      signals.runtimeKnownCount,
-      "timed films",
-      "Films running 150 minutes or more.",
-    );
-    add(
-      "Sprinter",
-      signals.shortFilmCount,
-      signals.runtimeKnownCount,
-      "timed films",
-      "Films running 85 minutes or less.",
-    );
-  }
-
-  if (covered(signals.directorKnownCount)) {
-    add(
-      "Loyalist",
-      signals.loyalDirectorFilmCount,
-      signals.directorKnownCount,
-      "credited films",
-      "Films by a director you have rated three or more times.",
+    axis(
+      "runtime",
+      "How long you sit",
+      "How long the films you rate actually run.",
+      "films with a runtime on file",
+      ["Under 90 min", "90 to 120", "2 hours to 2½", "Over 2½ hours"],
+      signals.runtimeBands,
     );
   }
 
   if (covered(signals.voteKnownCount)) {
-    add(
-      "Populist",
-      signals.mainstreamCount,
-      signals.voteKnownCount,
-      "films with vote counts on file",
-      "Films that are widely seen, at 1,000 votes or more.",
+    axis(
+      "reach",
+      "How far off the beaten path",
+      "How widely seen your films are, by how many people have rated them anywhere.",
+      "films with an audience count on file",
+      ["Everyone has seen it", "Widely seen", "Some following", "Barely rated"],
+      signals.reachBands,
     );
   }
 
-  return asProfileShares(readings);
+  const viewings = signals.viewingBands[0] + signals.viewingBands[1];
+  if (viewings >= COVERAGE_MIN_FILMS) {
+    axis(
+      "viewing",
+      "First times and returns",
+      "How much of your diary is going back to something you have already seen.",
+      viewings === 1 ? "logged viewing" : "logged viewings",
+      ["First time", "Rewatch"],
+      signals.viewingBands,
+    );
+  }
+
+  return out;
 }
 
 /**
- * Turns the readings into one profile: each reading's weight over the sum of
- * them all, so the set totals exactly 100.
+ * Counts to whole percentages that add to exactly 100.
  *
- * The rounding is largest-remainder rather than per-value `Math.round`, which
- * would land on 99 or 101 about as often as not. A profile that does not add
- * up is the whole reason this function exists.
- *
- * Note what the resulting number is and isn't. `pct` is a share of the profile
- * and is not a proportion of any set of films: "Optimism 14%" does not mean
- * 14% of anything you watched. That is why `rawPct` and `basis` travel with
- * it, and why every surface prints them together — the composition is what
- * sums to 100, and the count underneath is what can be checked.
+ * Largest remainder rather than per-value rounding, which lands on 99 or 101
+ * about as often as not. A profile that does not add up is the whole reason
+ * this exists. Empty bands are dropped: a segment of zero draws nothing and
+ * reads as a gap in the list.
  */
-function asProfileShares(
-  readings: (Omit<PersonalityTrait, "pct"> & { weight: number })[],
-): PersonalityTrait[] {
-  const total = readings.reduce((sum, r) => sum + r.weight, 0);
-  if (total <= 0) return [];
-
-  const exact = readings.map((r) => (r.weight / total) * 100);
+function shareOut(labels: string[], counts: number[], total: number): PersonalityBand[] {
+  const exact = counts.map((c) => (c / total) * 100);
   const pcts = exact.map(Math.floor);
   const short = 100 - pcts.reduce((a, b) => a + b, 0);
 
-  // The leftover points go to the readings the floor cost the most, so the
-  // ordering of the profile is never decided by rounding luck.
   Array.from(exact.keys())
     .sort((a, b) => exact[b] - Math.floor(exact[b]) - (exact[a] - Math.floor(exact[a])))
     .slice(0, short)
     .forEach((i) => pcts[i]++);
 
-  return readings
-    .map((r, i) => ({
-      label: r.label,
-      pct: pcts[i],
-      rawPct: r.rawPct,
-      basis: r.basis,
-      meaning: r.meaning,
-    }))
-    .sort((a, b) => b.pct - a.pct || a.label.localeCompare(b.label));
+  return labels
+    .map((label, i) => ({ label, pct: pcts[i], count: counts[i] }))
+    .filter((b) => b.count > 0);
 }
 
 export type HomeTasteCardData = TasteProfile & {
@@ -515,13 +423,7 @@ export type HomeTasteCardData = TasteProfile & {
   /** every rated tenths value, for the rating-fingerprint histogram on the back */
   ratings: number[];
   profStats: Stat[];
-  personality: PersonalityTrait[];
-  /**
-   * Share of the library that is widely seen, or null when too little of it
-   * has vote data on file to say. Never a figure derived from unknowns.
-   */
-  mainstreamPct: number | null;
-  indiePct: number | null;
+  personality: PersonalityAxis[];
   favsCard: Stat[];
   social: TasteMatch[];
   /** the "regular" home hero panel: films / hours / home decade / this year */
@@ -575,7 +477,6 @@ export async function buildHomeTasteCard(
     .slice(0, 4);
 
   const full = taste.rated >= FULL_CARD_THRESHOLD;
-  const archetype = taste.rated >= CLASS_THRESHOLD ? tasteArchetype(taste.topDecade, taste.topGenres[0]) : null;
 
   if (taste.rated === 0) {
     return {
@@ -597,8 +498,6 @@ export async function buildHomeTasteCard(
       ratings: [],
       profStats: [],
       personality: [],
-      mainstreamPct: null,
-      indiePct: null,
       favsCard: [],
       social: [],
       heroStats: [],
@@ -625,28 +524,25 @@ export async function buildHomeTasteCard(
     taste.mean,
   );
 
+  // Read once, below the signals, because the title now depends on them. Both
+  // halves and both explanations come from the same call, so the card and the
+  // binder cannot describe the same title differently.
+  const read = readArchetype(
+    taste.topGenres[0]?.name,
+    taste.topDecade?.decade ?? null,
+    signals,
+  );
+  const archetype = taste.rated >= CLASS_THRESHOLD ? read.title : null;
+
   const traits = evaluateTraits(signals);
   const heldTraits = traits.filter((t) => t.held);
 
   const rewatchPct = taste.rated ? Math.round((signals.rewatchEntryCount / taste.rated) * 100) : 0;
 
-  // Divided by the films whose vote data is actually on file, the same rule
-  // `genreShare` uses below — TMDB metadata is hydrated lazily, so most of a
-  // freshly imported library has no vote count yet, and dividing by every
-  // rated film reported "not known" as "indie". It is also suppressed
-  // outright unless enough of the library is known to make the split mean
-  // anything: hydrated films are the ones whose pages got opened, which is a
-  // biased sample, so a sliver of coverage cannot speak for the whole shelf.
-  const voteCoverage = taste.rated ? signals.voteKnownCount / taste.rated : 0;
-  const splitIsHonest = signals.voteKnownCount >= 20 && voteCoverage >= 0.5;
-  const mainstreamPct = splitIsHonest
-    ? Math.round((signals.mainstreamCount / signals.voteKnownCount) * 100)
-    : null;
-
   return {
     ...taste,
     archetype,
-    archetypeMeaning: archetypeMeaning(taste.topDecade?.decade ?? null, taste.topGenres[0]?.name),
+    archetypeMeaning: taste.rated >= CLASS_THRESHOLD ? read.meaning : "",
     full,
     toFull: Math.max(0, FULL_CARD_THRESHOLD - taste.rated),
     tier,
@@ -667,8 +563,6 @@ export async function buildHomeTasteCard(
       { label: "Decades", value: String(signals.distinctDecades) },
     ],
     personality: computePersonality(taste, signals),
-    mainstreamPct,
-    indiePct: mainstreamPct === null ? null : 100 - mainstreamPct,
     favsCard: [
       { label: "Director", value: taste.topDirector?.name ?? "—" },
       { label: "Decade", value: taste.topDecade ? decadeLabel(taste.topDecade.decade) : "—" },

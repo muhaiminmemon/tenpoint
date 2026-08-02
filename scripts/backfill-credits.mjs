@@ -48,6 +48,16 @@ async function credits(tmdbId) {
   const d = await res.json();
   return {
     director: d.credits?.crew?.find((c) => c.job === "Director")?.name ?? null,
+    // The same response already carries these, and an empty runtime or vote
+    // count is what silently drops a whole personality axis: the profile can
+    // only cut a library by fields the library actually has.
+    runtime: d.runtime ?? null,
+    voteCount: d.vote_count ?? null,
+    popularity: d.popularity ?? null,
+    year: d.release_date ? Number.parseInt(d.release_date.slice(0, 4), 10) : null,
+    releaseDate: d.release_date || null,
+    genres: (d.genres ?? []).map((g) => g.name),
+    originalLanguage: d.original_language ?? null,
     // Billing order, which is the order TMDB returns. Ten is what the app
     // already stores, so a film hydrated on a page visit and one filled in
     // here hold the same thing.
@@ -69,7 +79,11 @@ const missing = ALL
       where tmdb_id is not null
         and (jsonb_typeof(cast_names) is distinct from 'array'
              or jsonb_array_length(cast_names) = 0
-             or director is null)
+             or director is null
+             or runtime is null
+             or vote_count is null
+             or year is null
+             or genres is null)
       order by popularity desc nulls last
       limit ${LIMIT}`;
 
@@ -92,11 +106,18 @@ for (const f of missing) {
     continue;
   }
 
-  if (c && (c.cast.length || c.director)) {
+  if (c && (c.cast.length || c.director || c.runtime || c.voteCount !== null)) {
     await sql`
       update films set
         director = coalesce(${c.director}, director),
-        cast_names = coalesce(${c.cast.length ? sql.json(c.cast) : null}, cast_names)
+        cast_names = coalesce(${c.cast.length ? sql.json(c.cast) : null}, cast_names),
+        runtime = coalesce(${c.runtime}, runtime),
+        vote_count = coalesce(${c.voteCount}, vote_count),
+        popularity = coalesce(${c.popularity}, popularity),
+        year = coalesce(${c.year}, year),
+        release_date = coalesce(${c.releaseDate}, release_date),
+        original_language = coalesce(${c.originalLanguage}, original_language),
+        genres = coalesce(${c.genres.length ? sql.json(c.genres) : null}, genres)
       where id = ${f.id}`;
     filled++;
   } else {
@@ -112,6 +133,8 @@ for (const f of missing) {
 const [totals] = await sql`
   select count(*)::int total,
          count(director)::int with_director,
+         count(runtime)::int with_runtime,
+         count(vote_count)::int with_votes,
          count(*) filter (where jsonb_typeof(cast_names) = 'array'
                           and jsonb_array_length(cast_names) > 0)::int with_cast
   from films`;
@@ -119,5 +142,7 @@ const [totals] = await sql`
 console.log(`\n\n  catalogue: ${totals.total} films`);
 console.log(`  with a director: ${totals.with_director}`);
 console.log(`  with a cast list: ${totals.with_cast}`);
+console.log(`  with a runtime: ${totals.with_runtime}`);
+console.log(`  with an audience count: ${totals.with_votes}`);
 
 await sql.end();

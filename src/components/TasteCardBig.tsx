@@ -218,38 +218,46 @@ export function TasteCardBackBig({
 
       {data.personality.length > 0 && (
         <div>
-          <SectionLabel>Personality</SectionLabel>
-          <div className="grid grid-cols-2 gap-x-3.5 gap-y-1.5">
-            {/* The four strongest of the profile, already sorted. The card
-                shows a reading on its own terms, because four shares of a
-                sixteen-part profile would print as single digits and read as
-                nothing; the profile that sums to 100 is in the binder. */}
-            {data.personality.slice(0, 4).map((p) => (
-              <div key={p.label}>
-                <div className="flex justify-between text-[10px] text-[#d0d0d5]">
-                  <span>{p.label}</span>
-                  <span className="num text-ash">{p.rawPct}%</span>
-                </div>
-                <span className="mt-0.5 block h-1 overflow-hidden rounded-full bg-[#1f1f25]">
-                  <span className="block h-full rounded-full bg-beam" style={{ width: `${Math.max(4, p.rawPct)}%` }} />
+          {/* One axis, whole, rather than the leading band of four.
+              Four leads come from four different denominators, so they add up
+              to nothing in particular; a single partition drawn end to end is
+              a bar that fills exactly once and a set of numbers that reaches
+              100 because it is one library cut four ways. The axis is the
+              first one, which is the only one that needs no metadata to exist
+              and the most personal thing on the card: where your ratings
+              land. */}
+          <SectionLabel>{data.personality[0].title}</SectionLabel>
+          <span className="flex h-1.5 w-full overflow-hidden rounded-full bg-[#1f1f25]">
+            {data.personality[0].bands.map((band, i, all) => (
+              <span
+                key={band.label}
+                className="h-full bg-beam"
+                style={{
+                  width: `${band.pct}%`,
+                  opacity: 1 - (i / Math.max(1, all.length)) * 0.62,
+                  boxShadow: i === all.length - 1 ? undefined : "inset -1px 0 0 #141417",
+                }}
+              />
+            ))}
+          </span>
+          <div className="mt-2 grid grid-cols-2 gap-x-3.5 gap-y-1">
+            {data.personality[0].bands.map((band, i, all) => (
+              <div key={band.label} className="flex items-baseline gap-1.5">
+                <span
+                  aria-hidden
+                  className="size-1.5 shrink-0 rounded-full bg-beam"
+                  style={{ opacity: 1 - (i / Math.max(1, all.length)) * 0.62 }}
+                />
+                <span className="flex-1 truncate text-[10px] text-[#d0d0d5]">
+                  {band.label.split(",")[0]}
                 </span>
+                <span className="num shrink-0 text-[10px] text-ash">{band.pct}%</span>
               </div>
             ))}
           </div>
-          {/* Absent until enough of the library has vote data on file; a split
-              built mostly from unknowns is not a reading of anyone's taste. */}
-          {data.mainstreamPct !== null && data.indiePct !== null && (
-            <div className="mt-2">
-              <div className="flex justify-between text-[9px] uppercase tracking-[.06em] text-[#8a8a92]">
-                <span>Mainstream {data.mainstreamPct}</span>
-                <span>{data.indiePct} Indie</span>
-              </div>
-              <span className="mt-0.5 flex h-[5px] overflow-hidden rounded-full">
-                <span className="bg-[#3a3a44]" style={{ width: `${data.mainstreamPct}%` }} />
-                <span className="bg-beam" style={{ width: `${data.indiePct}%` }} />
-              </span>
-            </div>
-          )}
+          <div className="mt-1.5 text-[9px] text-[#8a8a92]">
+            {data.personality[0].basis}. The rest is in the binder.
+          </div>
         </div>
       )}
 

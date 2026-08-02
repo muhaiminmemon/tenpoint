@@ -109,15 +109,19 @@ export default function TasteCardFace({
             <div className="display mt-1 text-[20px] leading-[1.05] text-paper">{data.archetype}</div>
           </div>
 
-          {data.topGenres.length > 0 && (
+          {data.genreShare.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {data.topGenres.slice(0, 3).map((g) => (
+              {/* The share rather than a coloured dot. The dot was decoration
+                  standing where a fact could go: this is the same figure the
+                  binder prints, so the three chips read as a ranking of the
+                  library instead of three equal labels. */}
+              {data.genreShare.slice(0, 3).map((g) => (
                 <span
                   key={g.name}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-seam bg-[rgba(255,255,255,.04)] px-2.5 py-1 text-[11px] text-paper"
+                  className="inline-flex items-center gap-2 rounded-full border border-seam bg-[rgba(255,255,255,.04)] px-2.5 py-1 text-[11px] text-paper"
                 >
-                  <span className="size-1.5 rounded-full" style={{ background: accentFor(g.name) }} aria-hidden />
                   {g.name}
+                  <span className="num text-[10px] text-ash">{g.pct}%</span>
                 </span>
               ))}
             </div>

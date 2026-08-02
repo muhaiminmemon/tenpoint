@@ -187,10 +187,19 @@ export default function TiltCard({
       onPointerCancel={onLeave}
       onPointerLeave={onLeave}
       onClickCapture={onClickCapture}
-      // `pan-y` keeps the page scrollable through the card while claiming
-      // sideways movement for the tilt. `none` would trap vertical scrolling
-      // on a card that fills most of a phone screen.
-      style={{ touchAction: "pan-y" }}
+      style={{
+        // `pan-y` keeps the page scrollable through the card while claiming
+        // sideways movement for the tilt. `none` would trap vertical scrolling
+        // on a card that fills most of a phone screen.
+        touchAction: "pan-y",
+        // A press and hold on a phone is how you select text and raise the
+        // copy callout, and both of those cancel the gesture before it can
+        // become a drag. The card is a printed object, not a paragraph:
+        // nothing on it is meant to be selected, so nothing on it is.
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        WebkitTouchCallout: "none",
+      }}
       className={`relative ${className}`}
     >
       {children}

@@ -11,7 +11,6 @@ import { canViewProfile, friendIdsOf, isBlockedBetween } from "@/lib/social";
 import { getRankedLibrary } from "@/lib/library";
 import { buildHomeTasteCard, getTasteProfile } from "@/lib/taste";
 import { formatTenths } from "@/lib/format";
-import { accentFor } from "@/lib/format";
 import { stockDef } from "@/lib/taste-card";
 import { TMDB_IMAGE_BASE } from "@/lib/tmdb-urls";
 import { SHARE_SIZES, type ShareFmt } from "@/lib/share-card";
@@ -273,9 +272,9 @@ function Poster({
             </span>
           </div>
 
-          {data.topGenres.length > 0 && (
+          {data.genreShare.length > 0 && (
             <div style={{ display: "flex", gap: px(10), marginTop: px(26) }}>
-              {data.topGenres.slice(0, 3).map((g) => (
+              {data.genreShare.slice(0, 3).map((g) => (
                 <div
                   key={g.name}
                   style={{
@@ -290,16 +289,10 @@ function Poster({
                     color: "#eceae6",
                   }}
                 >
-                  <div
-                    style={{
-                      width: px(11),
-                      height: px(11),
-                      borderRadius: px(999),
-                      background: accentFor(g.name),
-                      display: "flex",
-                    }}
-                  />
                   {g.name}
+                  <span style={{ fontFamily: "Grotesk", fontSize: px(18), color: "#8a8a92" }}>
+                    {g.pct}%
+                  </span>
                 </div>
               ))}
             </div>

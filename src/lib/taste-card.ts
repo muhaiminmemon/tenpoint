@@ -267,10 +267,10 @@ export const ERA_BY_DECADE: Record<number, string> = {
   1960: "New Wave",
   1970: "Grindhouse",
   1980: "Neon",
-  1990: "Indie",
+  1990: "Video Store",
   2000: "Millennial",
-  2010: "Midnight",
-  2020: "Modern",
+  2010: "Streaming",
+  2020: "Present Day",
 };
 
 /**
@@ -304,8 +304,8 @@ export const FILM_GENRES = [
 ] as const;
 
 export const ARCHETYPE_BY_GENRE: Record<string, string> = {
-  Drama: "Formalist",
-  Comedy: "Populist",
+  Drama: "Humanist",
+  Comedy: "Wit",
   Horror: "Nightcrawler",
   Action: "Maximalist",
   Thriller: "Strategist",
@@ -318,45 +318,175 @@ export const ARCHETYPE_BY_GENRE: Record<string, string> = {
   Adventure: "Wanderer",
   Mystery: "Detective",
   War: "Chronicler",
-  Music: "Composer",
+  Music: "Score Chaser",
   Family: "Sentimentalist",
   History: "Historian",
-  Western: "Outlander",
+  Western: "Drifter",
 };
 
 /**
- * What the title actually reflects, in one sentence.
+ * The title, and what each half of it actually means.
  *
- * "The Midnight Maximalist" is a good name and a bad explanation: nothing in
- * it says that Midnight means the 2010s and Maximalist means action. This is
- * the line that says so.
+ * The first word used to be the decade somebody watched most, which sounds
+ * like an axis and behaves like a constant: almost every library on a young
+ * site leans on the last fifteen years, so almost everybody was handed the
+ * same word and the title stopped telling people apart. A label that reads the
+ * same for everyone is decoration, not a reading.
  *
- * It replaces a set of mood quotes ("Prefers the film that trusts a long
- * silence"). Those read as character writing about the person rather than a
- * reading of their library, and a reader who wanted to know why they had been
- * called something got a second riddle instead of an answer. Both halves of
- * the title come from one countable fact each, so both are stated plainly.
+ * So the first word is now the most distinctive true thing about *how* they
+ * watch, chosen from a set of habits that genuinely differ person to person:
+ * how long their films run, how widely rated their films are, how hard
+ * they rate, how often they return to the same film. Each candidate is scored
+ * by how far past its bar the library actually is, and the strongest wins, so
+ * the word somebody gets is the thing that is most true of them rather than
+ * the first rule that happened to match.
+ *
+ * The decade survives as the fallback for a library with no standout habit
+ * yet, which is the one case where "the era you watch" really is the most
+ * interesting thing on file.
  */
-export function archetypeMeaning(
-  topDecade: number | null,
-  topGenre: string | undefined,
-): string {
-  const decade = topDecade === null ? null : `the ${topDecade}s`;
-  if (decade && topGenre) {
-    return `You rate more films from ${decade} than any other decade, and ${topGenre} leads them.`;
+export type ArchetypeRead = {
+  /** the whole title, e.g. "The Underground Noirist" */
+  title: string;
+  /** the first word, and the fact behind it */
+  modifier: string;
+  modifierMeaning: string;
+  /** the second word, and the fact behind it */
+  noun: string;
+  nounMeaning: string;
+  /** both halves as one sentence, for the card */
+  meaning: string;
+};
+
+type Modifier = { word: string; meaning: string; strength: number };
+
+/**
+ * Every habit the first word can name, with the bar it has to clear.
+ *
+ * `strength` is how far past that bar the library sits, on a scale all of them
+ * share, so a library that is 3× past one bar and 1.1× past another gets the
+ * word it is actually remarkable for. Each reading divides by the films that
+ * carry the field rather than by everything rated: metadata arrives lazily,
+ * and dividing by the whole shelf reports "not known yet" as "not true".
+ */
+function modifiers(s: TasteSignals, topGenre: string | undefined): Modifier[] {
+  const out: Modifier[] = [];
+  const pct = (n: number) => Math.round(n * 100);
+  const add = (word: string, meaning: string, value: number, bar: number, higher = true) => {
+    const strength = higher ? value / bar : bar / value;
+    if (strength >= 1) out.push({ word, meaning, strength });
+  };
+
+  if (s.yearKnownCount >= 20) {
+    const old = s.preSeventyCount / s.yearKnownCount;
+    add("Archival", `${pct(old)}% of your rated films came out before 1970.`, old, 0.12);
   }
-  if (topGenre) return `${topGenre} leads your rated films. No decade leads yet.`;
-  if (decade) return `You rate more films from ${decade} than any other decade. No genre leads yet.`;
-  return "Nothing leads yet: no decade or genre is ahead of the others.";
+
+  if (s.runtimeKnownCount >= 20 && s.avgRuntime !== null) {
+    add(
+      "Marathon",
+      `Your films run ${Math.round(s.avgRuntime)} minutes on average.`,
+      s.avgRuntime,
+      130,
+    );
+    add(
+      "Brisk",
+      `Your films run ${Math.round(s.avgRuntime)} minutes on average.`,
+      s.avgRuntime,
+      98,
+      false,
+    );
+  }
+
+  if (s.voteKnownCount >= 20) {
+    const indie = (s.voteKnownCount - s.mainstreamCount) / s.voteKnownCount;
+    const wide = s.mainstreamCount / s.voteKnownCount;
+    // Said as the count it is. "Outside the mainstream" sounds like a
+    // statement about how a film was financed; this is only ever a statement
+    // about how many people have got round to rating it.
+    add(
+      "Underground",
+      `${pct(indie)}% of your films have fewer than 2,000 ratings anywhere.`,
+      indie,
+      0.5,
+    );
+    add(
+      "Headline",
+      `${pct(wide)}% of your films have been rated by thousands of people.`,
+      wide,
+      0.88,
+    );
+  }
+
+  if (s.rated >= 20 && s.mean !== null) {
+    add("Generous", `Your average rating is ${(s.mean / 10).toFixed(1)}.`, s.mean, 82);
+    add("Exacting", `Your average rating is ${(s.mean / 10).toFixed(1)}.`, s.mean, 62, false);
+  }
+
+  if (s.rated >= 20 && s.ratingStdDev !== null) {
+    add("Steady", "Your ratings cluster close together.", s.ratingStdDev, 9, false);
+    add("Volatile", "Your ratings swing hard in both directions.", s.ratingStdDev, 24);
+  }
+
+  // Bar set where it means something. Thirteen genres is most of an evening's
+  // browsing; fifteen across a library of fifty is a person who genuinely does
+  // not stay in one aisle.
+  if (s.rated >= 40) {
+    add("Restless", `You have rated films across ${s.distinctGenres} genres.`, s.distinctGenres, 15);
+  }
+
+  if (s.languageKnownCount >= 20) {
+    const sub = s.nonEnglishCount / s.languageKnownCount;
+    add("Subtitled", `${pct(sub)}% of your films were not made in English.`, sub, 0.25);
+  }
+
+  if (s.genreTaggedCount >= 20 && topGenre) {
+    const share = s.topGenreCount / s.genreTaggedCount;
+    add("Focused", `${pct(share)}% of your rated films carry ${topGenre}.`, share, 0.45);
+  }
+
+  if (s.totalEntryCount >= 30) {
+    const again = s.rewatchEntryCount / s.totalEntryCount;
+    add("Devoted", `${pct(again)}% of your viewings are rewatches.`, again, 0.18);
+  }
+
+  add(
+    "Loyal",
+    `You have rated ${s.maxDirectorCount} films by one director.`,
+    s.maxDirectorCount,
+    6,
+  );
+
+  return out;
 }
 
-export function tasteArchetype(
-  topDecade: { decade: number } | null,
-  topGenre: { name: string } | undefined,
-): string {
-  const era = topDecade ? (ERA_BY_DECADE[topDecade.decade] ?? "Eclectic") : "Eclectic";
-  const noun = topGenre ? (ARCHETYPE_BY_GENRE[topGenre.name] ?? "Cinephile") : "Cinephile";
-  return `The ${era} ${noun}`;
+export function readArchetype(
+  topGenre: string | undefined,
+  topDecade: number | null,
+  s: TasteSignals,
+): ArchetypeRead {
+  const noun = topGenre ? (ARCHETYPE_BY_GENRE[topGenre] ?? "Cinephile") : "Cinephile";
+  const nounMeaning = topGenre
+    ? `${topGenre} leads your rated films.`
+    : "No genre leads your rated films yet.";
+
+  const best = modifiers(s, topGenre).sort((a, b) => b.strength - a.strength)[0];
+
+  const modifier = best?.word ?? (topDecade !== null ? (ERA_BY_DECADE[topDecade] ?? "Eclectic") : "Eclectic");
+  const modifierMeaning =
+    best?.meaning ??
+    (topDecade !== null
+      ? `The ${topDecade}s are the decade you have rated most, and no single habit stands out yet.`
+      : "No decade or habit leads yet, so the first word stays open.");
+
+  return {
+    title: `The ${modifier} ${noun}`,
+    modifier,
+    modifierMeaning,
+    noun,
+    nounMeaning,
+    meaning: `${nounMeaning} ${modifierMeaning}`,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -441,107 +571,148 @@ export type TraitDef = {
   check: (s: TasteSignals) => boolean;
 };
 
+/**
+ * The traits, and what each one actually asks for.
+ *
+ * Two rules decide what belongs here. A trait must be about *what somebody
+ * watches*, not how much: films logged, genres covered, decades explored,
+ * reviews written and rewatches recorded are the five conditions the tier
+ * ladder already runs on, and a trait restating one of them says the same
+ * thing twice under a second name. And no two traits may be the same
+ * observation at different strengths, which is what "films from this year" and
+ * "films watched in their release year" were.
+ *
+ * The condition is written as a plain sentence rather than a formula. "20+
+ * ratings, tight spread" is a note to whoever wrote it; "Twenty ratings that
+ * mostly land close together" is something a reader can check against their
+ * own library.
+ */
 export const TRAIT_DEFS: TraitDef[] = [
-  { key: "century", name: "Double Century", cond: "200 films logged", check: (s) => s.rated >= 200 },
+  // Two eras that do not contain each other. Read as "before 1970" and
+  // "before 1950" they were one bracket inside the other, so holding the
+  // harder one and not the easier one looked like a bug.
   {
-    key: "omnivore",
-    name: "Genre Omnivore",
-    cond: "15 distinct genres",
-    check: (s) => s.distinctGenres >= 15,
-  },
-  {
-    key: "wanderer",
-    name: "Decade Wanderer",
-    cond: "6 distinct decades",
-    check: (s) => s.distinctDecades >= 6,
+    key: "silent",
+    name: "Early Cinema",
+    cond: "Three films made before 1950",
+    check: (s) => s.preFiftyCount >= 3,
   },
   {
     key: "oldguard",
     name: "Old Guard",
-    cond: "10 films before 1970",
-    check: (s) => s.preSeventyCount >= 10,
+    cond: "Ten films from the 1950s and 60s",
+    check: (s) => s.midCenturyCount >= 10,
   },
   {
-    key: "silent",
-    name: "Silent Era Pilgrim",
-    cond: "3 films before 1950",
-    check: (s) => s.preFiftyCount >= 3,
-  },
-  {
-    key: "newrelease",
-    name: "New Release Chaser",
-    cond: "10 films from this year",
-    check: (s) => s.currentYearReleaseCount >= 10,
+    key: "sameyear",
+    name: "Opening Week",
+    cond: "Five films watched the same year they came out",
+    check: (s) => s.sameYearWatchCount >= 5,
   },
   {
     key: "director",
-    name: "Director's Cut",
-    cond: "5 films by one director",
+    name: "One Director",
+    cond: "Five films by the same director",
     check: (s) => s.maxDirectorCount >= 5,
   },
   {
     key: "marathon",
     name: "Marathon Runner",
-    cond: "10 films over 150 minutes",
+    cond: "Ten films over two and a half hours",
     check: (s) => s.longFilmCount >= 10,
   },
   {
     key: "quickcuts",
     name: "Quick Cuts",
-    cond: "15 films under 85 minutes",
+    cond: "Fifteen films under 85 minutes",
     check: (s) => s.shortFilmCount >= 15,
   },
   {
     key: "comfort",
     name: "Comfort Rewatcher",
-    cond: "One film, five viewings",
+    cond: "One film watched five times",
     check: (s) => s.maxSameFilmEntries >= 5,
   },
   {
-    key: "rewatchdevotee",
-    name: "Rewatch Devotee",
-    cond: "10 rewatches logged",
-    check: (s) => s.rewatchEntryCount >= 10,
+    key: "perfect",
+    name: "Perfect Ten",
+    cond: "Five films rated 10.0",
+    check: (s) => s.perfectTenCount >= 5,
   },
-  {
-    key: "reviewer",
-    name: "Reviewer's Voice",
-    cond: "25 reviews written",
-    check: (s) => s.reviewCount >= 25,
-  },
-  { key: "perfect", name: "Perfect Ten", cond: "5 films rated 10.0", check: (s) => s.perfectTenCount >= 5 },
   {
     key: "toughcritic",
     name: "Tough Critic",
-    cond: "5 films rated 3.0 or under",
+    cond: "Five films rated 3.0 or lower",
     check: (s) => s.toughCriticCount >= 5,
   },
   {
     key: "steady",
     name: "Steady Hand",
-    cond: "20+ ratings, tight spread",
+    cond: "Twenty ratings that mostly land close together",
     check: (s) => s.rated >= 20 && s.ratingStdDev !== null && s.ratingStdDev < 10,
   },
   {
     key: "wide",
     name: "Wide Spectrum",
-    cond: "20+ ratings, wide spread",
+    cond: "Twenty ratings that run the full scale",
     check: (s) => s.rated >= 20 && s.ratingStdDev !== null && s.ratingStdDev > 22,
   },
   {
-    key: "sameyear",
-    name: "Same-Year Watcher",
-    cond: "5 films watched on release year",
-    check: (s) => s.sameYearWatchCount >= 5,
-  },
-  {
     key: "arthouse",
-    name: "Arthouse Purist",
-    cond: "20 films known to be outside the mainstream",
+    name: "Off the Beaten Path",
+    cond: "Twenty films that never found a wide audience",
     // Counted against films whose vote data is on file, not every rated film.
     // The old form subtracted from `rated`, so a library with no metadata
     // hydrated yet held this trait automatically.
     check: (s) => s.voteKnownCount - s.mainstreamCount >= 20,
+  },
+  {
+    key: "precise",
+    name: "Precisionist",
+    cond: "Fifty ratings that use the decimal, not a round number",
+    check: (s) => s.decimalRatingCount >= 50,
+  },
+  {
+    key: "subtitles",
+    name: "Reads the Subtitles",
+    cond: "Twenty films not made in English",
+    check: (s) => s.nonEnglishCount >= 20,
+  },
+  {
+    key: "worldtour",
+    name: "World Tour",
+    cond: "Films in five different languages",
+    check: (s) => s.distinctLanguages >= 5,
+  },
+  {
+    key: "regularface",
+    name: "Regular Face",
+    cond: "Five films with the same actor in them",
+    check: (s) => s.maxCastCount >= 5,
+  },
+  {
+    key: "deepcut",
+    name: "Deep Cut",
+    cond: "Fifty films in a single genre",
+    check: (s) => s.topGenreCount >= 50,
+  },
+  {
+    key: "criticsagree",
+    name: "Critics Agree",
+    cond: "Ten films you rated 8.0 or higher that critics scored 90 or higher",
+    check: (s) => s.criticsAgreeCount >= 10,
+  },
+  {
+    key: "againstgrain",
+    name: "Against the Grain",
+    cond: "Five films you rated 8.0 or higher that critics scored under 50",
+    check: (s) => s.againstGrainCount >= 5,
+  },
+  {
+    key: "secondopinion",
+    name: "Second Opinion",
+    cond: "Ten films you rated three points away from the IMDb crowd",
+    check: (s) => s.imdbGapCount >= 10,
   },
 ];
 

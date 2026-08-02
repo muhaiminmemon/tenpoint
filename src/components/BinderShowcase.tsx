@@ -115,9 +115,9 @@ function ArchetypeSection({ binder }: { binder: Binder }) {
           Archetype
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
-          Your title is two readings joined: the era you watch most, and the genre that leads
-          your ratings. You never pick it, and it is re-read every time your taste moves: rate
-          enough of something else and it becomes a different title.
+          Your title is two readings joined: the habit that stands out most in how you watch,
+          and the genre that leads your ratings. You never pick it, and it is re-read every time
+          your taste moves: rate enough of something else and it becomes a different title.
         </p>
       </div>
 
@@ -128,13 +128,13 @@ function ArchetypeSection({ binder }: { binder: Binder }) {
         </p>
       ) : (
         <div className="mt-7 border-y border-seam py-6">
-          <div className="display text-[30px] leading-none text-paper">{a.name}</div>
+          <div className="display text-[30px] leading-none text-paper">{a.title}</div>
 
           <dl className="mt-6 grid gap-x-10 gap-y-4 sm:grid-cols-2">
             <div>
-              <dt className="display text-[15px] text-paper">{a.era}</dt>
+              <dt className="display text-[15px] text-paper">{a.modifier}</dt>
               <dd className="mt-1 max-w-[34ch] text-sm leading-relaxed text-ash">
-                {a.eraMeaning}
+                {a.modifierMeaning}
               </dd>
             </div>
             <div>
@@ -173,6 +173,52 @@ function segmentOpacity(i: number, total: number) {
   return total <= 1 ? 1 : 1 - (i / (total - 1)) * 0.62;
 }
 
+/** What the five stars beside the rating actually are. */
+const STAR_BANDS = [
+  { stars: 5, range: "9.0 and up" },
+  { stars: 4, range: "7.0 to 8.9" },
+  { stars: 3, range: "5.0 to 6.9" },
+  { stars: 2, range: "3.0 to 4.9" },
+  { stars: 1, range: "under 3.0" },
+];
+
+function StarsSection() {
+  return (
+    <section aria-labelledby="stars" className="mb-16 scroll-mt-6">
+      <div className="flex items-center gap-3">
+        <span aria-hidden className="h-0.5 w-8 shrink-0 bg-ash" />
+        <span aria-hidden className="h-px flex-1 bg-seam" />
+      </div>
+      <div className="mt-5 max-w-[58ch]">
+        <h2 id="stars" className="display text-[26px] leading-none text-paper">
+          The stars
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-ash">
+          The five stars beside the number on your card are that same number, rounded to a
+          five-point scale. They are not a second rating, they count nothing on their own, and
+          nothing you do moves them except your average moving. They are there because a shape
+          reads across a room and a decimal does not.
+        </p>
+      </div>
+
+      <dl className="mt-7 border-y border-seam">
+        {STAR_BANDS.map((b, i) => (
+          <div
+            key={b.stars}
+            className={`flex items-center gap-4 py-3 ${i === 0 ? "" : "border-t border-seam"}`}
+          >
+            <dt className="num w-[74px] shrink-0 text-[13px] tracking-[0.1em] text-gold">
+              {"\u2605".repeat(b.stars)}
+              <span className="text-seam">{"\u2605".repeat(5 - b.stars)}</span>
+            </dt>
+            <dd className="text-[14px] text-paper">Average {b.range}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 function PersonalitySection({ rows }: { rows: PersonalityRow[] }) {
   if (rows.length === 0) return null;
 
@@ -187,62 +233,69 @@ function PersonalitySection({ rows }: { rows: PersonalityRow[] }) {
           Personality
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
-          How you rate, rather than what you watch. The bar below is your whole profile: the
-          percentages are shares of it and add up to 100, so they say which readings are
-          strongest relative to each other. The count under each one is that reading on its own
-          terms, and can be checked against your library. Only the readings your library
-          actually produced are here; more appear as you rate more, and none of them is a
-          target.
+          Four ways of cutting the same library. Every film lands in exactly one band of each
+          bar, so each bar adds to 100 and every figure is a plain count you can check. Nothing
+          here is a target, and an axis only appears once enough of your library carries what it
+          needs.
         </p>
       </div>
 
-      {/* The whole profile as one bar, filled exactly once. The shares sum to
-          100 by construction, so this is the claim drawn rather than asserted:
-          the segments run in the same order as the list beneath it. */}
-      <div
-        className="mt-8 flex h-2.5 w-full overflow-hidden rounded-full bg-[#1f1f25]"
-        role="img"
-        aria-label={`Your profile: ${rows.map((r) => `${r.label} ${r.pct}%`).join(", ")}.`}
-      >
-        {rows.map((row, i) => (
-          <span
-            key={row.label}
-            className="h-full bg-beam"
-            style={{
-              width: `${row.pct}%`,
-              opacity: segmentOpacity(i, rows.length),
-              boxShadow: i === rows.length - 1 ? undefined : "inset -1px 0 0 #141417",
-            }}
-          />
-        ))}
-      </div>
-
-      <dl className="mt-8 border-b border-seam">
-        {rows.map((row, i) => (
-          <div key={row.label} className="relative py-4">
-            <span
-              aria-hidden
-              className="plate-rule absolute inset-x-0 top-0 h-px bg-seam"
-              style={{ animationDelay: `${i * 40}ms` }}
-            />
-            <div className="flex items-baseline gap-3">
-              <span
-                aria-hidden
-                className="size-2 shrink-0 rounded-full bg-beam"
-                style={{ opacity: segmentOpacity(i, rows.length) }}
-              />
-              <dt className="display flex-1 text-[17px] leading-tight text-paper">{row.label}</dt>
-              <dd className="num shrink-0 text-[17px] leading-tight text-beam">{row.pct}%</dd>
+      <div className="mt-8 flex flex-col gap-9">
+        {rows.map((axis) => (
+          <div key={axis.key}>
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="display text-[17px] leading-tight text-paper">{axis.title}</h3>
+              <span className="num shrink-0 text-[11px] text-dim">{axis.basis}</span>
             </div>
-            <dd className="mt-1.5 max-w-[62ch] pl-5 text-sm leading-relaxed text-ash">
-              {row.meaning}{" "}
-              <span className="num text-dim">
-                {row.basis}, or {row.rawPct}%.
-              </span>
-            </dd>
+
+            {/* The axis drawn rather than asserted: one bar, filled exactly
+                once, in the same order as the list under it. */}
+            <div
+              className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-[#1f1f25]"
+              role="img"
+              aria-label={`${axis.title}: ${axis.bands
+                .map((b) => `${b.label} ${b.pct}%`)
+                .join(", ")}.`}
+            >
+              {axis.bands.map((band, i) => (
+                <span
+                  key={band.label}
+                  className="h-full bg-beam"
+                  style={{
+                    width: `${band.pct}%`,
+                    opacity: segmentOpacity(i, axis.bands.length),
+                    boxShadow: i === axis.bands.length - 1 ? undefined : "inset -1px 0 0 #141417",
+                  }}
+                />
+              ))}
+            </div>
+
+            <dl className="mt-3">
+              {axis.bands.map((band, i) => (
+                <div
+                  key={band.label}
+                  className="flex items-baseline gap-3 border-t border-seam py-2 first:border-t-0"
+                >
+                  <span
+                    aria-hidden
+                    className="size-2 shrink-0 rounded-full bg-beam"
+                    style={{ opacity: segmentOpacity(i, axis.bands.length) }}
+                  />
+                  <dt className="flex-1 text-[13.5px] text-paper">{band.label}</dt>
+                  <dd className="num shrink-0 text-[13.5px] text-dim">{band.count}</dd>
+                  <dd className="num w-12 shrink-0 text-right text-[15px] text-beam">
+                    {band.pct}%
+                  </dd>
+                </div>
+              ))}
+            </dl>
+
+            <p className="mt-1.5 max-w-[62ch] text-[12.5px] leading-relaxed text-ash">
+              {axis.note}
+            </p>
           </div>
         ))}
-      </dl>
+      </div>
     </section>
   );
 }
@@ -267,6 +320,7 @@ export default function BinderShowcase({
   return (
     <div>
       {!theirs && <ArchetypeSection binder={binder} />}
+      <StarsSection />
       {!theirs && <PersonalitySection rows={binder.personality} />}
 
       {/* ---------------------------------------------------------------- tiers */}
