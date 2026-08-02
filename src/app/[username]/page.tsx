@@ -204,6 +204,7 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
               avatarUrl={avatarSrc(profile.id, profile.avatarUpdatedAt)}
               memberNumber={profile.memberNumber}
               memberSince={new Date(profile.createdAt).getFullYear()}
+              binderHref={canSeeBinder ? `/${profile.username}/binder` : undefined}
             />
           </div>
           <ProfileReading

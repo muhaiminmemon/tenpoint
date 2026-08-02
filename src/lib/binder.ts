@@ -29,6 +29,7 @@ import {
 } from "./taste-card";
 import { getTasteSignals } from "./taste-card-signals";
 import { pickSignatureFilms, type SignatureFilm } from "./signature-films";
+import { inThirdPerson } from "./voice";
 import {
   CLASS_THRESHOLD,
   computePersonality,
@@ -99,7 +100,10 @@ export type Binder = {
  * Builds the whole showcase for one user, and notes the finish they currently
  * hold on the way through so it is in their history from the first visit.
  */
-export async function loadBinder(user: { id: string }): Promise<Binder> {
+export async function loadBinder(
+  user: { id: string },
+  { thirdPerson = false }: { thirdPerson?: boolean } = {},
+): Promise<Binder> {
   const taste = await getTasteProfile(user.id, { includePrivate: true });
   const signals = await getTasteSignals(user.id, { includePrivate: true });
 
@@ -121,7 +125,19 @@ export async function loadBinder(user: { id: string }): Promise<Binder> {
   // different words to the same person.
   const archetype: ArchetypeRead | null =
     taste.rated >= CLASS_THRESHOLD
-      ? readArchetype(taste.topGenres[0]?.name, taste.topGenres, signals)
+      ? (() => {
+          const read = readArchetype(taste.topGenres[0]?.name, taste.topGenres, signals);
+          // Told about them rather than to them, on their friend's screen.
+          return thirdPerson
+            ? {
+                ...read,
+                modifierMeaning: inThirdPerson(read.modifierMeaning),
+                nounMeaning: inThirdPerson(read.nounMeaning),
+                meaning: inThirdPerson(read.meaning),
+                nearMiss: read.nearMiss ? inThirdPerson(read.nearMiss) : undefined,
+              }
+            : read;
+        })()
       : null;
 
   const tiers: TierRow[] = RARITY_TIERS.map((t) => ({
@@ -148,11 +164,15 @@ export async function loadBinder(user: { id: string }): Promise<Binder> {
     variants,
     accents: ACCENT_DEFS.map((axis) => ({ axis, yours: hasCard && variant.accent === axis.name })),
     auras: AURA_DEFS.map((axis) => ({ axis, yours: hasCard && variant.aura === axis.name })),
-    personality: computePersonality(taste, signals),
+    personality: computePersonality(taste, signals).map((axis) =>
+      thirdPerson ? { ...axis, note: inThirdPerson(axis.note) } : axis,
+    ),
     themes: themeReadings(signals, 6),
-    signature: await pickSignatureFilms(user.id, signals, archetype?.themeKey ?? null, {
-      includePrivate: true,
-    }),
+    signature: (
+      await pickSignatureFilms(user.id, signals, archetype?.themeKey ?? null, {
+        includePrivate: true,
+      })
+    ).map((f) => (thirdPerson ? { ...f, reason: inThirdPerson(f.reason) } : f)),
     yoursVariant,
     yoursTier: tier,
     archetype,

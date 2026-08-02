@@ -15,6 +15,7 @@ export default function TasteCardDialog({
   open,
   onClose,
   initialTab = "Card",
+  binderHref,
   data,
   username,
   displayName,
@@ -25,6 +26,8 @@ export default function TasteCardDialog({
   onClose: () => void;
   /** which panel to land on; "Share" when opened by a share button */
   initialTab?: Tab;
+  /** whose binder the card links to; omitted on your own card */
+  binderHref?: string;
   data: HomeTasteCardData;
   username: string;
   displayName: string;
@@ -160,7 +163,7 @@ export default function TasteCardDialog({
                 snapping to each one. */}
             <AutoHeight>
             <div key={tab} className="pop-in">
-            {tab === "Card" && <CardTab data={data} />}
+            {tab === "Card" && <CardTab data={data} binderHref={binderHref} />}
             {tab === "Traits" && <TraitsTab data={data} />}
             {tab === "Share" && (
               <ShareTab
@@ -182,7 +185,7 @@ export default function TasteCardDialog({
   );
 }
 
-function CardTab({ data }: { data: HomeTasteCardData }) {
+function CardTab({ data, binderHref }: { data: HomeTasteCardData; binderHref?: string }) {
   const standing = data.standing;
   return (
     <div className="flex flex-col gap-5">
@@ -294,7 +297,7 @@ function CardTab({ data }: { data: HomeTasteCardData }) {
         </div>
       )}
 
-      <BinderLink />
+      <BinderLink href={binderHref} label={binderHref ? "Open their binder" : undefined} />
     </div>
   );
 }

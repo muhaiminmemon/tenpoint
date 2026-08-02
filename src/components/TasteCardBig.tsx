@@ -337,14 +337,18 @@ export function TasteCardBackBig({
  * explaining itself, so saying the same thing here first is a paragraph the
  * reader has to get past twice.
  */
-export function BinderLink() {
+export function BinderLink({ href = "/binder", label = "Open the binder" }: {
+  /** whose binder: someone else's card opens theirs, not the reader's */
+  href?: string;
+  label?: string;
+}) {
   return (
     <div>
       <Link
-        href="/binder"
+        href={href}
         className="display flex items-center justify-between rounded-card border border-seam bg-[#1a1a1f] px-3.5 py-2.5 text-[13px] text-paper transition-colors hover:border-dim"
       >
-        Open the binder
+        {label}
         <span aria-hidden className="text-ash">
           &rarr;
         </span>

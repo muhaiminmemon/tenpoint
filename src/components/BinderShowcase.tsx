@@ -1,6 +1,16 @@
 import Link from "next/link";
 import type { AxisRow, Binder, FinishState, PersonalityRow, TierRow } from "@/lib/binder";
 import { SLOT_LABELS, SLOT_NOTES } from "@/lib/signature-films";
+import { inThirdPerson } from "@/lib/voice";
+
+/** The same four jobs, named from outside. */
+const THEIR_SLOT_LABELS: typeof SLOT_LABELS = {
+  anchor: "The anchor",
+  divergence: "Theirs more than ours",
+  deepcut: "The deep cut",
+  regular: "The one they return to",
+  theme: "The evidence",
+};
 import { posterUrl } from "@/lib/tmdb-urls";
 import { formatTenths, ratingColor } from "@/lib/format";
 import type { StockDef } from "@/lib/taste-card";
@@ -105,7 +115,7 @@ function StateMark({ state }: { state: FinishState }) {
  * descriptions of other people. When their taste moves the title is re-read and
  * this section explains the new one instead.
  */
-function ArchetypeSection({ binder }: { binder: Binder }) {
+function ArchetypeSection({ binder, person }: { binder: Binder; person?: string }) {
   const a = binder.archetype;
 
   return (
@@ -119,21 +129,25 @@ function ArchetypeSection({ binder }: { binder: Binder }) {
           Archetype
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
-          Your title is two readings joined. The second word is the thing your films keep
-          returning to, found by theme rather than genre: not &ldquo;Thriller&rdquo; but the
-          heists, the time loops, the houses that will not let go. It is weighed against how
-          common that theme is, so it names what you watch unusually much of rather than what
-          everyone watches. The first word is how you watch: whichever measure your library sits
-          furthest from ordinary on, including several that read your opinions rather than your
-          shelf, which is what separates two people who have seen all the same films. You never
-          pick either, and both are re-read every time your taste moves.
+          {person ? `${person}'s` : "Your"} title is two readings joined. The second word is
+          the thing {person ? "their" : "your"} films keep returning to, found by theme rather
+          than genre: not &ldquo;Thriller&rdquo; but the heists, the time loops, the houses that
+          will not let go. It is weighed against how common that theme is, so it names what{" "}
+          {person ? "they" : "you"} watch unusually much of rather than what everyone watches.
+          The first word is how {person ? "they" : "you"} watch: whichever measure{" "}
+          {person ? "their" : "your"} library sits furthest from ordinary on, including several
+          that read {person ? "their" : "your"} opinions rather than {person ? "their" : "your"}{" "}
+          shelf, which is what separates two people who have seen all the same films.{" "}
+          {person ? "They" : "You"} never pick either, and both are re-read every time{" "}
+          {person ? "their" : "your"} taste moves.
         </p>
       </div>
 
       {a === null ? (
         <p className="mt-7 border-y border-seam py-5 text-[15px] text-paper">
-          Not named yet. Rate {binder.toArchetype} more{" "}
-          {binder.toArchetype === 1 ? "film" : "films"} and your title is read for the first time.
+          Not named yet. {binder.toArchetype} more{" "}
+          {binder.toArchetype === 1 ? "film" : "films"} and {person ? "their" : "your"} title is
+          read for the first time.
         </p>
       ) : (
         <div className="mt-7 border-y border-seam py-6">
@@ -193,7 +207,7 @@ function segmentOpacity(i: number, total: number) {
  * ever learn that one of them is there because they rate it three points above
  * everyone else.
  */
-function SignatureSection({ films }: { films: Binder["signature"] }) {
+function SignatureSection({ films, person }: { films: Binder["signature"]; person?: string }) {
   if (films.length === 0) return null;
 
   return (
@@ -207,11 +221,12 @@ function SignatureSection({ films }: { films: Binder["signature"] }) {
           Signature films
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
-          The four films on your card. They are not your top four: the top of everybody&rsquo;s
-          list is the canon, and a film everyone loves says little about you. Each slot does a
-          different job instead, so the four together read as a portrait rather than a
-          leaderboard. No two of them come from the same director or the same theme unless
-          leaving a tile empty were the only alternative.
+          The four films on {person ? "their" : "your"} card. They are not{" "}
+          {person ? "their" : "your"} top four: the top of everybody&rsquo;s list is the canon,
+          and a film everyone loves says little about anybody. Each slot does a different job
+          instead, so the four together read as a portrait rather than a leaderboard. No two of
+          them come from the same director or the same theme unless leaving a tile empty were the
+          only alternative.
         </p>
       </div>
 
@@ -239,7 +254,7 @@ function SignatureSection({ films }: { films: Binder["signature"] }) {
               </Link>
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] uppercase tracking-[.14em] text-ash">
-                  {SLOT_LABELS[f.slot]}
+                  {person ? THEIR_SLOT_LABELS[f.slot] : SLOT_LABELS[f.slot]}
                 </div>
                 <Link
                   href={`/film/${f.slug}`}
@@ -249,7 +264,7 @@ function SignatureSection({ films }: { films: Binder["signature"] }) {
                 </Link>
                 <p className="mt-1 max-w-[52ch] text-sm leading-relaxed text-ash">{f.reason}</p>
                 <p className="mt-1 max-w-[52ch] text-[12.5px] leading-relaxed text-dim">
-                  {SLOT_NOTES[f.slot]}
+                  {person ? inThirdPerson(SLOT_NOTES[f.slot]) : SLOT_NOTES[f.slot]}
                 </p>
               </div>
               <span className={`num shrink-0 text-[17px] ${ratingColor(f.rating)}`}>
@@ -271,7 +286,7 @@ function SignatureSection({ films }: { films: Binder["signature"] }) {
  * theme is not something to go and collect. It is a description, and the ones
  * that do not describe you are simply not about you.
  */
-function ThemesSection({ themes }: { themes: Binder["themes"] }) {
+function ThemesSection({ themes, person }: { themes: Binder["themes"]; person?: string }) {
   if (themes.length === 0) return null;
 
   return (
@@ -285,10 +300,10 @@ function ThemesSection({ themes }: { themes: Binder["themes"] }) {
           Movie DNA
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
-          The names on the back of your card, and what each one counts. A film joins a theme by
-          what it is about rather than what it is filed under, so one film can belong to
-          several. These are chosen for how far past ordinary each sits in your library, then
-          printed largest first.
+          The names on the back of {person ? "their" : "your"} card, and what each one counts. A
+          film joins a theme by what it is about rather than what it is filed under, so one film
+          can belong to several. These are chosen for how far past ordinary each sits in{" "}
+          {person ? "their" : "your"} library, then printed largest first.
         </p>
       </div>
 
@@ -326,7 +341,7 @@ const STAR_BANDS = [
   { stars: 1, range: "under 3.0" },
 ];
 
-function StarsSection() {
+function StarsSection({ person }: { person?: string }) {
   return (
     <section aria-labelledby="stars" className="mb-16 scroll-mt-6">
       <div className="flex items-center gap-3">
@@ -338,10 +353,10 @@ function StarsSection() {
           The stars
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
-          The five stars beside the number on your card are that same number, rounded to a
-          five-point scale. They are not a second rating, they count nothing on their own, and
-          nothing you do moves them except your average moving. They are there because a shape
-          reads across a room and a decimal does not.
+          The five stars beside the number on {person ? "their" : "your"} card are that same
+          number, rounded to a five-point scale. They are not a second rating, they count nothing
+          on their own, and nothing moves them except that average moving. They are there because
+          a shape reads across a room and a decimal does not.
         </p>
       </div>
 
@@ -363,7 +378,7 @@ function StarsSection() {
   );
 }
 
-function PersonalitySection({ rows }: { rows: PersonalityRow[] }) {
+function PersonalitySection({ rows, person }: { rows: PersonalityRow[]; person?: string }) {
   if (rows.length === 0) return null;
 
   return (
@@ -378,9 +393,9 @@ function PersonalitySection({ rows }: { rows: PersonalityRow[] }) {
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
           Four ways of cutting the same library. Every film lands in exactly one band of each
-          bar, so each bar adds to 100 and every figure is a plain count you can check. Nothing
-          here is a target, and an axis only appears once enough of your library carries what it
-          needs.
+          bar, so each bar adds to 100 and every figure is a plain count. Nothing here is a
+          target, and an axis only appears once enough of {person ? "their" : "your"} library
+          carries what it needs.
         </p>
       </div>
 
@@ -460,14 +475,16 @@ export default function BinderShowcase({
   binder: Binder;
   person?: string;
 }) {
-  const theirs = person !== undefined;
   return (
     <div>
-      {!theirs && <ArchetypeSection binder={binder} />}
-      <StarsSection />
-      {!theirs && <ThemesSection themes={binder.themes} />}
-      {!theirs && <SignatureSection films={binder.signature} />}
-      {!theirs && <PersonalitySection rows={binder.personality} />}
+      {/* Shown on a friend's binder too, told about them rather than to them.
+          Hiding the four readings left their binder as a list of finishes with
+          the person taken out of it, which is the only part worth looking at. */}
+      <ArchetypeSection binder={binder} person={person} />
+      <StarsSection person={person} />
+      <ThemesSection themes={binder.themes} person={person} />
+      <SignatureSection films={binder.signature} person={person} />
+      <PersonalitySection rows={binder.personality} person={person} />
 
       {/* ---------------------------------------------------------------- tiers */}
       <section aria-labelledby="tiers" className="scroll-mt-6">

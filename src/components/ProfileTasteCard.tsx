@@ -29,6 +29,7 @@ export default function ProfileTasteCard({
   avatarUrl,
   memberNumber,
   memberSince,
+  binderHref,
 }: {
   data: HomeTasteCardData;
   username: string;
@@ -36,6 +37,8 @@ export default function ProfileTasteCard({
   avatarUrl: string | null;
   memberNumber: number;
   memberSince: number;
+  /** their binder, when the viewer is allowed to see it */
+  binderHref?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -68,6 +71,7 @@ export default function ProfileTasteCard({
       <TasteCardDialog
         open={open}
         onClose={() => setOpen(false)}
+        binderHref={binderHref}
         data={data}
         username={username}
         displayName={displayName}

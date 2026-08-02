@@ -47,7 +47,7 @@ export default async function FriendBinderPage(ctx: {
   // learn anything about the account from the response.
   if (!(await areFriends(viewer.id, profile.id))) notFound();
 
-  const binder = await loadBinder(profile);
+  const binder = await loadBinder(profile, { thirdPerson: true });
   const displayLabel = profile.displayName ?? profile.username;
 
   return (
@@ -59,10 +59,10 @@ export default async function FriendBinderPage(ctx: {
         >
           &larr; {displayLabel}
         </Link>
-        <h1 className="display mt-3 text-[32px] leading-none">Their binder</h1>
+        <h1 className="display mt-3 text-[32px] leading-none">{displayLabel}&apos;s binder</h1>
         <p className="mt-4 text-[15px] leading-relaxed text-ash">
-          Every finish {displayLabel}&apos;s card can be dealt, and which of them are theirs.
-          Nothing here was chosen or bought: a finish arrives because of what they watched, and
+          What {displayLabel}&apos;s card is made of, and why it reads the way it does. Nothing
+          here was chosen or bought: every part of it arrives because of what they watched, and
           leaves the same way.
         </p>
       </header>
