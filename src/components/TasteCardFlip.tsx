@@ -43,7 +43,7 @@ export default function TasteCardFlip({
   // node would overwrite the flip. Tilting the parent instead composes the way
   // it does in the hand — the card turns over, and the whole thing leans.
   return (
-    <TiltCard radius="18px" maxTilt={4} className="mx-auto w-full max-w-[320px]">
+    <TiltCard radius="18px" maxTilt={4} className="mx-auto w-full max-w-[368px] sm:max-w-[320px]">
     <div className="w-full" style={{ perspective: "1600px" }}>
       <button
         type="button"

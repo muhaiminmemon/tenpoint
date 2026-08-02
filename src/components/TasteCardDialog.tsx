@@ -153,7 +153,7 @@ export default function TasteCardDialog({
               flipped={flipped}
               onFlip={() => setFlipped((f) => !f)}
             />
-            <div className="mx-auto mt-3 flex w-full max-w-[320px] gap-2">
+            <div className="mx-auto mt-3 flex w-full max-w-[368px] gap-2 sm:max-w-[320px]">
               <button
                 type="button"
                 onClick={() => setFlipped((f) => !f)}
@@ -206,7 +206,10 @@ function CardTab({ data }: { data: HomeTasteCardData }) {
   const next = data.milestones;
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-baseline justify-between">
+      {/* Beside the card from `sm`, where it reads as the caption to an object.
+          Stacked under it on a phone it was the same two words a second time,
+          directly below the card that had just said them. */}
+      <div className="hidden items-baseline justify-between sm:flex">
         <div>
           <div className="text-[10px] uppercase tracking-[.14em] text-ash">Archetype</div>
           <div className="display mt-1 text-[20px] text-paper">{data.archetype ?? "Still developing"}</div>
@@ -220,7 +223,7 @@ function CardTab({ data }: { data: HomeTasteCardData }) {
       </div>
 
       {data.profStats.length > 0 && (
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
           {data.profStats.map((s) => (
             <div key={s.label} className="rounded-card border border-seam bg-lift px-2 py-2.5 text-center">
               <div className="num text-[17px] text-paper">{s.value}</div>

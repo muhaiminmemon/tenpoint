@@ -146,7 +146,7 @@ export function TasteCardFrontBig({
           </div>
           <div>
             <div className="text-[9px] uppercase tracking-[.1em] text-[#8a8a92]">Signature film</div>
-            <div className="display max-w-[120px] text-[12px] leading-tight text-paper">
+            <div className="display max-w-[190px] text-[12px] leading-tight text-paper sm:max-w-[120px]">
               {signature?.title ?? "—"}
             </div>
           </div>
