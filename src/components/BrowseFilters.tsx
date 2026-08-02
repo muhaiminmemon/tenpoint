@@ -60,7 +60,6 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
     filters.language,
     filters.runtime,
     filters.minRating,
-    filters.gems ? 1 : null,
     filters.source === "tmdb" ? null : 1,
   ].filter((v) => v !== null).length;
 
@@ -134,9 +133,6 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
         ]}
       />
 
-      <Chip active={filters.gems} onClick={() => apply({ gems: !filters.gems })}>
-        Hidden gems
-      </Chip>
     </div>
   );
 
@@ -154,6 +150,7 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
               key={s.key}
               active={filters.sort === s.key}
               onClick={() => apply({ sort: s.key })}
+              compact
               className="shrink-0"
             >
               {s.label}
@@ -212,7 +209,9 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
       )}
 
       <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title="Filters">
-        <div className="mt-4 [&_select]:w-full [&>div]:flex-col [&>div]:items-stretch [&>div]:gap-2.5">
+        {/* The same controls, stacked. They already run full width on touch,
+            so this only has to change the axis. */}
+        <div className="mt-4 [&>div]:flex-col [&>div]:items-stretch [&>div]:gap-2.5">
           {controls}
         </div>
         <button
@@ -227,23 +226,38 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
   );
 }
 
+/**
+ * Every control in the filter row shares this height.
+ *
+ * The selects have to run at 16px on touch or iOS zooms the page when one is
+ * focused, which made them noticeably taller than a chip set at 12.5px. Sitting
+ * side by side, the chip read as a mistake. A shared minimum height lines them
+ * up without forcing the chip to carry type it does not need.
+ */
+const CONTROL_H = "min-h-[40px] sm:min-h-[32px]";
+
 function Chip({
   active,
   onClick,
   children,
   className = "",
+  compact = false,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
   className?: string;
+  /** the sort row, which stands alone and can afford to be smaller */
+  compact?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full border px-3.5 py-1.5 text-[12.5px] transition-colors ${
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full border text-[13px] transition-colors sm:text-[12.5px] ${
+        compact ? "min-h-[34px] px-4 sm:min-h-[30px] sm:px-3.5" : `${CONTROL_H} px-4 sm:px-3.5`
+      } ${
         active
           ? "border-paper bg-paper text-carbon"
           : "border-seam text-ash hover:border-dim hover:text-paper"
@@ -266,14 +280,14 @@ function Select({
   options: { value: string; label: string }[];
 }) {
   return (
-    <label className="relative inline-flex items-center">
+    <label className="relative inline-flex w-full items-center sm:w-auto">
       <span className="sr-only">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
         // 16px on touch: anything smaller makes iOS Safari zoom the page in.
-        className="appearance-none rounded-full border border-seam bg-tray py-2 pl-3.5 pr-8 text-base text-paper transition-colors hover:border-dim focus:border-beam focus:outline-none sm:py-1.5 sm:text-[12.5px]"
+        className={`${CONTROL_H} w-full appearance-none rounded-full border border-seam bg-tray pl-3.5 pr-8 text-base text-paper transition-colors hover:border-dim focus:border-beam focus:outline-none sm:w-auto sm:text-[12.5px]`}
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>

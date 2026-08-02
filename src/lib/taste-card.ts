@@ -105,41 +105,6 @@ export const RARITY_TIERS: RarityTier[] = [
   },
 ];
 
-/**
- * The tier in force: a floor on films rated, then as far as the milestones
- * carry you past it.
- *
- * Film count sets the base, so a large library is never held back by breadth it
- * happens not to have. Above that, meeting three of a step's five conditions
- * promotes — which is what the card has always said and, until now, never did.
- * This is the "never grinded by one path alone" rule finally taking effect: a
- * smaller but far-ranging library reaches the same tier by a different route.
- *
- * Exactly one rung, never more. Chaining looked reasonable until it was
- * measured: the top step's conditions (17 genres, 6 decades, 60 reviews, 40
- * rewatches) are also met at every step below it, so a 60-film library with
- * real breadth climbed straight to Mythic — a tier that is supposed to mean
- * five hundred films. One step is also what the card actually promises: the
- * next tier needs any three of five, not the whole ladder.
- *
- * `signals` is what enables any of this; without them the count-only floor is
- * returned, so a caller that has not loaded signals degrades to the old
- * behaviour instead of throwing.
- */
-export function computeTier(rated: number, signals?: TasteSignals): RarityTier {
-  let tier = RARITY_TIERS[0];
-  for (const t of RARITY_TIERS) {
-    if (rated >= t.floor) tier = t;
-  }
-  if (!signals) return tier;
-
-  const next = RARITY_TIERS[tier.index + 1];
-  if (!next) return tier;
-
-  const met = milestonesAt(tier.index, signals).filter((m) => m.met).length;
-  return met >= MILESTONES_TO_PROMOTE ? next : tier;
-}
-
 // ---------------------------------------------------------------------------
 // LAYER 2b — MILESTONES: five real signals. Meeting three genuinely promotes,
 // on top of the film-count floor, so breadth is a real second route up the
@@ -210,15 +175,83 @@ export function milestonesAt(stepIndex: number, s: TasteSignals): Milestone[] {
 /** Three of the five. The bar the card has always advertised. */
 export const MILESTONES_TO_PROMOTE = 3;
 
-/** Progress toward the *next* tier, or null already at Mythic. */
-export function nextTierMilestones(
-  tier: RarityTier,
-  s: TasteSignals,
-): { milestones: Milestone[]; met: number; nextTier: RarityTier | null } | null {
-  const next = RARITY_TIERS[tier.index + 1];
-  if (!next) return null;
-  const milestones = milestonesAt(tier.index, s);
-  return { milestones, met: milestones.filter((m) => m.met).length, nextTier: next };
+/**
+ * Everything about where someone stands on the ladder, from one function.
+ *
+ * The gate and the progress display used to be computed separately, and they
+ * disagreed. Film count set a floor; meeting three of five conditions lifted
+ * you one rung above it. But the card then drew the *next* rung's conditions,
+ * which no number of met conditions could ever unlock, because the lift is
+ * capped at one. People met three, watched the card confirm it, and stayed put.
+ *
+ * So both answers come from here. A tier is reached one of two ways and the
+ * display always names the one that is actually in force:
+ *
+ * - **Standing on your count.** Three of five conditions lifts you a rung.
+ * - **Already lifted.** The rung above needs the film count to catch up first;
+ *   conditions cannot carry you twice.
+ *
+ * The cap is what stops breadth from running away with the whole ladder: the
+ * top step's conditions are also satisfied at every step beneath it, so
+ * uncapped chaining took a sixty-film library to Mythic, a tier that is meant
+ * to mean five hundred.
+ */
+export type TierGate =
+  | { kind: "milestones"; milestones: Milestone[]; met: number; needed: number }
+  | { kind: "films"; filmsToNext: number };
+
+export type TierStanding = {
+  /** the tier in force */
+  tier: RarityTier;
+  /** what the film count alone earns */
+  byCount: RarityTier;
+  /** true when conditions lifted the tier above the count */
+  promoted: boolean;
+  /** null at the top of the ladder */
+  next: RarityTier | null;
+  /** how the next rung is actually reached from here; null at the top */
+  gate: TierGate | null;
+};
+
+export function tierStanding(rated: number, signals: TasteSignals): TierStanding {
+  let byCount = RARITY_TIERS[0];
+  for (const t of RARITY_TIERS) {
+    if (rated >= t.floor) byCount = t;
+  }
+
+  const step = milestonesAt(byCount.index, signals);
+  const met = step.filter((m) => m.met).length;
+  const above = RARITY_TIERS[byCount.index + 1];
+
+  const promoted = Boolean(above) && met >= MILESTONES_TO_PROMOTE;
+  const tier = promoted ? above : byCount;
+  const next = RARITY_TIERS[tier.index + 1] ?? null;
+
+  if (!next) return { tier, byCount, promoted, next: null, gate: null };
+
+  return {
+    tier,
+    byCount,
+    promoted,
+    next,
+    gate: promoted
+      ? // The lift is spent. Only films move the floor now, and once it moves
+        // the conditions for the rung after this one come back into play.
+        { kind: "films", filmsToNext: Math.max(0, tier.floor - rated) }
+      : { kind: "milestones", milestones: step, met, needed: MILESTONES_TO_PROMOTE },
+  };
+}
+
+/** The tier in force. A thin read on `tierStanding` for callers that want only that. */
+export function computeTier(rated: number, signals?: TasteSignals): RarityTier {
+  if (!signals) {
+    let tier = RARITY_TIERS[0];
+    for (const t of RARITY_TIERS) {
+      if (rated >= t.floor) tier = t;
+    }
+    return tier;
+  }
+  return tierStanding(rated, signals).tier;
 }
 
 // ---------------------------------------------------------------------------

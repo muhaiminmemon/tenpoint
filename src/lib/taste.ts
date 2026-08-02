@@ -10,10 +10,10 @@ import {
   ERA_BY_DECADE,
   evaluateTraits,
   FILM_GENRES,
-  nextTierMilestones,
+  tierStanding,
   tasteArchetype,
-  type Milestone,
   type RarityTier,
+  type TierStanding,
   type Trait,
   type Variant,
 } from "@/lib/taste-card";
@@ -501,7 +501,8 @@ export type HomeTasteCardData = TasteProfile & {
   /** how many more ratings unlock the full card; 0 once `full` is true */
   toFull: number;
   tier: RarityTier;
-  milestones: { milestones: Milestone[]; met: number; nextTier: RarityTier | null } | null;
+  /** where this card sits on the ladder, and what actually moves it next */
+  standing: TierStanding | null;
   variant: Variant;
   traits: Trait[];
   traitsHeldCount: number;
@@ -583,7 +584,7 @@ export async function buildHomeTasteCard(
       toFull: FULL_CARD_THRESHOLD,
       // Nothing rated means nothing met, so this is Common without asking.
       tier: computeTier(0),
-      milestones: null,
+      standing: null,
       variant: { name: "", stock: "", accent: "", aura: "", accentColor: "#8faecc" },
       traits: [],
       traitsHeldCount: 0,
@@ -610,7 +611,10 @@ export async function buildHomeTasteCard(
 
   // Computed here rather than above, because the milestones are half the
   // answer and they need the signals.
-  const tier = computeTier(taste.rated, signals);
+  // One call decides both the tier and what the card says about reaching the
+  // next one, so the two can never disagree.
+  const standing = tierStanding(taste.rated, signals);
+  const tier = standing.tier;
 
   const variant = computeVariant(
     taste.topGenres[0]?.name,
@@ -644,7 +648,7 @@ export async function buildHomeTasteCard(
     full,
     toFull: Math.max(0, FULL_CARD_THRESHOLD - taste.rated),
     tier,
-    milestones: nextTierMilestones(tier, signals),
+    standing,
     variant,
     traits,
     traitsHeldCount: heldTraits.length,

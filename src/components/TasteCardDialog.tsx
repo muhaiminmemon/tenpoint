@@ -203,7 +203,7 @@ export default function TasteCardDialog({
 }
 
 function CardTab({ data }: { data: HomeTasteCardData }) {
-  const next = data.milestones;
+  const standing = data.standing;
   return (
     <div className="flex flex-col gap-5">
       {/* Beside the card from `sm`, where it reads as the caption to an object.
@@ -233,33 +233,84 @@ function CardTab({ data }: { data: HomeTasteCardData }) {
         </div>
       )}
 
-      {next && (
+      {standing?.gate && (
         <div className="rounded-xl border border-seam bg-lift p-4">
-          <div className="mb-3 flex items-baseline justify-between">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
             <span className="text-[10px] uppercase tracking-[.14em] text-ash">
-              {data.tier.name} → {next.nextTier?.name}
+              {data.tier.name} &rarr; {standing.next?.name}
             </span>
-            <span className="num text-[11px] text-beam">{next.met} of 5 conditions</span>
+            {standing.gate.kind === "milestones" && (
+              <span className="num text-[11px] text-beam">
+                {standing.gate.met} of {standing.gate.milestones.length} conditions
+              </span>
+            )}
           </div>
-          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {next.milestones.map((m) => (
-              <div key={m.label} className="flex items-center gap-2.5 border-b border-[#1e1e24] py-1.5">
-                <span
-                  className={`num flex size-4 shrink-0 items-center justify-center rounded-[5px] border text-[9px] ${
-                    m.met ? "border-gold bg-gold text-carbon" : "border-seam text-dim"
-                  }`}
-                >
-                  {m.met ? "✓" : ""}
-                </span>
-                <span className={`flex-1 text-[12.5px] ${m.met ? "text-paper" : "text-dim"}`}>{m.label}</span>
-                <span className={`num text-[10.5px] ${m.met ? "text-gold" : "text-[#5a5a62]"}`}>{m.detail}</span>
+
+          {standing.gate.kind === "milestones" ? (
+            <>
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                {standing.gate.milestones.map((m) => (
+                  <div
+                    key={m.label}
+                    className="flex items-center gap-2.5 border-b border-[#1e1e24] py-1.5"
+                  >
+                    <span
+                      className={`flex size-4 shrink-0 items-center justify-center rounded-[5px] border ${
+                        m.met ? "border-gold bg-gold text-carbon" : "border-seam text-dim"
+                      }`}
+                    >
+                      {m.met && (
+                        <svg
+                          aria-hidden
+                          viewBox="0 0 12 12"
+                          className="size-2.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="m2.5 6.2 2.2 2.2L9.5 3.6" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className={`flex-1 text-[12.5px] ${m.met ? "text-paper" : "text-dim"}`}>
+                      {m.label}
+                    </span>
+                    <span className={`num text-[10.5px] ${m.met ? "text-gold" : "text-[#5a5a62]"}`}>
+                      {m.detail}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <p className="mt-3 text-[12px] leading-relaxed text-dim">
-            {next.nextTier?.name} needs any three of five. The tier re-mints the moment a third one
-            lands, whichever it is.
-          </p>
+              <p className="mt-3 text-[12px] leading-relaxed text-dim">
+                {standing.next?.name} needs any {standing.gate.needed} of{" "}
+                {standing.gate.milestones.length}. The tier re-mints the moment a third one lands,
+                whichever it is.
+              </p>
+            </>
+          ) : (
+            /* Already lifted a rung by conditions. Saying "three of five" here
+               would promise a promotion that cannot happen: the lift is spent,
+               and only the film count moves the floor now. */
+            <>
+              <p className="text-[12.5px] leading-relaxed text-paper">
+                {data.tier.name} is already ahead of your film count, earned on breadth rather
+                than volume.
+              </p>
+              <p className="mt-2 text-[12px] leading-relaxed text-dim">
+                {standing.gate.filmsToNext > 0 ? (
+                  <>
+                    Rate{" "}
+                    <span className="num text-ash">{standing.gate.filmsToNext}</span> more and the
+                    count catches up, which is what puts {standing.next?.name} within reach.
+                  </>
+                ) : (
+                  <>The next tier opens from here.</>
+                )}
+              </p>
+            </>
+          )}
         </div>
       )}
 

@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { invites } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
-import { requireVerified } from "@/lib/http";
+import { requireVerified, publicOrigin } from "@/lib/http";
 
 /** Returns the user's shareable invite link, creating it on first use. */
 export async function POST(req: Request) {
@@ -24,6 +24,6 @@ export async function POST(req: Request) {
     await db.insert(invites).values({ token, userId: user.id });
   }
 
-  const origin = new URL(req.url).origin;
+  const origin = publicOrigin(req);
   return NextResponse.json({ url: `${origin}/invite/${token}` });
 }

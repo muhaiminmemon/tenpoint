@@ -52,3 +52,31 @@ export function requireVerified(user: { emailVerifiedAt: Date | null }): Respons
     { status: 403 },
   );
 }
+
+/**
+ * The origin a link should point at, as opposed to the one the request landed on.
+ *
+ * Behind a proxy these are different things. Railway terminates TLS at its edge
+ * and forwards to the container on an internal port, so `new URL(req.url).origin`
+ * is `http://localhost:8080` — which is how an invite link ended up pointing at
+ * a machine only the server can reach.
+ *
+ * `APP_URL` wins when set: it is explicit, and it cannot be moved by a spoofed
+ * Host header the way the forwarded values can. The forwarded pair is the
+ * fallback so a deployment that never sets `APP_URL` still produces working
+ * links, and the request's own origin is last, which is correct in local dev
+ * where there is no proxy at all.
+ */
+export function publicOrigin(req: Request): string {
+  const configured = process.env.APP_URL;
+  if (configured) return configured.replace(/\/$/, "");
+
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  if (host) {
+    const proto = req.headers.get("x-forwarded-proto") ?? "https";
+    // The header can carry a list when several proxies are chained.
+    return `${proto.split(",")[0].trim()}://${host.split(",")[0].trim()}`;
+  }
+
+  return new URL(req.url).origin;
+}

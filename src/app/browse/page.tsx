@@ -173,11 +173,10 @@ async function Rails() {
       .then((r) => r.results)
       .catch(() => [] as TmdbMovie[]);
 
-  const [inCinemas, trending, acclaimed, gems, japanese, shortFilms] = await Promise.all([
+  const [inCinemas, trending, acclaimed, japanese, shortFilms] = await Promise.all([
     settle(nowPlaying()),
     settle(trendingThisWeek()),
     grab({ sort: "rated" }),
-    grab({ gems: true }),
     grab({ sort: "rated", language: "ja" }),
     grab({ sort: "rated", runtime: "short" }),
   ]);
@@ -193,12 +192,6 @@ async function Rails() {
         note="Highest rated of all time, with enough votes to mean it"
         movies={acclaimed}
         href={link({ sort: "rated" })}
-      />
-      <FilmRail
-        title="Hidden gems"
-        note="Well regarded, and almost nobody has seen them"
-        movies={gems}
-        href={link({ gems: true })}
       />
       <FilmRail
         title="Japanese cinema"

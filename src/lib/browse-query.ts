@@ -11,9 +11,6 @@ import { films } from "@/db/schema";
 import { discoverMovies, type DiscoverPage, type TmdbMovie } from "./tmdb";
 import {
   BROWSE_GENRES,
-  GEM_RATING_MIN,
-  GEM_VOTES_MAX,
-  GEM_VOTES_MIN,
   RUNTIMES,
   SORTS,
   normalise,
@@ -28,7 +25,6 @@ import {
  * is what makes "highest rated" mean anything at all.
  */
 function voteFloor(f: BrowseFilters): number {
-  if (f.gems) return GEM_VOTES_MIN;
   if (f.sort === "rated" || f.minRating !== null) return 300;
   return 30;
 }
@@ -63,11 +59,6 @@ async function runTmdb(f: BrowseFilters): Promise<DiscoverPage> {
     page: String(f.page),
     "vote_count.gte": String(voteFloor(f)),
   };
-
-  if (f.gems) {
-    params["vote_count.lte"] = String(GEM_VOTES_MAX);
-    params["vote_average.gte"] = String(GEM_RATING_MIN);
-  }
 
   if (f.genre) params.with_genres = String(f.genre);
   if (f.language) params.with_original_language = f.language;
@@ -128,10 +119,6 @@ async function runLeaderboard(f: BrowseFilters): Promise<BrowseResult> {
   if (band?.gte) where.push(gte(films.runtime, band.gte));
   if (band?.lte) where.push(lte(films.runtime, band.lte));
   if (f.language) where.push(sql`${films.originalLanguage} = ${f.language}`);
-  if (f.gems) {
-    // The same band the TMDB side uses, read off the vote counts we store.
-    where.push(gte(films.voteCount, GEM_VOTES_MIN), lte(films.voteCount, GEM_VOTES_MAX));
-  }
   // Both scales happen to land on 0–100: IMDb is stored in tenths (8.8 → 88)
   // and the Tomatometer is already a percentage, so one comparison covers both.
   if (f.minRating) where.push(gte(column, f.minRating));

@@ -82,19 +82,6 @@ export function yearOptions(): number[] {
   return Array.from({ length: last - FIRST_YEAR + 1 }, (_, i) => last - i);
 }
 
-/**
- * A well-regarded film almost nobody has logged.
- *
- * The band is deliberately narrow at both ends. Below the floor a score is
- * built from too few opinions to mean anything; above the ceiling the film is
- * simply known. This is the one filter here that no popularity-first site
- * would build, and the reason it exists is the reader who watches festival
- * titles alongside the canon.
- */
-export const GEM_VOTES_MIN = 200;
-export const GEM_VOTES_MAX = 1500;
-export const GEM_RATING_MIN = 7;
-
 export type BrowseFilters = {
   source: Source;
   sort: SortKey;
@@ -106,7 +93,6 @@ export type BrowseFilters = {
   runtime: RuntimeBand | null;
   /** minimum average out of 10, in tenths to stay off floats */
   minRating: number | null;
-  gems: boolean;
   page: number;
 };
 
@@ -121,7 +107,6 @@ export const EMPTY_FILTERS: BrowseFilters = {
   language: null,
   runtime: null,
   minRating: null,
-  gems: false,
   page: 1,
 };
 
@@ -152,7 +137,6 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
     language: LANGUAGES.some((l) => l.code === langRaw) ? (langRaw as string) : null,
     runtime: RUNTIMES.some((r) => r.key === runtimeRaw) ? (runtimeRaw as RuntimeBand) : null,
     minRating: MIN_RATINGS.includes(num("min") ?? -1) ? num("min") : null,
-    gems: one("gems") === "1",
     page: Math.min(Math.max(num("page") ?? 1, 1), 500),
   };
 
@@ -163,26 +147,15 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
  * Resolves the combinations that would otherwise contradict each other.
  *
  * Left alone these are the holes a reader falls into: a decade and a year that
- * disagree, a hidden-gem search sorted by "most rated" (which asks for the
- * best-known of the least-known), or a language filter carried into a
- * leaderboard whose rows have no language column to filter on. Each is
- * resolved here, once, so no caller has to remember.
+ * disagree, or a sort key carried into a leaderboard that is already ordered
+ * by its own score. Each is resolved here, once, so no caller has to
+ * remember.
  */
 export function normalise(f: BrowseFilters): BrowseFilters {
   const out = { ...f };
 
   // A year is inside a decade, so the narrower one wins and the other clears.
   if (out.year !== null) out.decade = null;
-
-  if (out.gems) {
-    // "Most rated" and "Biggest" both order by fame, which is the opposite of
-    // the question being asked.
-    if (out.sort === "voted" || out.sort === "grossing" || out.sort === "popular") {
-      out.sort = "rated";
-    }
-    // The gem band already sets a rating floor; a second one only fights it.
-    out.minRating = null;
-  }
 
   // The rating source changes which number the grid is ordered by, not which
   // films it can ask about: the local catalogue carries language, vote counts,
@@ -205,7 +178,6 @@ export function filtersToQuery(f: Partial<BrowseFilters>): string {
   if (full.language) p.set("lang", full.language);
   if (full.runtime) p.set("len", full.runtime);
   if (full.minRating) p.set("min", String(full.minRating));
-  if (full.gems) p.set("gems", "1");
   if (full.page && full.page > 1) p.set("page", String(full.page));
   const s = p.toString();
   return s ? `?${s}` : "";
@@ -221,15 +193,13 @@ export function isFiltered(f: BrowseFilters): boolean {
     f.year !== null ||
     f.language !== null ||
     f.runtime !== null ||
-    f.minRating !== null ||
-    f.gems
+    f.minRating !== null
   );
 }
 
 /** A short human sentence naming what the grid is currently showing. */
 export function describeFilters(f: BrowseFilters): string {
   const bits: string[] = [];
-  if (f.gems) bits.push("Hidden gems");
   if (f.language) bits.push(LANGUAGES.find((l) => l.code === f.language)?.name ?? "");
   if (f.genre) bits.push(BROWSE_GENRES.find((g) => g.id === f.genre)?.name ?? "");
   if (f.year) bits.push(String(f.year));
