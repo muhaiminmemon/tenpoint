@@ -1,5 +1,5 @@
 import type { TasteSignals } from "./taste-card-signals";
-import { CLUSTERS, CLUSTER_PREVALENCE } from "./archetype-clusters";
+import { CLUSTERS, CLUSTER_PREVALENCE, STOCK_BY_CLUSTER } from "./archetype-clusters";
 
 // ---------------------------------------------------------------------------
 // LAYER 1 — LEVEL: films watched, mostly. Ticks up forever, no ceiling. Lives
@@ -499,7 +499,7 @@ const ANCHOR = {
   topGenreShare: { typical: 0.45, spread: 0.12 },
   subtitleShare: { typical: 0.1, spread: 0.14 },
   rewatchShare: { typical: 0.1, spread: 0.1 },
-  oneDirector: { typical: 4, spread: 2.5 },
+  oneDirector: { typical: 1.25, spread: 0.55 },
   criticGap: { typical: 0.15, spread: 0.12 },
   // The opinion axes. Each is a difference between two averages in tenths, so
   // zero is "rates both kinds the same" and the spread is roughly how far
@@ -508,7 +508,7 @@ const ANCHOR = {
   obscureLift: { typical: 0, spread: 6 },
   oldLift: { typical: 0, spread: 6 },
   foreignLift: { typical: 0, spread: 6 },
-  oneFace: { typical: 4, spread: 3 },
+  oneFace: { typical: 1.25, spread: 0.55 },
   languages: { typical: 4, spread: 2.5 },
   crowdBias: { typical: -2, spread: 10 },
   perfectShare: { typical: 0.03, spread: 0.08 },
@@ -553,7 +553,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       old,
       ANCHOR.oldShare,
       ["Archival", `${pct(old)}% of your films were made before 1990.`],
-      ["Immediate", `${pct(1 - old)}% of your films were made after 1990.`],
+      ["Recent", `${pct(1 - old)}% of your films were made after 1990.`],
     );
   }
 
@@ -562,7 +562,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       wide,
       ANCHOR.wideShare,
-      ["Bellwether", `${pct(wide)}% of your films have been rated by thousands of people.`],
+      ["Blockbuster", `${pct(wide)}% of your films have been rated by thousands of people.`],
       ["Underground", `${pct(1 - wide)}% of your films have fewer than 2,000 ratings anywhere.`],
     );
   }
@@ -572,8 +572,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.mean,
       ANCHOR.mean,
-      ["Openhanded", `Your average rating is ${avg}.`],
-      ["Exacting", `Your average rating is ${avg}.`],
+      ["Generous", `Your average rating is ${avg}.`],
+      ["Hard-Marker", `Your average rating is ${avg}.`],
     );
   }
 
@@ -581,8 +581,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.ratingStdDev,
       ANCHOR.spreadOfRatings,
-      ["Mercurial", "Your ratings swing hard in both directions."],
-      ["Steadfast", "Your ratings cluster close together."],
+      ["All-Or-Nothing", "Your ratings swing hard in both directions."],
+      ["Even-Handed", "Your ratings cluster close together."],
     );
   }
 
@@ -591,8 +591,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       share,
       ANCHOR.topGenreShare,
-      ["Devout", `${pct(share)}% of your rated films carry ${topGenre}.`],
-      ["Restless", `You spread across ${s.distinctGenres} genres with no single one dominating.`],
+      ["Single-Minded", `${pct(share)}% of your rated films carry ${topGenre}.`],
+      ["Wide-Ranging", `You spread across ${s.distinctGenres} genres with no single one dominating.`],
     );
   }
 
@@ -611,33 +611,37 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       again,
       ANCHOR.rewatchShare,
-      ["Devoted", `${pct(again)}% of your viewings are rewatches.`],
-      ["Ever-Restless", "You almost never watch the same film twice."],
+      ["Rewatcher", `${pct(again)}% of your viewings are rewatches.`],
+      ["One-Watch", "You almost never watch the same film twice."],
     );
   }
 
   if (s.directorKnownCount >= 15) {
     axis(
-      s.maxDirectorCount,
+      s.topDirectorLift,
       ANCHOR.oneDirector,
       [
-        "Loyal",
+        "Director-Loyal",
         s.topDirectorName
-          ? `You have rated ${s.maxDirectorCount} films directed by ${s.topDirectorName}.`
-          : `You have rated ${s.maxDirectorCount} films by one director.`,
+          ? `You have rated ${s.maxDirectorCount} films directed by ${s.topDirectorName}, well past what chance would give you.`
+          : `You keep returning to one director.`,
       ],
       null,
     );
     // The cast equivalent, which says something the director axis does not: a
     // person can follow a face across films by twelve different directors.
+    // Measured against how much of the catalogue that actor is actually in.
+    // Counting heads made this fire for anyone who had seen a franchise: the
+    // same lead in eleven films is what a franchise is, not what following
+    // somebody is.
     axis(
-      s.maxCastCount,
+      s.topCastLift,
       ANCHOR.oneFace,
       [
-        "Repertory",
+        "Cast-Loyal",
         s.topCastName
-          ? `${s.topCastName} turns up in ${s.maxCastCount} films you have rated.`
-          : `The same actor turns up in ${s.maxCastCount} films you have rated.`,
+          ? `${s.topCastName} turns up in ${s.maxCastCount} of your films, more than chance would give you.`
+          : `You keep returning to the same faces.`,
       ],
       null,
     );
@@ -647,7 +651,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.distinctLanguages,
       ANCHOR.languages,
-      ["Polyglot", `You have rated films in ${s.distinctLanguages} different languages.`],
+      ["Multilingual", `You have rated films in ${s.distinctLanguages} different languages.`],
       null,
     );
   }
@@ -658,7 +662,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       gap,
       ANCHOR.criticGap,
       ["Contrarian", `${pct(gap)}% of your ratings sit far from the IMDb crowd.`],
-      ["True North", `${pct(1 - gap)}% of your ratings land close to the IMDb crowd.`],
+      ["Consensus", `${pct(1 - gap)}% of your ratings land close to the IMDb crowd.`],
     );
   }
 
@@ -680,11 +684,11 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       lift,
       ANCHOR.obscureLift,
       [
-        "Prospector",
+        "Deep-Cut",
         `You rate the least-known films in your library ${tenths(lift)} higher than the famous ones.`,
       ],
       [
-        "Kingmaker",
+        "Crowd-Pleased",
         `You rate the famous films in your library ${tenths(lift)} higher than the obscure ones.`,
       ],
     );
@@ -696,7 +700,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       lift,
       ANCHOR.oldLift,
       ["Nostalgist", `You rate films made before 1990 ${tenths(lift)} higher than newer ones.`],
-      ["Frontrunner", `You rate films made since 1990 ${tenths(lift)} higher than older ones.`],
+      ["Modernist", `You rate films made since 1990 ${tenths(lift)} higher than older ones.`],
     );
   }
 
@@ -706,7 +710,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       lift,
       ANCHOR.foreignLift,
       ["Worldly", `You rate films made outside English ${tenths(lift)} higher than English ones.`],
-      ["Purist", `You rate English-language films ${tenths(lift)} higher than the rest.`],
+      null,
     );
   }
 
@@ -724,7 +728,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       tens,
       ANCHOR.perfectShare,
-      ["Absolutist", `${pct(tens)}% of your ratings are a flat 10.0.`],
+      ["Perfect-Ten", `${pct(tens)}% of your ratings are a flat 10.0.`],
       null,
     );
 
@@ -733,7 +737,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       decimals,
       ANCHOR.decimalShare,
       ["Precisionist", `${pct(decimals)}% of your ratings use the decimal.`],
-      ["Broadstroke", `${pct(1 - decimals)}% of your ratings are round numbers.`],
+      ["Round-Number", `${pct(1 - decimals)}% of your ratings are round numbers.`],
     );
   }
 
@@ -752,12 +756,68 @@ function signatureClusters(s: TasteSignals) {
   const total = s.clusterFilmCount;
   if (total <= 0) return [];
   const floor = Math.max(4, Math.round(total * 0.02));
+
+  /**
+   * Five pseudo-films, added to both sides of the ratio.
+   *
+   * A plain share-over-prevalence hands rare themes enormous scores: four
+   * courtroom films against a theme carrying 1.3% of the catalogue reads as
+   * "three times normal", and in simulation that alone won 12% of libraries.
+   * Shrinking toward one until the evidence is thick enough is the standard
+   * cure, and it moved the spread from four themes dominating to thirty-nine
+   * of the forty-three winning somewhere, none above 6%.
+   */
+  const PRIOR = 5;
+
   return CLUSTERS.map((c) => {
     const count = s.clusters[c.key] ?? 0;
-    return { cluster: c, count, lift: count / total / (CLUSTER_PREVALENCE[c.key] ?? 0.05) };
+    const expected = total * (CLUSTER_PREVALENCE[c.key] ?? 0.05);
+    return { cluster: c, count, lift: (count + PRIOR) / (expected + PRIOR) };
   })
     .filter((r) => r.count >= floor)
     .sort((a, b) => b.lift - a.lift || b.count - a.count);
+}
+
+/**
+ * The themes a library actually runs on, strongest first.
+ *
+ * The card's DNA strip used to list the five biggest genre tags, which meant
+ * it read Adventure / Action / Comedy for most people: the same collapse as
+ * everywhere else, in the most prominent block on the back of the card. These
+ * are ranked by how far past ordinary each theme sits, and the figure printed
+ * beside each is its true share of the library, not a share rescaled to fill
+ * the bar.
+ */
+export type ThemeReading = {
+  key: string;
+  /** the name as it prints, without the article */
+  name: string;
+  /** what the theme actually is, in a reader's own words */
+  note: string;
+  count: number;
+  pct: number;
+};
+
+export function themeReadings(s: TasteSignals, take = 5): ThemeReading[] {
+  const total = s.clusterFilmCount;
+  if (total <= 0) return [];
+  // Distinctiveness decides which themes make the list; share decides the
+  // order they are printed in. Ranking by one and printing the other gave
+  // 11%, 14%, 24% down a row, which reads as broken however true it is.
+  return signatureClusters(s)
+    .slice(0, take)
+    .map((r) => ({
+      key: r.cluster.key,
+      name: r.cluster.name.replace(/^The /, ""),
+      note: r.cluster.note,
+      count: r.count,
+      pct: Math.round((r.count / total) * 100),
+    }))
+    .sort((a, b) => b.pct - a.pct);
+}
+
+export function themeDNA(s: TasteSignals, take = 5): { name: string; pct: number }[] {
+  return themeReadings(s, take).map(({ name, pct }) => ({ name, pct }));
 }
 
 export function readArchetype(
@@ -868,13 +928,26 @@ const GENRE_STOCK: Record<string, string> = {
   Animation: "Nebula",
 };
 
+/**
+ * The finish, from the same reading that names the card.
+ *
+ * The stock used to come from the leading genre by raw count, which gave 77%
+ * of libraries Filmstrip and nobody Marble. It now follows the signature
+ * theme, so the material agrees with the title: a Harvest Watcher arrives on
+ * Neon Rain rather than on whatever genre tag happened to be commonest.
+ */
 export function computeVariant(
+  signals: TasteSignals,
   topGenre: string | undefined,
   topRatedDecade: number | null,
   topDecade: number | null,
   mean: number | null,
 ): Variant {
-  const stock = (topGenre && GENRE_STOCK[topGenre]) || "Bare";
+  const theme = signatureClusters(signals)[0];
+  const stock =
+    (theme && STOCK_BY_CLUSTER[theme.cluster.key]) ||
+    (topGenre && GENRE_STOCK[topGenre]) ||
+    "Bare";
 
   const decade = topRatedDecade ?? topDecade;
   let accent: string;
@@ -896,11 +969,15 @@ export function computeVariant(
     accentColor = "#a98fd6";
   }
 
+  // Cut on the real spread of how people rate rather than round numbers.
+  // The old bands put Analog above 9.0, which nobody reaches, and used it as
+  // the value for "nothing rated yet" as well, so one label meant two things
+  // and one of them never happened.
   let aura: string;
-  if (mean === null) aura = "Analog";
-  else if (mean < 65) aura = "Noir";
-  else if (mean < 80) aura = "Dream";
-  else if (mean < 90) aura = "Cosmic";
+  if (mean === null) aura = "Unexposed";
+  else if (mean < 62) aura = "Noir";
+  else if (mean < 72) aura = "Dream";
+  else if (mean < 82) aura = "Cosmic";
   else aura = "Analog";
 
   return { name: stock, stock, accent, aura, accentColor };
@@ -1098,40 +1175,46 @@ export const STOCK_DEFS: StockDef[] = [
   {
     name: "Vellum",
     material: "linear-gradient(150deg,#2b2620,#3b352b)",
-    condition: "Drama, romance, family or music leads your rated films.",
+    condition:
+      "Your films keep returning to people and rooms: families, first loves, grief, small towns, faith, the stage.",
     texture: "repeating-linear-gradient(102deg,rgba(236,234,230,.014) 0 1px,transparent 1px 6px)",
   },
   {
     name: "Neon Rain",
     material: "linear-gradient(150deg,#111820,#1d2c3c)",
-    condition: "Horror, thriller, mystery or crime leads your rated films.",
+    condition:
+      "Your films keep returning to the dark: noir, investigations, tradecraft, the occult, and whatever is standing behind you.",
     texture: "repeating-linear-gradient(74deg,rgba(143,174,204,.02) 0 1px,transparent 1px 10px)",
   },
   {
     name: "Filmstrip",
     material: "linear-gradient(150deg,#1a1a1f,#26262d)",
-    condition: "Action, adventure or war leads your rated films.",
+    condition:
+      "Your films keep returning to motion: heists, revenge, blades, engines, the front line, the open road.",
     texture:
       "repeating-linear-gradient(0deg,rgba(236,234,230,.02) 0 1px,transparent 1px 9px)",
   },
   {
     name: "Marble",
     material: "linear-gradient(150deg,#23232a,#3a3a43)",
-    condition: "Documentary or history leads your rated films.",
+    condition:
+      "Your films keep returning to the record and to remarks upon it: what happened, when it happened, and the joke somebody made about it.",
     texture:
       "radial-gradient(120% 80% at 20% 15%,rgba(236,234,230,.022),transparent 60%),radial-gradient(90% 70% at 80% 85%,rgba(236,234,230,.015),transparent 55%)",
   },
   {
     name: "Nebula",
     material: "linear-gradient(150deg,#231e36,#3b3054)",
-    condition: "Science fiction, fantasy or animation leads your rated films.",
+    condition:
+      "Your films keep returning to what could not happen: deep space, machines that think, time doubling back, myth.",
     texture:
       "radial-gradient(70% 55% at 72% 26%,rgba(169,154,217,.045),transparent 62%),radial-gradient(60% 50% at 24% 74%,rgba(143,174,204,.03),transparent 58%)",
   },
   {
     name: "Bare",
     material: "#1c1c21",
-    condition: "No genre leads yet. The stock before a leading genre exists.",
+    condition:
+      "No theme has emerged yet. The stock a card is printed on before its library has said anything.",
     texture: null,
   },
 ];
@@ -1159,13 +1242,12 @@ export const ACCENT_DEFS: AxisDef[] = [
   { name: "Amethyst", color: "#a98fd6", condition: "That decade is the 2020s or later." },
 ];
 
+// Cut on the real spread of how people rate. The old bands asked 9.0 for
+// Analog, which nobody reaches, and doubled it up as the value for a library
+// with nothing in it yet.
 export const AURA_DEFS: AxisDef[] = [
-  { name: "Noir", color: "#6a6a72", condition: "Your average rating sits below 6.5." },
-  { name: "Dream", color: "#8faecc", condition: "Your average sits from 6.5 to 7.9." },
-  { name: "Cosmic", color: "#a98fd6", condition: "Your average sits from 8.0 to 8.9." },
-  {
-    name: "Analog",
-    color: "#d9b25f",
-    condition: "Your average reaches 9.0, and the aura before anything is rated.",
-  },
+  { name: "Noir", color: "#6a6a72", condition: "Your average rating sits below 6.2." },
+  { name: "Dream", color: "#8faecc", condition: "Your average sits from 6.2 to 7.1." },
+  { name: "Cosmic", color: "#a98fd6", condition: "Your average sits from 7.2 to 8.1." },
+  { name: "Analog", color: "#d9b25f", condition: "Your average reaches 8.2." },
 ];

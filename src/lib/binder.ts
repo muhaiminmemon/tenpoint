@@ -18,10 +18,12 @@ import {
   computeTier,
   computeVariant,
   readArchetype,
+  themeReadings,
   RARITY_TIERS,
   STOCK_DEFS,
   type ArchetypeRead,
   type AxisDef,
+  type ThemeReading,
   type RarityTier,
   type StockDef,
 } from "./taste-card";
@@ -78,6 +80,8 @@ export type Binder = {
   accents: AxisRow[];
   auras: AxisRow[];
   personality: PersonalityRow[];
+  /** the themes this library actually runs on, and what each one means */
+  themes: ThemeReading[];
   /** null before anything is rated: no finish is in force yet */
   yoursVariant: string | null;
   yoursTier: RarityTier | null;
@@ -99,6 +103,7 @@ export async function loadBinder(user: { id: string }): Promise<Binder> {
   const hasCard = taste.rated > 0;
   const tier = hasCard ? computeTier(taste.rated, signals) : null;
   const variant = computeVariant(
+    signals,
     taste.topGenres[0]?.name,
     signals.topRatedDecade,
     taste.topDecade?.decade ?? null,
@@ -141,6 +146,7 @@ export async function loadBinder(user: { id: string }): Promise<Binder> {
     accents: ACCENT_DEFS.map((axis) => ({ axis, yours: hasCard && variant.accent === axis.name })),
     auras: AURA_DEFS.map((axis) => ({ axis, yours: hasCard && variant.aura === axis.name })),
     personality: computePersonality(taste, signals),
+    themes: themeReadings(signals, 6),
     yoursVariant,
     yoursTier: tier,
     archetype,

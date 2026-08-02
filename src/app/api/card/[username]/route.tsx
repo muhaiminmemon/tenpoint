@@ -272,9 +272,9 @@ function Poster({
             </span>
           </div>
 
-          {data.genreShare.length > 0 && (
+          {(data.themeDNA.length > 0 ? data.themeDNA : data.genreShare).length > 0 && (
             <div style={{ display: "flex", gap: px(10), marginTop: px(26) }}>
-              {data.genreShare.slice(0, 3).map((g) => (
+              {(data.themeDNA.length > 0 ? data.themeDNA : data.genreShare).slice(0, 3).map((g) => (
                 <div
                   key={g.name}
                   style={{

@@ -44,6 +44,8 @@ export default function TasteCardFace({
 }) {
   const { tier, variant } = data;
   const stock = stockDef(variant.stock);
+  // Genres only until a library is big enough for a theme to emerge.
+  const chips = (data.themeDNA.length > 0 ? data.themeDNA : data.genreShare).slice(0, 3);
 
   // Two materials, one per axis the card actually has. The rim is the tier,
   // because rarity should stay the loudest signal; the ground is the stock.
@@ -109,13 +111,14 @@ export default function TasteCardFace({
             <div className="display mt-1 text-[20px] leading-[1.05] text-paper">{data.archetype}</div>
           </div>
 
-          {data.genreShare.length > 0 && (
+          {chips.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {/* The share rather than a coloured dot. The dot was decoration
-                  standing where a fact could go: this is the same figure the
-                  binder prints, so the three chips read as a ranking of the
-                  library instead of three equal labels. */}
-              {data.genreShare.slice(0, 3).map((g) => (
+              {/* Themes, with their share. Genre tags put Adventure and Action
+                  on almost every card; a theme is what the library keeps
+                  returning to, and it is the same reading the title, the stock
+                  and the DNA strip all run on. The number is the true share of
+                  the shelf, the same figure the binder prints. */}
+              {chips.map((g) => (
                 <span
                   key={g.name}
                   className="inline-flex items-center gap-2 rounded-full border border-seam bg-[rgba(255,255,255,.04)] px-2.5 py-1 text-[11px] text-paper"

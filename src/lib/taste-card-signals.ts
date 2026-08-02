@@ -133,6 +133,18 @@ export type TasteSignals = {
   /** who the recurring face and the recurring director actually are */
   topCastName: string | null;
   topDirectorName: string | null;
+  /**
+   * How much more often those two turn up than the catalogue would produce by
+   * chance.
+   *
+   * A raw count is worthless here: eleven films with the same lead is what
+   * watching a franchise looks like, not what following an actor looks like,
+   * and popular actors are popular. Measured against how much of the
+   * catalogue each one is actually in, a franchise habit scores near one and
+   * genuinely following somebody scores high.
+   */
+  topCastLift: number;
+  topDirectorLift: number;
   /** average signed distance from the IMDb score, in tenths */
   imdbBias: number | null;
 };
@@ -179,6 +191,30 @@ export async function getTasteSignals(
     ),
     director_counts as (
       select director, count(*)::int as count from cur_f where director is not null group by director
+    ),
+    -- how much of the whole catalogue each name appears in, so a count in one
+    -- library can be compared against what chance would give it
+    catalogue as (select count(*)::float as n from films where jsonb_typeof(cast_names) = 'array'),
+    cat_cast as (
+      select c.value as actor, count(*)::float as n
+      from films cross join lateral jsonb_array_elements_text(
+        case when jsonb_typeof(films.cast_names) = 'array' then films.cast_names else '[]'::jsonb end
+      ) as c(value)
+      group by c.value
+    ),
+    cat_dir as (
+      select director, count(*)::float as n from films where director is not null group by director
+    ),
+    cast_lift as (
+      -- five pseudo-films on both sides, the same shrinkage the themes use
+      select (cc.count + 5) / ((select count(*) from cur_f) * (cat.n / (select n from catalogue)) + 5) as lift
+      from cast_counts cc join cat_cast cat on cat.actor = cc.actor
+      where cc.count >= 4
+    ),
+    director_lift as (
+      select (dc.count + 5) / ((select count(*) from cur_f) * (cat.n / (select n from catalogue)) + 5) as lift
+      from director_counts dc join cat_dir cat on cat.director = dc.director
+      where dc.count >= 3
     ),
     all_entries as (
       select d.*, f.year as film_year
@@ -258,6 +294,8 @@ export async function getTasteSignals(
       coalesce((select max(count) from cast_counts), 0)::int as max_cast_count,
       (select actor from cast_counts order by count desc, actor limit 1) as top_cast_name,
       (select director from director_counts order by count desc, director limit 1) as top_director_name,
+      coalesce((select max(lift) from cast_lift), 0)::float as top_cast_lift,
+      coalesce((select max(lift) from director_lift), 0)::float as top_director_lift,
       (select count(*) from cur_f where year between 1950 and 1969)::int as mid_century_count,
       (select count(*) from cur_f where rating >= 80 and rt_score >= 90)::int as critics_agree_count,
       (select count(*) from cur_f where rating >= 80 and rt_score < 50)::int as against_grain_count,
@@ -333,6 +371,8 @@ export async function getTasteSignals(
     imdbBias: maybe(r, "imdb_bias"),
     topCastName: (r.top_cast_name as string) ?? null,
     topDirectorName: (r.top_director_name as string) ?? null,
+    topCastLift: (r.top_cast_lift as number) ?? 0,
+    topDirectorLift: (r.top_director_lift as number) ?? 0,
     ...(await clusterCounts(userId, privacy)),
   };
 }

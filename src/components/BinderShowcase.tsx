@@ -181,6 +181,60 @@ function segmentOpacity(i: number, total: number) {
   return total <= 1 ? 1 : 1 - (i / (total - 1)) * 0.62;
 }
 
+/**
+ * What the names on the DNA strip actually mean.
+ *
+ * Only the themes a library actually runs on. The other thirty-seven are not
+ * listed, greyed, or counted against a total: unlike a finish or a tier, a
+ * theme is not something to go and collect. It is a description, and the ones
+ * that do not describe you are simply not about you.
+ */
+function ThemesSection({ themes }: { themes: Binder["themes"] }) {
+  if (themes.length === 0) return null;
+
+  return (
+    <section aria-labelledby="dna" className="mb-16 scroll-mt-6">
+      <div className="flex items-center gap-3">
+        <span aria-hidden className="h-0.5 w-8 shrink-0 bg-ash" />
+        <span aria-hidden className="h-px flex-1 bg-seam" />
+      </div>
+      <div className="mt-5 max-w-[58ch]">
+        <h2 id="dna" className="display text-[26px] leading-none text-paper">
+          Movie DNA
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-ash">
+          The names on the back of your card, and what each one counts. A film joins a theme by
+          what it is about rather than what it is filed under, so one film can belong to
+          several. These are chosen for how far past ordinary each sits in your library, then
+          printed largest first.
+        </p>
+      </div>
+
+      <dl className="mt-7 border-b border-seam">
+        {themes.map((t, i) => (
+          <div key={t.key} className="relative py-4">
+            <span
+              aria-hidden
+              className="plate-rule absolute inset-x-0 top-0 h-px bg-seam"
+              style={{ animationDelay: `${i * 40}ms` }}
+            />
+            <div className="flex items-baseline gap-3">
+              <dt className="display flex-1 text-[17px] leading-tight text-paper">{t.name}</dt>
+              <dd className="num shrink-0 text-[13px] text-dim">
+                {t.count} {t.count === 1 ? "film" : "films"}
+              </dd>
+              <dd className="num w-12 shrink-0 text-right text-[17px] leading-tight text-beam">
+                {t.pct}%
+              </dd>
+            </div>
+            <dd className="mt-1.5 max-w-[62ch] text-sm leading-relaxed text-ash">{t.note}.</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 /** What the five stars beside the rating actually are. */
 const STAR_BANDS = [
   { stars: 5, range: "9.0 and up" },
@@ -329,6 +383,7 @@ export default function BinderShowcase({
     <div>
       {!theirs && <ArchetypeSection binder={binder} />}
       <StarsSection />
+      {!theirs && <ThemesSection themes={binder.themes} />}
       {!theirs && <PersonalitySection rows={binder.personality} />}
 
       {/* ---------------------------------------------------------------- tiers */}
@@ -394,9 +449,12 @@ export default function BinderShowcase({
             Variants
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-ash">
-            Six stocks: the ground the card is printed on. Stock reads the genre leading the
-            rated films, so it is never chosen and it moves when taste does. Rate enough of
-            something else and the card is dealt on different stock.
+            Six stocks: the ground the card is printed on. Stock reads the same thing your title
+            does, which is what your films keep returning to, weighed against how common that
+            theme is rather than how much of your shelf it happens to fill. It used to read the
+            genre tag leading your ratings, and genre tags are broad enough that three in four
+            libraries came out on the same stock. It is never chosen, and it moves when taste
+            does: watch enough of something else and the card is dealt on different stock.
           </p>
         </div>
 
@@ -434,7 +492,11 @@ export default function BinderShowcase({
                 note: "The decade rated highest, once at least three films sit in it. Not the decade watched most.",
                 rows: binder.accents,
               },
-              { title: "Aura", note: "The average, read as a whole.", rows: binder.auras },
+              {
+                title: "Aura",
+                note: "The average, read as a whole. Before anything is rated it reads Unexposed.",
+                rows: binder.auras,
+              },
             ] as { title: string; note: string; rows: AxisRow[] }[]
           ).map((group) => (
             <div key={group.title}>

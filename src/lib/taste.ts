@@ -3,8 +3,10 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import type { LibraryFilm } from "@/lib/library";
 import { decadeLabel, formatTenths } from "@/lib/format";
+import { CLUSTERS } from "@/lib/archetype-clusters";
 import {
   readArchetype,
+  themeDNA,
   ARCHETYPE_BY_GENRE,
   computeTier,
   computeVariant,
@@ -152,12 +154,31 @@ export async function getMutualLoves(
   }));
 }
 
-export type TasteMatch = { name: string; pct: number; color: string };
+export type TasteMatch = {
+  name: string;
+  pct: number;
+  color: string;
+  /** what the figure was read from, so it is never an unexplained score */
+  basis: string;
+};
 
 /**
- * Among a person's friends, who reads closest to their taste and who reads
- * furthest from it — by how far ratings on films you *both* logged tend to
- * land from each other, not by any single shared favourite.
+ * Who among your friends reads closest to your taste, and who reads furthest.
+ *
+ * This used to be one thing only: the average gap between your ratings on
+ * films you had both logged. That measure has two holes. It needs an overlap
+ * to exist at all, so two people whose libraries are made of the same themes
+ * and none of the same titles scored nothing; and it was reported as
+ * `100 - avg_gap`, which is not a percentage of anything, and which parks
+ * everybody between 85 and 95 because rating gaps are small numbers.
+ *
+ * Now it reads both halves of what "alike" means. Agreement is still the gap
+ * on shared films, and it still counts for most, because two people who watch
+ * the same things and disagree about them are not alike. Affinity is the angle
+ * between your two libraries once each is described as shares of the same
+ * forty-three themes, which needs no overlap at all: it is the part that can
+ * say "you two are both drawn to heists" about people who have never rated the
+ * same film.
  */
 export async function getBestMatchAndRival(
   userId: string,
@@ -186,26 +207,117 @@ export async function getBestMatchAndRival(
       from friend_ratings fr
       join mine m on m.film_id = fr.film_id
       group by fr.user_id
-      having count(*) >= 3
     )
-    select u.username, u.display_name, o.avg_diff
-    from overlap o
-    join users u on u.id = o.user_id
-    order by o.avg_diff asc
+    select u.id, u.username, u.display_name, o.common, o.avg_diff
+    from users u
+    left join overlap o on o.user_id = u.id
+    where u.id in (${friendIdList})
   `);
 
   const list = rows as unknown as Record<string, unknown>[];
   if (list.length === 0) return null;
 
-  const toMatch = (r: Record<string, unknown>): TasteMatch => ({
-    name: (r.display_name as string | null) ?? (r.username as string),
-    pct: Math.max(0, Math.round(100 - (r.avg_diff as number))),
-    color: "",
+  const mine = await themeShares(userId);
+  const theirs = await Promise.all(
+    list.map(async (r) => ({ id: r.id as string, shares: await themeShares(r.id as string) })),
+  );
+  const sharesById = new Map(theirs.map((t) => [t.id, t.shares]));
+
+  const scored = list.map((r) => {
+    const common = (r.common as number | null) ?? 0;
+    const affinity = cosine(mine, sharesById.get(r.id as string) ?? {});
+
+    // Agreement, expressed as a share of the scale rather than as
+    // `100 - gap`. A whole point apart on a ten-point scale is 10% apart,
+    // which is what this now says.
+    const agreement =
+      common >= 5 && r.avg_diff !== null
+        ? Math.max(0, 1 - (r.avg_diff as number) / 100)
+        : null;
+
+    // Agreement carries it when there is enough of it, because agreeing about
+    // the same films is the stronger claim. Themes fill in when there is not.
+    const pct =
+      agreement === null
+        ? Math.round(affinity * 100)
+        : Math.round((agreement * 0.65 + affinity * 0.35) * 100);
+
+    const basis =
+      agreement === null
+        ? `Read from the themes you both watch. ${common} films in common.`
+        : `${common} films in common, ${((r.avg_diff as number) / 10).toFixed(1)} apart on average.`;
+
+    return {
+      name: (r.display_name as string | null) ?? (r.username as string),
+      pct: Math.max(0, Math.min(100, pct)),
+      color: "",
+      basis,
+      common,
+    };
   });
 
-  const best = { ...toMatch(list[0]), color: "#8faecc" };
-  const worst = { ...toMatch(list[list.length - 1]), color: "#c4756a" };
-  return { bestMatch: best, rival: worst };
+  scored.sort((a, b) => b.pct - a.pct);
+  const best = { ...scored[0], color: "#8faecc" };
+
+  // A rival is somebody you genuinely disagree with, not merely the last name
+  // on a short list. With two friends the old rule made one of them a rival by
+  // arithmetic alone, which is both meaningless and a bit rude.
+  const last = scored[scored.length - 1];
+  const rival =
+    scored.length >= 2 && last.pct <= best.pct - 10 && last.common >= 5
+      ? { ...last, color: "#c4756a" }
+      : null;
+
+  return { bestMatch: best, rival: rival ?? best };
+}
+
+/** A library as shares of the forty-three themes, for comparing two of them. */
+async function themeShares(userId: string): Promise<Record<string, number>> {
+  const rows = await db.execute(sql`
+    with cur as (
+      select distinct on (d.film_id) d.film_id
+      from diary_entries d
+      where d.user_id = ${userId} and d.rating is not null and d.private = false
+      order by d.film_id, d.watched_on desc nulls last, d.created_at desc
+    )
+    select f.keywords from cur join films f on f.id = cur.film_id
+    where jsonb_typeof(f.keywords) = 'array' and jsonb_array_length(f.keywords) > 0
+  `);
+
+  const counts: Record<string, number> = {};
+  let films = 0;
+  for (const row of rows as unknown as Record<string, unknown>[]) {
+    films++;
+    const held = new Set((row.keywords as string[]).map((k: string) => k.toLowerCase()));
+    for (const c of CLUSTERS) {
+      if (c.keywords.some((k) => held.has(k))) counts[c.key] = (counts[c.key] ?? 0) + 1;
+    }
+  }
+  if (films === 0) return {};
+  for (const k of Object.keys(counts)) counts[k] /= films;
+  return counts;
+}
+
+/**
+ * The angle between two libraries described as theme shares.
+ *
+ * Cosine rather than overlap count, so a small library and a large one that
+ * lean the same way still read as alike: it compares the shape of two
+ * appetites, not their size.
+ */
+function cosine(a: Record<string, number>, b: Record<string, number>): number {
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (const c of CLUSTERS) {
+    const x = a[c.key] ?? 0;
+    const y = b[c.key] ?? 0;
+    dot += x * y;
+    na += x * x;
+    nb += y * y;
+  }
+  if (na === 0 || nb === 0) return 0;
+  return dot / Math.sqrt(na * nb);
 }
 
 // ---------------------------------------------------------------------------
@@ -428,6 +540,8 @@ export type HomeTasteCardData = TasteProfile & {
   /** the "regular" home hero panel: films / hours / home decade / this year */
   heroStats: Stat[];
   genreShare: { name: string; pct: number }[];
+  /** the themes the library runs on, for the DNA strip on the back */
+  themeDNA: { name: string; pct: number }[];
 };
 
 /** the point at which the archetype names itself */
@@ -501,6 +615,7 @@ export async function buildHomeTasteCard(
       social: [],
       heroStats: [],
       genreShare: [],
+      themeDNA: [],
     };
   }
 
@@ -517,6 +632,7 @@ export async function buildHomeTasteCard(
   const tier = standing.tier;
 
   const variant = computeVariant(
+    signals,
     taste.topGenres[0]?.name,
     signals.topRatedDecade,
     taste.topDecade?.decade ?? null,
@@ -563,7 +679,12 @@ export async function buildHomeTasteCard(
       { label: "Decade", value: taste.topDecade ? decadeLabel(taste.topDecade.decade) : "—" },
       { label: "Runtime", value: signals.avgRuntime ? runtimeBand(signals.avgRuntime) : "—" },
     ],
-    social: match ? [match.bestMatch, match.rival] : [],
+    // One entry when nobody is far enough away to be called a rival.
+    social: match
+      ? match.rival.name === match.bestMatch.name
+        ? [match.bestMatch]
+        : [match.bestMatch, match.rival]
+      : [],
     heroStats: [
       { label: "Films logged", value: String(taste.rated) },
       { label: "Hours logged", value: String(Math.round(signals.totalRuntimeMinutes / 60)) },
@@ -577,6 +698,7 @@ export async function buildHomeTasteCard(
       name: g.name,
       pct: signals.genreTaggedCount ? Math.round((g.count / signals.genreTaggedCount) * 100) : 0,
     })),
+    themeDNA: themeDNA(signals),
   };
 }
 

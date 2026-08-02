@@ -33,7 +33,11 @@ export function TasteCardFrontBig({
   memberNumber: number;
 }) {
   const { tier, variant } = data;
-  const genreDNA = data.genreShare.slice(0, 5).map((g) => ({
+  // Themes, not genre tags. Genre tags gave nearly everybody the same three
+  // lines; a theme is the thing a library keeps returning to. Falls back to
+  // genres for a library too new for any theme to have emerged.
+  const dnaSource = data.themeDNA.length > 0 ? data.themeDNA : data.genreShare.slice(0, 5);
+  const genreDNA = dnaSource.map((g) => ({
     label: g.name,
     pct: g.pct,
     dot: accentFor(g.name),
@@ -113,14 +117,20 @@ export function TasteCardFrontBig({
       {/* movie DNA */}
       {genreDNA.length > 0 && (
         <div>
-          <SectionLabel right={<span className="text-[9px] uppercase tracking-[.12em] text-dim">by share</span>}>
+          <SectionLabel
+            right={
+              <span className="text-[9px] uppercase tracking-[.12em] text-dim">
+                share of shelf
+              </span>
+            }
+          >
             Movie DNA
           </SectionLabel>
           <div className="flex flex-col gap-1.5">
             {genreDNA.map((d) => (
               <div key={d.label} className="flex items-center gap-2.5">
                 <span className="size-1.5 shrink-0 rounded-full" style={{ background: d.dot }} aria-hidden />
-                <span className="w-[92px] truncate text-[11px] text-[#d0d0d5]">{d.label}</span>
+                <span className="w-[104px] truncate text-[11px] text-[#d0d0d5]">{d.label}</span>
                 <span className="h-1 flex-1 overflow-hidden rounded-full bg-[#1f1f25]">
                   <span
                     className="block h-full rounded-full bg-gradient-to-r from-beam to-gold"
@@ -276,18 +286,22 @@ export function TasteCardBackBig({
       )}
 
       {data.social.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className={`grid gap-2 ${data.social.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {/* One panel when nobody sits far enough away to be a rival. Naming
+              the least-close of two friends a rival is arithmetic, not a
+              reading. */}
           {data.social.map((s, i) => (
             <div key={i} className="rounded-[7px] border border-[#232329] px-2.5 py-1.5">
               <div className="text-[8px] uppercase tracking-[.1em] text-[#8a8a92]">
-                {i === 0 ? "Best match" : "Biggest rival"}
+                {i === 0 ? "Closest taste" : "Furthest taste"}
               </div>
-              <div className="mt-0.5 flex items-baseline justify-between">
-                <span className="display text-[13px] text-paper">{s.name}</span>
-                <span className="num text-[12px]" style={{ color: s.color }}>
+              <div className="mt-0.5 flex items-baseline justify-between gap-2">
+                <span className="display truncate text-[13px] text-paper">{s.name}</span>
+                <span className="num shrink-0 text-[12px]" style={{ color: s.color }}>
                   {s.pct}%
                 </span>
               </div>
+              <div className="mt-0.5 text-[8px] leading-snug text-[#6a6a72]">{s.basis}</div>
             </div>
           ))}
         </div>
