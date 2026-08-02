@@ -105,6 +105,28 @@ export type TasteSignals = {
   againstGrainCount: number;
   /** rated films sitting 3.0 or more from the IMDb crowd, either way */
   imdbGapCount: number;
+  /** the denominator for that: rated films carrying an IMDb score at all */
+  imdbKnownCount: number;
+
+  /**
+   * How somebody rates one kind of film against another.
+   *
+   * Everything else here reads what a person watched, and popular films are
+   * popular: two people with the same shelf come out the same. These read the
+   * *opinions* instead. Rating the obscure half of your library higher than
+   * the famous half is a fact about you that survives owning exactly the films
+   * everybody else owns.
+   *
+   * Each is a mean in tenths and null when either side is too thin to compare.
+   */
+  meanObscure: number | null;
+  meanFamous: number | null;
+  meanOld: number | null;
+  meanNew: number | null;
+  meanLong: number | null;
+  meanShort: number | null;
+  /** average signed distance from the IMDb score, in tenths */
+  imdbBias: number | null;
 };
 
 /**
@@ -229,7 +251,17 @@ export async function getTasteSignals(
       (select count(*) from cur_f where year between 1950 and 1969)::int as mid_century_count,
       (select count(*) from cur_f where rating >= 80 and rt_score >= 90)::int as critics_agree_count,
       (select count(*) from cur_f where rating >= 80 and rt_score < 50)::int as against_grain_count,
-      (select count(*) from cur_f where imdb_rating is not null and abs(rating - imdb_rating) >= 30)::int as imdb_gap_count
+      (select count(*) from cur_f where imdb_rating is not null and abs(rating - imdb_rating) >= 30)::int as imdb_gap_count,
+      (select count(*) from cur_f where imdb_rating is not null)::int as imdb_known_count,
+
+      -- opinion axes: each side needs 10 films or the comparison is noise
+      (select case when count(*) >= 10 then avg(rating) end from cur_f where vote_count is not null and vote_count < 2000) as mean_obscure,
+      (select case when count(*) >= 10 then avg(rating) end from cur_f where vote_count >= 2000) as mean_famous,
+      (select case when count(*) >= 10 then avg(rating) end from cur_f where year is not null and year < 1990) as mean_old,
+      (select case when count(*) >= 10 then avg(rating) end from cur_f where year is not null and year >= 1990) as mean_new,
+      (select case when count(*) >= 10 then avg(rating) end from cur_f where runtime >= 130) as mean_long,
+      (select case when count(*) >= 10 then avg(rating) end from cur_f where runtime is not null and runtime <= 100) as mean_short,
+      (select case when count(*) >= 15 then avg(rating - imdb_rating) end from cur_f where imdb_rating is not null) as imdb_bias
   `);
 
   const r = (rows as unknown as Record<string, unknown>[])[0];
@@ -281,10 +313,22 @@ export async function getTasteSignals(
     criticsAgreeCount: num(r, "critics_agree_count"),
     againstGrainCount: num(r, "against_grain_count"),
     imdbGapCount: num(r, "imdb_gap_count"),
+    imdbKnownCount: num(r, "imdb_known_count"),
+    meanObscure: maybe(r, "mean_obscure"),
+    meanFamous: maybe(r, "mean_famous"),
+    meanOld: maybe(r, "mean_old"),
+    meanNew: maybe(r, "mean_new"),
+    meanLong: maybe(r, "mean_long"),
+    meanShort: maybe(r, "mean_short"),
+    imdbBias: maybe(r, "imdb_bias"),
   };
 }
 
 const num = (r: Record<string, unknown>, key: string) => (r[key] as number) ?? 0;
+
+/** A figure that is genuinely absent when there was too little to compute it. */
+const maybe = (r: Record<string, unknown>, key: string) =>
+  r[key] === null || r[key] === undefined ? null : Number(r[key]);
 
 const band = (
   r: Record<string, unknown>,

@@ -113,7 +113,7 @@ export async function loadBinder(user: { id: string }): Promise<Binder> {
   // different words to the same person.
   const archetype: ArchetypeRead | null =
     taste.rated >= CLASS_THRESHOLD
-      ? readArchetype(taste.topGenres[0]?.name, taste.topDecade?.decade ?? null, signals)
+      ? readArchetype(taste.topGenres[0]?.name, taste.topGenres, signals)
       : null;
 
   const tiers: TierRow[] = RARITY_TIERS.map((t) => ({

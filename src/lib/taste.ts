@@ -68,7 +68,6 @@ export async function getTasteProfile(
     cross join lateral jsonb_array_elements_text(coalesce(f.genres, '[]'::jsonb)) as g(value)
     group by g.value
     order by count desc, name asc
-    limit 5
   `);
 
   const decades = await db.execute(sql`
@@ -527,11 +526,7 @@ export async function buildHomeTasteCard(
   // Read once, below the signals, because the title now depends on them. Both
   // halves and both explanations come from the same call, so the card and the
   // binder cannot describe the same title differently.
-  const read = readArchetype(
-    taste.topGenres[0]?.name,
-    taste.topDecade?.decade ?? null,
-    signals,
-  );
+  const read = readArchetype(taste.topGenres[0]?.name, taste.topGenres, signals);
   const archetype = taste.rated >= CLASS_THRESHOLD ? read.title : null;
 
   const traits = evaluateTraits(signals);

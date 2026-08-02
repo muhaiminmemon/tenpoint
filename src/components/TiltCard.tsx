@@ -63,15 +63,15 @@ export default function TiltCard({
   const glareRef = useRef<HTMLSpanElement>(null);
   /** where a touch went down, so a drag can be told apart from a tap */
   const startRef = useRef<{ x: number; y: number } | null>(null);
-  /** set once a touch has travelled far enough to count as handling the card */
+  /** set once a touch has been claimed as a tilt rather than a scroll */
   const draggingRef = useRef(false);
 
   const finePointer = useMediaQuery(FINE_POINTER);
   const reduced = useMediaQuery(REDUCED_MOTION);
   const active = !reduced;
 
-  /** Distance in px before a touch stops being a tap and starts being a drag. */
-  const DRAG_THRESHOLD = 8;
+  /** Distance in px before a touch is read as anything but a tap. */
+  const DRAG_THRESHOLD = 10;
 
   const paint = useCallback(
     (frame: HTMLDivElement, clientX: number, clientY: number, lift: number) => {
@@ -107,10 +107,8 @@ export default function TiltCard({
    * A touch begins as a tap until it proves otherwise.
    *
    * The card is a button first, so a finger landing on it must not tilt
-   * anything — that was the whole reason touch was excluded. What is safe is
-   * *movement*: once a finger has travelled past the threshold it is plainly
-   * handling the card rather than pressing it, and from there the tilt follows
-   * it exactly as the cursor does.
+   * anything. What is safe is *movement*, and specifically sideways movement:
+   * see `onMove`.
    */
   const onDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -136,11 +134,44 @@ export default function TiltCard({
 
       const start = startRef.current;
       if (!start) return;
+
       if (!draggingRef.current) {
-        const far = Math.hypot(e.clientX - start.x, e.clientY - start.y);
-        if (far < DRAG_THRESHOLD) return;
+        const dx = e.clientX - start.x;
+        const dy = e.clientY - start.y;
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+
+        /**
+         * Sideways, or nothing.
+         *
+         * `touch-action: pan-y` splits the gesture between us and the browser:
+         * vertical belongs to the page, horizontal is ours. Engaging on *any*
+         * movement meant a vertical drag started a tilt the browser then took
+         * away to scroll with, firing pointercancel a frame later. That is
+         * the card lighting up for an instant and going dead: the tilt was
+         * never losing a race, it was being cancelled every time somebody
+         * swiped the way people swipe.
+         *
+         * So a gesture that leans vertical is left alone from the start, and
+         * the page scrolls as it should. One that leans horizontal is ours,
+         * and by then the browser has already decided not to scroll, so
+         * everything after it — including vertical movement — is ours too.
+         */
+        if (Math.abs(dx) <= Math.abs(dy)) {
+          startRef.current = null;
+          if (frame) frame.style.willChange = "";
+          return;
+        }
+
         draggingRef.current = true;
+        // Keeps the moves coming once a finger crosses the card's edge, which
+        // on a card this size is most of the way through a real swipe.
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // the pointer is already gone; the gesture ends on its own
+        }
       }
+
       // A touch is holding the card, so it lifts a little further than a
       // cursor merely passing over one.
       paint(frame, e.clientX, e.clientY, 1.03);
@@ -185,7 +216,12 @@ export default function TiltCard({
       onPointerMove={onMove}
       onPointerUp={onLeave}
       onPointerCancel={onLeave}
-      onPointerLeave={onLeave}
+      // Only a cursor ends the gesture by leaving. A captured touch reports a
+      // leave the moment it crosses the edge, and springing back there would
+      // undo the capture that was taken to prevent exactly that.
+      onPointerLeave={(e) => {
+        if (e.pointerType === "mouse") onLeave();
+      }}
       onClickCapture={onClickCapture}
       style={{
         // `pan-y` keeps the page scrollable through the card while claiming
