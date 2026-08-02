@@ -232,7 +232,7 @@ export default async function AdminDashboard() {
                   {e.title} <span className="num">{e.year ?? ""}</span>
                 </Link>
                 <span className="num text-paper">
-                  {e.rating !== null ? formatTenths(e.rating) : "—"}
+                  {e.rating !== null ? formatTenths(e.rating) : "-"}
                 </span>
               </li>
             ))}

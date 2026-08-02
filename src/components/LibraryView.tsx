@@ -24,7 +24,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import { useProgressiveList } from "@/lib/useProgressiveList";
-import { useScrollMemory } from "@/lib/useScrollMemory";
 import type { LibraryFilm } from "@/lib/library";
 
 type Props = {
@@ -180,9 +179,9 @@ export default function LibraryView({ films, editable }: Props) {
   }, [items]);
 
   // Keyed on the whole query, since a different sort or slice is a different
-  // list and its position is not this one's.
+  // list and its slice count is not this one's. Scroll position is handled for
+  // every route at once in the layout.
   const memory = `${pathname}?${params.toString()}`;
-  useScrollMemory(memory);
   const { visible: shown, hasMore, total, sentinelRef } = useProgressiveList(visible, 30, memory);
 
   return (

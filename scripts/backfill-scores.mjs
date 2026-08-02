@@ -13,7 +13,7 @@
 //   3. spends the remaining OMDb budget on films with no scores yet.
 //
 // Usage:
-//   node scripts/backfill-scores.mjs                 # default: 900 OMDb calls
+//   node scripts/backfill-scores.mjs                 # default: up to 100k OMDb calls
 //   node scripts/backfill-scores.mjs --budget 200    # a smaller bite
 //   node scripts/backfill-scores.mjs --pages 0       # skip discovery, only fill gaps
 //
@@ -29,9 +29,11 @@ const arg = (name, fallback) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
-// Left under 1,000 on purpose: the app itself spends from the same daily pot
-// every time somebody opens a film page.
-const BUDGET = arg("budget", 900);
+// The paid tier allows 500,000 lookups a day and the whole catalogue is a few
+// thousand, so the budget is no longer the thing that limits this: one run now
+// finishes the job. Left well under the ceiling anyway, because the app spends
+// from the same pot every time somebody opens a film page.
+const BUDGET = arg("budget", 100_000);
 const PAGES = arg("pages", 25);
 
 const { DATABASE_URL, TMDB_API_KEY, OMDB_API_KEY } = process.env;

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { CaretDown, Faders, MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import Sheet from "./Sheet";
 import {
   BROWSE_GENRES,
@@ -172,18 +173,10 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
       <form onSubmit={search} className="mb-3 flex items-center gap-2" role="search">
         <label className="relative flex min-w-0 flex-1 items-center sm:max-w-[320px]">
           <span className="sr-only">Search by title, director or cast</span>
-          <svg
+          <MagnifyingGlass
             aria-hidden
-            viewBox="0 0 20 20"
             className="pointer-events-none absolute left-3 size-4 text-dim"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          >
-            <circle cx="9" cy="9" r="5.5" />
-            <path d="m13.5 13.5 3 3" />
-          </svg>
+          />
           <input
             type="search"
             value={text}
@@ -242,17 +235,7 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
           onClick={() => setSheetOpen(true)}
           className="flex items-center gap-2 rounded-full border border-seam px-3.5 py-1.5 text-[12.5px] text-ash transition-colors active:bg-tray"
         >
-          <svg
-            aria-hidden
-            viewBox="0 0 20 20"
-            className="size-3.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          >
-            <path d="M3 5.5h14M5.5 10h9M8.5 14.5h3" />
-          </svg>
+          <Faders aria-hidden className="size-3.5" />
           Filters
           {activeCount > 0 && (
             <span className="num flex size-4 items-center justify-center rounded-full bg-paper text-[10px] text-carbon">
@@ -369,18 +352,7 @@ function Select({
           </option>
         ))}
       </select>
-      <svg
-        aria-hidden
-        viewBox="0 0 24 24"
-        className="pointer-events-none absolute right-3 size-3.5 text-dim"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="m6 9 6 6 6-6" />
-      </svg>
+      <CaretDown aria-hidden className="pointer-events-none absolute right-3 size-3.5 text-dim" />
     </label>
   );
 }

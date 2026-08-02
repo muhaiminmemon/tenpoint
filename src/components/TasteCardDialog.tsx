@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Check } from "@phosphor-icons/react/ssr";
 import { usePresence } from "@/lib/usePresence";
 import AutoHeight from "./AutoHeight";
 import { useToast } from "./Toast";
@@ -243,18 +244,7 @@ function CardTab({ data, binderHref }: { data: HomeTasteCardData; binderHref?: s
                       }`}
                     >
                       {m.met && (
-                        <svg
-                          aria-hidden
-                          viewBox="0 0 12 12"
-                          className="size-2.5"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="m2.5 6.2 2.2 2.2L9.5 3.6" />
-                        </svg>
+                        <Check aria-hidden className="size-2.5" weight="bold" />
                       )}
                     </span>
                     <span className={`flex-1 text-[12.5px] ${m.met ? "text-paper" : "text-dim"}`}>

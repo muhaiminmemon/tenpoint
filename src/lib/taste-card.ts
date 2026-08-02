@@ -893,7 +893,7 @@ export function readArchetype(
 
     const nounMeaning =
       `${top.count} of your films are about ${top.cluster.note}` +
-      ` \u2014 ${times}\u00d7 what a shelf that size usually holds, and ${share}% of the whole shelf.`;
+      `, ${times}\u00d7 what a shelf that size usually holds and ${share}% of the whole shelf.`;
 
     return {
       themeKey: top.cluster.key,

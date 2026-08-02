@@ -12,6 +12,8 @@ import FilmPanel from "@/components/FilmPanel";
 import FilmStickyHeader from "@/components/FilmStickyHeader";
 import RewatchTimeline from "@/components/RewatchTimeline";
 import ReviewsSection from "@/components/ReviewsSection";
+import SimilarRail from "@/components/SimilarRail";
+import { similarTo } from "@/lib/similar";
 
 export async function generateMetadata(ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
@@ -158,6 +160,7 @@ export default async function FilmPage(ctx: {
             </p>
           )}
           <ReviewsSection filmId={film.id} filmSlug={film.slug} viewer={user} tab={reviewsTab} />
+          <SimilarRail films={await similarTo(film.id, user?.id ?? null)} />
         </div>
       </div>
     </div>

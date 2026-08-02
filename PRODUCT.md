@@ -51,12 +51,15 @@ rebuilding:
 - **One row per viewing, current rating derived.** A film's rating is *the most
   recent entry that has a rating*, computed in one SQL query in
   `src/lib/library.ts`, so an unrated rewatch cannot erase a real rating.
-- **Recommendations are metadata scoring with no ML, and every pick carries a
-  true plain-English reason.** The pair score is the *minimum* of the two
-  people's percentiles, never the mean — a film one person would love and the
-  other would hate scores low on purpose. No score is ever shown in the UI,
-  because rank order communicates strength without implying precision the
-  system doesn't have.
+- **Every recommendation carries a true plain-English reason, and no score is
+  ever shown.** Friend recommendations score the *minimum* of the two people's
+  percentiles, never the mean, so a film one person would love and the other
+  would hate scores low on purpose. "More like this" on a film page ranks by a
+  learned similarity between films, computed overnight and stored, but the line
+  under each poster is always a fact a reader could check for themselves: the
+  shared director, the shared face, the two keywords both films carry. Rank
+  order communicates strength without implying precision the system doesn't
+  have, so no percentage, match figure or score is rendered anywhere.
 
 ## Operating Context
 

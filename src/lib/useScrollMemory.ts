@@ -62,15 +62,24 @@ export function useScrollMemory(key: string) {
     // After paint, so the restored slice is measured rather than guessed at.
     const raf = requestAnimationFrame(() => requestAnimationFrame(attempt));
 
-    let write = 0;
+    /**
+     * Written at the moments a position is about to be lost, never on scroll.
+     *
+     * A `scroll` listener is banned: it runs on every frame of every scroll for
+     * a value only needed at the end of one. The three moments that actually
+     * matter are leaving by a link (React unmounts this), the tab going away
+     * (`pagehide`), and the tab being hidden (`visibilitychange`, which is the
+     * one iOS fires when an app is backgrounded).
+     */
     function remember() {
       // Not while the restore is still chasing its target: recording the
       // clamped position it is passing through would overwrite the real one.
       if (!settled) return;
-      cancelAnimationFrame(write);
-      write = requestAnimationFrame(() => {
-        sessionStorage.setItem(slot, String(Math.round(window.scrollY)));
-      });
+      sessionStorage.setItem(slot, String(Math.round(window.scrollY)));
+    }
+
+    function onHide() {
+      if (document.visibilityState === "hidden") remember();
     }
 
     function onTouch() {
@@ -78,21 +87,20 @@ export function useScrollMemory(key: string) {
       settled = true;
     }
 
-    window.addEventListener("scroll", remember, { passive: true });
     window.addEventListener("touchstart", onTouch, { passive: true });
     window.addEventListener("wheel", onTouch, { passive: true });
     // `pagehide` rather than `beforeunload`: the only one iOS Safari fires
     // reliably when a page goes into the back-forward cache.
     window.addEventListener("pagehide", remember);
+    document.addEventListener("visibilitychange", onHide);
 
     return () => {
       clearTimeout(timer);
       cancelAnimationFrame(raf);
-      cancelAnimationFrame(write);
-      window.removeEventListener("scroll", remember);
       window.removeEventListener("touchstart", onTouch);
       window.removeEventListener("wheel", onTouch);
       window.removeEventListener("pagehide", remember);
+      document.removeEventListener("visibilitychange", onHide);
       // Leaving by a link is the case the whole hook exists for, and no event
       // fires for it: React unmounting this is the notice.
       sessionStorage.setItem(slot, String(Math.round(window.scrollY)));

@@ -1,16 +1,9 @@
 import Link from "next/link";
 import type { AxisRow, Binder, FinishState, PersonalityRow, TierRow } from "@/lib/binder";
-import { SLOT_LABELS, SLOT_NOTES } from "@/lib/signature-films";
+
 import { inThirdPerson } from "@/lib/voice";
 
-/** The same four jobs, named from outside. */
-const THEIR_SLOT_LABELS: typeof SLOT_LABELS = {
-  anchor: "The anchor",
-  divergence: "Theirs more than ours",
-  deepcut: "The deep cut",
-  regular: "The one they return to",
-  theme: "The evidence",
-};
+
 import { posterUrl } from "@/lib/tmdb-urls";
 import { formatTenths, ratingColor } from "@/lib/format";
 import type { StockDef } from "@/lib/taste-card";
@@ -221,12 +214,15 @@ function SignatureSection({ films, person }: { films: Binder["signature"]; perso
           Signature films
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
-          The four films on {person ? "their" : "your"} card. They are not{" "}
-          {person ? "their" : "your"} top four: the top of everybody&rsquo;s list is the canon,
-          and a film everyone loves says little about anybody. Each slot does a different job
-          instead, so the four together read as a portrait rather than a leaderboard. No two of
-          them come from the same director or the same theme unless leaving a tile empty were the
-          only alternative.
+          Every one of these is from {person ? "their" : "your"} top tenth, so nothing is here
+          that {person ? "they" : "you"} merely tolerated. The first is the one with the
+          strongest claim on its own. The other three are chosen from the rest of{" "}
+          {person ? "their" : "your"} favourites for how much ground the four cover together:
+          different themes, different decades, different languages, films everybody has seen
+          next to films almost nobody has. That is why this is not simply the four highest
+          ratings, which on most shelves would be four versions of the same film. Rewatching
+          something counts for more than rating it, once{" "}
+          {person ? "they have" : "you have"} started going back to things.
         </p>
       </div>
 
@@ -254,7 +250,7 @@ function SignatureSection({ films, person }: { films: Binder["signature"]; perso
               </Link>
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] uppercase tracking-[.14em] text-ash">
-                  {person ? THEIR_SLOT_LABELS[f.slot] : SLOT_LABELS[f.slot]}
+                  {person ? inThirdPerson(f.label) : f.label}
                 </div>
                 <Link
                   href={`/film/${f.slug}`}
@@ -263,9 +259,6 @@ function SignatureSection({ films, person }: { films: Binder["signature"]; perso
                   {f.title}
                 </Link>
                 <p className="mt-1 max-w-[52ch] text-sm leading-relaxed text-ash">{f.reason}</p>
-                <p className="mt-1 max-w-[52ch] text-[12.5px] leading-relaxed text-dim">
-                  {person ? inThirdPerson(SLOT_NOTES[f.slot]) : SLOT_NOTES[f.slot]}
-                </p>
               </div>
               <span className={`num shrink-0 text-[17px] ${ratingColor(f.rating)}`}>
                 {formatTenths(f.rating)}

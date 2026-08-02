@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight } from "@phosphor-icons/react/ssr";
 import SpecimenCard from "./SpecimenCard";
 import TiltCard from "./TiltCard";
 import { APP_POSITIONING } from "@/lib/brand";
@@ -175,19 +176,10 @@ function StartBadge() {
         </svg>
       </span>
 
-      <svg
+      <ArrowRight
         aria-hidden
-        viewBox="0 0 24 24"
         className="size-6 text-paper transition-transform duration-300 group-hover:translate-x-0.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M4 12h15" />
-        <path d="m13 6 6 6-6 6" />
-      </svg>
+      />
     </Link>
   );
 }

@@ -694,16 +694,16 @@ export async function buildHomeTasteCard(
     ratings: ratedFilms.map((f) => f.rating),
     profStats: [
       { label: "Films", value: String(taste.rated) },
-      { label: "Avg", value: taste.mean !== null ? formatTenths(taste.mean) : "—" },
+      { label: "Avg", value: taste.mean !== null ? formatTenths(taste.mean) : "-" },
       { label: "Rewatch", value: `${rewatchPct}%` },
       { label: "Reviews", value: String(signals.reviewCount) },
       { label: "Decades", value: String(signals.distinctDecades) },
     ],
     personality: computePersonality(taste, signals),
     favsCard: [
-      { label: "Director", value: taste.topDirector?.name ?? "—" },
-      { label: "Decade", value: taste.topDecade ? decadeLabel(taste.topDecade.decade) : "—" },
-      { label: "Runtime", value: signals.avgRuntime ? runtimeBand(signals.avgRuntime) : "—" },
+      { label: "Director", value: taste.topDirector?.name ?? "-" },
+      { label: "Decade", value: taste.topDecade ? decadeLabel(taste.topDecade.decade) : "-" },
+      { label: "Runtime", value: signals.avgRuntime ? runtimeBand(signals.avgRuntime) : "-" },
     ],
     // One entry when nobody is far enough away to be called a rival.
     social: match
@@ -714,7 +714,7 @@ export async function buildHomeTasteCard(
     heroStats: [
       { label: "Films logged", value: String(taste.rated) },
       { label: "Hours logged", value: String(Math.round(signals.totalRuntimeMinutes / 60)) },
-      { label: "Home decade", value: taste.topDecade ? decadeLabel(taste.topDecade.decade) : "—" },
+      { label: "Home decade", value: taste.topDecade ? decadeLabel(taste.topDecade.decade) : "-" },
       { label: "Reviews", value: String(signals.reviewCount) },
     ],
     // share of *tagged* films, not all rated films — most libraries have gaps

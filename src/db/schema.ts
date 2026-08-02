@@ -128,6 +128,31 @@ export const films = pgTable("films", {
   genres: jsonb("genres").$type<string[]>(),
   castNames: jsonb("cast_names").$type<string[]>(),
   keywords: jsonb("keywords").$type<string[]>(),
+  /**
+   * A position for this film on a map where similar films sit close together,
+   * 384 numbers from a sentence-embedding model run over its keywords, genres,
+   * cast and crew.
+   *
+   * The themes are hand-authored buckets, which means a film whose keywords
+   * match none of them is invisible: Whiplash carries no theme at all, so
+   * nothing else can be told it resembles Black Swan. This is the fallback
+   * that has an opinion about every film, including the ones the buckets miss.
+   *
+   * Written by a background script, never at request time, so no model is ever
+   * loaded inside the running app.
+   */
+  embedding: jsonb("embedding").$type<number[]>(),
+  /**
+   * The dozen films nearest this one, with the true overlap behind each.
+   *
+   * Precomputed for the same reason the embedding is: scoring one film against
+   * four hundred candidates means reading a megabyte of vectors, which is fine
+   * once a night and absurd on every page view. The page reads this column and
+   * nothing else.
+   */
+  // Not `similar`: that is a reserved SQL keyword (SIMILAR TO), and raw
+  // SQL referencing it unquoted fails to parse.
+  similarFilms: jsonb("similar_films").$type<{ slug: string; why: string }[]>(),
   popularity: doublePrecision("popularity"),
   voteCount: integer("vote_count"),
   overview: text("overview"),

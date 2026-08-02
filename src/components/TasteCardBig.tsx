@@ -80,7 +80,7 @@ export function TasteCardFrontBig({
         </span>
         <span className="flex flex-col items-end gap-px">
           <span className="display text-[10px] uppercase tracking-[.1em]" style={{ color: variant.accentColor }}>
-            {variant.name || "—"}
+            {variant.name || "None yet"}
           </span>
         </span>
       </div>
@@ -162,13 +162,13 @@ export function TasteCardFrontBig({
           <div>
             <div className="text-[9px] uppercase tracking-[.1em] text-[#8a8a92]">Signature film</div>
             <div className="display max-w-[190px] text-[12px] leading-tight text-paper sm:max-w-[120px]">
-              {signature?.title ?? "—"}
+              {signature?.title ?? "None yet"}
             </div>
           </div>
         </div>
         <div className="text-right">
           <div className="num text-[30px] leading-none text-paper">
-            {data.mean !== null ? formatTenths(data.mean) : "—"}
+            {data.mean !== null ? formatTenths(data.mean) : "-"}
           </div>
           <div className="mt-0.5 text-[9px] uppercase tracking-[.1em] text-[#8a8a92]">career avg</div>
         </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { CheckCircle, Info, WarningCircle, X } from "@phosphor-icons/react/ssr";
+
 import {
   createContext,
   useCallback,
@@ -145,18 +147,7 @@ function ToastRow({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) 
         aria-label="Dismiss"
         className="-mr-1 -mt-1 flex size-7 shrink-0 items-center justify-center rounded-card text-dim transition-colors hover:text-paper"
       >
-        <svg
-          aria-hidden
-          viewBox="0 0 24 24"
-          className="size-4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M18 6 6 18M6 6l12 12" />
-        </svg>
+        <X aria-hidden className="size-3.5" />
       </button>
     </div>
   );
@@ -168,38 +159,10 @@ function ToastRow({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) 
  * weight of anything else in the app. One viewBox, one stroke width, one join.
  */
 function ToneIcon({ tone, color }: { tone: ToastTone; color: string }) {
-  const shared = {
-    viewBox: "0 0 24 24",
-    className: "size-[19px]",
-    fill: "none",
-    stroke: color,
-    strokeWidth: 2.2,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
-
-  if (tone === "warn") {
-    return (
-      <svg {...shared} aria-hidden>
-        <circle cx="12" cy="12" r="9.25" />
-        <path d="M12 7.75v5" />
-        <path d="M12 16.25v.01" />
-      </svg>
-    );
-  }
-  if (tone === "info") {
-    return (
-      <svg {...shared} aria-hidden>
-        <circle cx="12" cy="12" r="9.25" />
-        <path d="M12 11v5.25" />
-        <path d="M12 7.75v.01" />
-      </svg>
-    );
-  }
-  return (
-    <svg {...shared} aria-hidden>
-      <circle cx="12" cy="12" r="9.25" />
-      <path d="M8.25 12.3l2.6 2.6 4.9-5.2" />
-    </svg>
-  );
+  // One family, one weight, per the icon rule. Colour is the only thing that
+  // varies between tones; the glyph carries the meaning.
+  const props = { size: 19, color, weight: "bold" as const, "aria-hidden": true };
+  if (tone === "warn") return <WarningCircle {...props} />;
+  if (tone === "info") return <Info {...props} />;
+  return <CheckCircle {...props} />;
 }

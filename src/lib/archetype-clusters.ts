@@ -193,8 +193,8 @@ export const CLUSTERS: Cluster[] = [
   {
     key: "stage",
     name: "The Showstopper",
-    note: "music, musicals and life on stage",
-    keywords: ["musical", "music", "singer", "band", "concert", "dance", "stage", "orchestra", "songwriter", "opera", "performance"],
+    note: "music, dance and the cost of being good at it",
+    keywords: ["musical", "music", "singer", "band", "concert", "dance", "stage", "orchestra", "songwriter", "opera", "performance", "jazz", "musician", "drums", "guitar", "rock band", "ballet", "choreography", "rehearsal", "conservatory", "obsession", "perfectionist"],
   },
   {
     key: "deadpan",

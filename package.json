@@ -14,12 +14,17 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",
     "backfill:scores": "node scripts/backfill-scores.mjs",
-    "backfill:credits": "node scripts/backfill-credits.mjs"
+    "backfill:credits": "node scripts/backfill-credits.mjs",
+    "backfill:embeddings": "node scripts/backfill-embeddings.mjs",
+    "backfill:similar": "node scripts/backfill-similar.mjs",
+    "nightly": "node scripts/nightly.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@phosphor-icons/react": "^2.1.10",
+    "@xenova/transformers": "^2.17.2",
     "drizzle-orm": "^0.45.2",
     "next": "16.2.11",
     "papaparse": "^5.5.4",

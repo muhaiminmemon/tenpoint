@@ -5,118 +5,20 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Sheet from "./Sheet";
 import SignOutButton from "./SignOutButton";
+import {
+  Books,
+  Broadcast,
+  CalendarBlank,
+  Cards,
+  Compass,
+  DotsThree,
+  DownloadSimple,
+  House,
+  ListBullets,
+  MagnifyingGlass,
+  Users,
+} from "@phosphor-icons/react/ssr";
 import { requestSearchOpen } from "@/lib/search-event";
-
-type IconProps = { className?: string };
-
-function HomeIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      <path
-        d="M3 8.5l7-5.5 7 5.5v7a1 1 0 01-1 1h-3.25v-5h-5.5v5H4a1 1 0 01-1-1v-7z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function LibraryIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      <rect x="2.75" y="2.75" width="6" height="6" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="11.25" y="2.75" width="6" height="6" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="2.75" y="11.25" width="6" height="6" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="11.25" y="11.25" width="6" height="6" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-function DiaryIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      <rect x="2.75" y="4.25" width="14.5" height="13" rx="1.75" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M2.75 8.25h14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M6.5 2.5v3M13.5 2.5v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function SearchIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      <circle cx="8.75" cy="8.75" r="5.25" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M16.25 16.25l-3.9-3.9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function QueueIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      <path
-        d="M5.25 3.25h9.5a.5.5 0 01.5.5v12.4a.4.4 0 01-.62.33L10 13.2l-4.63 3.28a.4.4 0 01-.62-.33V3.75a.5.5 0 01.5-.5z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ListsIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      <circle cx="3.75" cy="5.5" r="1" fill="currentColor" />
-      <circle cx="3.75" cy="10" r="1" fill="currentColor" />
-      <circle cx="3.75" cy="14.5" r="1" fill="currentColor" />
-      <path d="M7.5 5.5h9M7.5 10h9M7.5 14.5h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function FriendsIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      <circle cx="7.25" cy="6.75" r="2.75" stroke="currentColor" strokeWidth="1.5" />
-      <path
-        d="M2.5 16.25c.35-3.15 2.35-5 4.75-5s4.4 1.85 4.75 5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <circle cx="14.75" cy="7.5" r="2.15" stroke="currentColor" strokeWidth="1.4" />
-      <path
-        d="M12.9 16.25c.28-2.5 1.55-4.05 3.35-4.35"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function BrowseIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      <rect x="2.75" y="2.75" width="5.5" height="7.5" rx="1.1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="11.75" y="2.75" width="5.5" height="5" rx="1.1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="2.75" y="12.75" width="5.5" height="4.5" rx="1.1" stroke="currentColor" strokeWidth="1.5" />
-      <rect x="11.75" y="10.25" width="5.5" height="7" rx="1.1" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-function MoreIcon({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      <circle cx="4.5" cy="10" r="1.35" fill="currentColor" />
-      <circle cx="10" cy="10" r="1.35" fill="currentColor" />
-      <circle cx="15.5" cy="10" r="1.35" fill="currentColor" />
-    </svg>
-  );
-}
 
 /**
  * The four a person touches dozens of times a session. Everything else lives
@@ -124,19 +26,19 @@ function MoreIcon({ className }: IconProps) {
  * 390px phone gave each about 60px, and Browse and Feed had no way in at all.
  */
 const PRIMARY = [
-  { href: "/", label: "Home", Icon: HomeIcon },
-  { href: "/browse", label: "Browse", Icon: BrowseIcon },
-  { href: "/diary", label: "Diary", Icon: DiaryIcon },
-  { href: "/library", label: "Library", Icon: LibraryIcon },
+  { href: "/", label: "Home", Icon: House },
+  { href: "/browse", label: "Browse", Icon: Compass },
+  { href: "/diary", label: "Diary", Icon: CalendarBlank },
+  { href: "/library", label: "Library", Icon: Books },
 ];
 
 /** Reachable, just not resident. Ordered by how often they are actually opened. */
 const SECONDARY = [
-  { href: "/watchlist", label: "Watchlist", Icon: QueueIcon },
-  { href: "/friends", label: "Friends", Icon: FriendsIcon },
-  { href: "/feed", label: "Feed", Icon: DiaryIcon },
-  { href: "/lists", label: "Lists", Icon: ListsIcon },
-  { href: "/import", label: "Import", Icon: LibraryIcon },
+  { href: "/watchlist", label: "Watchlist", Icon: ListBullets },
+  { href: "/friends", label: "Friends", Icon: Users },
+  { href: "/feed", label: "Feed", Icon: Broadcast },
+  { href: "/lists", label: "Lists", Icon: Cards },
+  { href: "/import", label: "Import", Icon: DownloadSimple },
 ];
 
 
@@ -184,7 +86,7 @@ export default function BottomNav({
           className={`relative ${itemClass}`}
         >
           <span className="relative">
-            <MoreIcon className={`size-5 ${inSheet ? "text-beam" : "text-ash"}`} />
+            <DotsThree className={`size-5 ${inSheet ? "text-beam" : "text-ash"}`} />
             {pendingRequests > 0 && (
               <span className="absolute -right-1.5 -top-1 size-2 rounded-full bg-beam" />
             )}
@@ -223,7 +125,7 @@ export default function BottomNav({
               }}
               className="flex w-full flex-col items-center gap-2 rounded-card border border-seam bg-tray px-2 py-4 text-center transition-colors active:bg-tray-2"
             >
-              <SearchIcon className="size-5 text-ash" />
+              <MagnifyingGlass className="size-5 text-ash" />
               <span className="text-[11px] text-paper">Search</span>
             </button>
           </li>
@@ -259,7 +161,7 @@ function NavLink({
 }: {
   href: string;
   label: string;
-  Icon: (p: IconProps) => React.JSX.Element;
+  Icon: React.ComponentType<{ className?: string }>;
   pathname: string;
   badge?: number;
   /** an unnumbered mark, for something there is only ever one of */

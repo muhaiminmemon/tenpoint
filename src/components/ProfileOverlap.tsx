@@ -91,7 +91,7 @@ function Mean({ label, value }: { label: string; value: number | null }) {
       <div
         className={`num text-[26px] leading-none ${value === null ? "text-dim" : ratingColor(value)}`}
       >
-        {value === null ? "—" : formatTenths(value)}
+        {value === null ? "-" : formatTenths(value)}
       </div>
       <div className="mt-1.5 max-w-[16ch] truncate text-[10px] uppercase tracking-[0.14em] text-ash">
         {label}
