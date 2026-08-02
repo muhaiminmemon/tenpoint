@@ -11,8 +11,12 @@ export type SimilarFilm = {
   why: string;
 };
 
-/** Shown on the page. The stored list is longer so filtering has slack. */
-const SHOW = 8;
+/**
+ * Handed to the page. It shows six at a time and keeps the rest for the
+ * shuffle, so the surplus is doing two jobs: absorbing the films somebody has
+ * already seen, and giving the button somewhere to go.
+ */
+const SHOW = 12;
 /** Below this the rail is not worth the space it takes. */
 const MIN = 3;
 

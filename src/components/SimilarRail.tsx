@@ -1,6 +1,13 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { ArrowsClockwise } from "@phosphor-icons/react/ssr";
 import PosterImg from "./PosterImg";
 import type { SimilarFilm } from "@/lib/similar";
+
+/** One row on every breakpoint, matching the shelf and the browse grid. */
+const PAGE = 6;
 
 /**
  * Where a film page stops being a dead end.
@@ -10,37 +17,67 @@ import type { SimilarFilm } from "@/lib/similar";
  * the back button. This is the exit, and it sits after the reviews because
  * discovery should follow the decision rather than interrupt it.
  *
+ * A grid rather than a scrolling rail, which is what this was first and what
+ * was wrong with it. Browse rails scroll because they are slices of something
+ * larger with a "see all" at the end. This is the whole list, inside a fixed
+ * column, so scrolling it only produced a poster sliced in half at the right
+ * edge and no hint that anything lay past it. The same three-to-six grid the
+ * library shelf and the browse results already use fits exactly and cuts
+ * nothing.
+ *
  * Every tile carries the real overlap that put it there, in words a reader
  * could check against the two films themselves. That is the whole difference
  * between this and a recommendation strip: nothing here says 87% match,
  * because the product does not know that and would not print it if it did.
- *
- * Native overflow with snap points, the same as the browse rails. No carousel,
- * no arrows, no JavaScript, and it already works with a trackpad, a
- * touchscreen and a keyboard.
  */
 export default function SimilarRail({ films }: { films: SimilarFilm[] }) {
+  const [from, setFrom] = useState(0);
   if (films.length === 0) return null;
+
+  // Rotates rather than randomises. The list is ordered by closeness and the
+  // header says so, so shuffling it would make the page lie; walking further
+  // down the same ranking keeps that true and still shows something new.
+  const shown = Array.from({ length: Math.min(PAGE, films.length) }, (_, i) => films[(from + i) % films.length]);
+  const canRotate = films.length > PAGE;
 
   return (
     <section aria-labelledby="similar" className="mt-14 min-w-0">
-      <h2 id="similar" className="display text-[19px] leading-none text-paper">
-        More like this
-      </h2>
-      <p className="mt-1.5 text-[12.5px] text-ash">
-        Ranked by how close each one sits to this film. The line under each says why.
-      </p>
+      <div className="flex items-baseline justify-between gap-4">
+        <div className="min-w-0">
+          <h2 id="similar" className="display text-[19px] leading-none text-paper">
+            More like this
+          </h2>
+          <p className="mt-1.5 text-[12.5px] text-ash">
+            Closest first. The line under each one says why it is here.
+          </p>
+        </div>
+        {canRotate && (
+          <button
+            type="button"
+            onClick={() => setFrom((f) => (f + PAGE) % films.length)}
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-seam px-3 py-1.5 text-[12.5px] text-ash transition-colors hover:border-dim hover:text-paper focus-visible:border-beam"
+          >
+            <ArrowsClockwise aria-hidden className="size-3.5" />
+            Show others
+          </button>
+        )}
+      </div>
 
-      <ul className="mt-4 -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
-        {films.map((f) => (
-          <li key={f.slug} className="w-[132px] shrink-0 snap-start sm:w-[148px]">
+      {/* Keyed on the offset so a new set fades in rather than swapping in
+          place, which at this size reads as the page glitching. */}
+      <ul
+        key={from}
+        className="pop-in mt-4 grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 lg:grid-cols-6"
+      >
+        {shown.map((f) => (
+          <li key={f.slug} className="min-w-0">
             <Link href={`/film/${f.slug}`} className="group block focus-visible:outline-none">
               <span className="relative block overflow-hidden rounded-card border border-seam bg-tray transition-colors group-hover:border-dim group-focus-visible:border-beam">
                 <PosterImg
                   posterPath={f.posterPath}
                   title={f.title}
                   size="w342"
-                  sizes="(max-width: 640px) 33vw, 150px"
+                  sizes="(max-width: 640px) 33vw, (max-width: 1024px) 22vw, 150px"
                   className="aspect-[2/3] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 />
               </span>
@@ -48,10 +85,11 @@ export default function SimilarRail({ films }: { films: SimilarFilm[] }) {
                 <span className="min-w-0 flex-1 truncate text-[13px] text-paper">{f.title}</span>
                 {f.year && <span className="num shrink-0 text-[11px] text-dim">{f.year}</span>}
               </span>
-              {/* The reason is the point of the tile, so it gets two lines
-                  rather than a truncation: a cut-off reason is worse than a
-                  slightly taller row. */}
-              <span className="mt-0.5 block text-[11.5px] leading-snug text-ash">{f.why}</span>
+              {/* Two lines, always. Left to itself one reason wraps and the
+                  next does not, and the row bottoms out ragged. */}
+              <span className="mt-0.5 line-clamp-2 block min-h-[2.4em] text-[11.5px] leading-snug text-ash">
+                {f.why}
+              </span>
             </Link>
           </li>
         ))}
