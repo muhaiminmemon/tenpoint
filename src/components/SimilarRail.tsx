@@ -30,15 +30,23 @@ const PAGE = 6;
  * between this and a recommendation strip: nothing here says 87% match,
  * because the product does not know that and would not print it if it did.
  */
-export default function SimilarRail({ films }: { films: SimilarFilm[] }) {
+export default function SimilarRail({
+  films,
+  alreadySeen,
+}: {
+  films: SimilarFilm[];
+  /** close films withheld because they are already in the viewer's diary */
+  alreadySeen: number;
+}) {
   const [from, setFrom] = useState(0);
-  if (films.length === 0) return null;
+  if (films.length === 0 && alreadySeen === 0) return null;
 
   // Rotates rather than randomises. The list is ordered by closeness and the
   // header says so, so shuffling it would make the page lie; walking further
   // down the same ranking keeps that true and still shows something new.
   const shown = Array.from({ length: Math.min(PAGE, films.length) }, (_, i) => films[(from + i) % films.length]);
   const canRotate = films.length > PAGE;
+  const empty = films.length === 0;
 
   return (
     <section aria-labelledby="similar" className="mt-14 min-w-0">
@@ -48,10 +56,19 @@ export default function SimilarRail({ films }: { films: SimilarFilm[] }) {
             More like this
           </h2>
           <p className="mt-1.5 text-[12.5px] text-ash">
-            Closest first. The line under each one says why it is here.
+            {films.length > 0
+              ? "Closest first. The line under each one says why it is here."
+              : "Everything close to this is already in your diary."}
+            {alreadySeen > 0 && films.length > 0 && (
+              <>
+                {" "}
+                {alreadySeen} more {alreadySeen === 1 ? "is" : "are"} hidden because you have
+                logged {alreadySeen === 1 ? "it" : "them"}.
+              </>
+            )}
           </p>
         </div>
-        {canRotate && (
+        {canRotate && !empty && (
           <button
             type="button"
             onClick={() => setFrom((f) => (f + PAGE) % films.length)}

@@ -182,7 +182,7 @@ export default async function FilmPage(ctx: {
             </p>
           )}
           <ReviewsSection filmId={film.id} filmSlug={film.slug} viewer={user} tab={reviewsTab} />
-          <SimilarRail films={await similarTo(film.id, user?.id ?? null)} />
+          <SimilarRail {...(await similarTo(film.id, user?.id ?? null))} />
         </div>
       </div>
     </div>

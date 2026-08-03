@@ -32,10 +32,25 @@ const MIN = 3;
  * fact about the film and a suggestion they can act on. Signed out, there is
  * nothing to filter against and the unfiltered list is the honest answer.
  */
+export type SimilarResult = {
+  films: SimilarFilm[];
+  /**
+   * How many close films were dropped because the viewer has already logged
+   * them.
+   *
+   * Reported rather than swallowed. Hiding them is right — the rail is for
+   * what to watch next — but hiding them silently makes the model look
+   * ignorant of the obvious answer: somebody who has seen Rush opens Ford v
+   * Ferrari, does not see Rush, and concludes the thing cannot tell that two
+   * racing films are alike. It ranked Rush first.
+   */
+  alreadySeen: number;
+};
+
 export async function similarTo(
   filmId: string,
   viewerId: string | null,
-): Promise<SimilarFilm[]> {
+): Promise<SimilarResult> {
   const [row] = await db
     .select({ similar: films.similarFilms })
     .from(films)
@@ -43,7 +58,7 @@ export async function similarTo(
     .limit(1);
 
   const list = row?.similar ?? [];
-  if (list.length === 0) return [];
+  if (list.length === 0) return { films: [], alreadySeen: 0 };
 
   const rows = await db
     .select({
@@ -84,11 +99,16 @@ export async function similarTo(
   }
 
   const out: SimilarFilm[] = [];
+  let alreadySeen = 0;
   // Stored order is the ranking; this walks it and drops what does not apply.
   for (const entry of list) {
-    if (out.length >= SHOW) break;
     const film = bySlug.get(entry.slug);
-    if (!film || seen.has(film.id) || !film.posterPath) continue;
+    if (!film || !film.posterPath) continue;
+    if (seen.has(film.id)) {
+      alreadySeen++;
+      continue;
+    }
+    if (out.length >= SHOW) continue;
     out.push({
       slug: film.slug,
       title: film.title,
@@ -98,7 +118,9 @@ export async function similarTo(
     });
   }
 
-  // Three posters is a row; two is an accident. Below that the section does
-  // not render at all rather than apologising for itself.
-  return out.length >= MIN ? out : [];
+  // Three posters is a row; two is an accident. Below that the rail shows no
+  // posters, but it still says how many it held back: a heavy diary can log
+  // most of a film's neighbours, and an empty space explains nothing while
+  // "nine of these are already in your diary" explains everything.
+  return { films: out.length >= MIN ? out : [], alreadySeen };
 }
