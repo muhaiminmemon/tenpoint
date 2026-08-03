@@ -694,6 +694,19 @@ function assignBlurbs(picked: Scored[], pa: Person, pb: Person): string[] {
 
 /** The ceiling on how many films get scored. */
 const POOL = 700;
+
+/**
+ * Nothing that has not come out yet.
+ *
+ * The pool was every film with a poster and a position on the map, which
+ * included four that are not released. "The Sick Mind of EDP445" was being
+ * recommended five days before it existed. A recommendation somebody cannot
+ * act on is not a recommendation.
+ *
+ * A missing date passes: TMDB leaves it off plenty of older films, and
+ * excluding those would quietly delete most of pre-war cinema from the pool.
+ */
+const OUT_ALREADY = sql`(${films.releaseDate} is null or ${films.releaseDate} <= current_date)`;
 /** How many of each person's favourites are walked outward from. */
 const SEEDS = 30;
 
@@ -761,21 +774,36 @@ async function retrieve(
           inArray(films.id, [...ids].slice(0, POOL * 2)),
           sql`${films.posterPath} is not null`,
           sql`${films.embedding} is not null`,
+          OUT_ALREADY,
         ),
       )) as FilmRow[];
   }
 
-  // A backfill, so a pair with two small libraries is never handed nothing.
-  if (pool.length < POOL) {
+  /**
+   * A backfill, so a pair with two small libraries is never handed nothing.
+   *
+   * Capped, and that cap is the point. It used to top the pool up to seven
+   * hundred from the most popular films in the catalogue, which is the same
+   * list for every pair on the service: two people with nothing in common were
+   * scored against a mostly identical set, and since a famous film also
+   * carries more crowd evidence than an obscure one, it came out ahead on
+   * confidence too. That is how everybody ends up being told to watch Pulp
+   * Fiction. The pair's own doors now have to be thin before this contributes
+   * at all, and it can never be more than a quarter of what gets scored.
+   */
+  const FLOOR = Math.round(POOL * 0.25);
+  if (pool.length < FLOOR) {
     const have = new Set(pool.map((f) => f.id));
     const extra = (await db
       .select(filmCols)
       .from(films)
-      .where(and(sql`${films.posterPath} is not null`, sql`${films.embedding} is not null`))
+      .where(
+        and(sql`${films.posterPath} is not null`, sql`${films.embedding} is not null`, OUT_ALREADY),
+      )
       .orderBy(sql`${films.popularity} desc nulls last`)
-      .limit(POOL)) as FilmRow[];
+      .limit(FLOOR * 2)) as FilmRow[];
     for (const f of extra) {
-      if (pool.length >= POOL) break;
+      if (pool.length >= FLOOR) break;
       if (have.has(f.id) || exclude.has(f.id)) continue;
       pool.push(f);
     }
