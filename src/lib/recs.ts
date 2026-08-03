@@ -54,13 +54,6 @@ export type RecFilm = {
   posterPath: string | null;
   director: string | null;
   blurb: string;
-  /**
-   * The model's guess at what each of them would rate it, in tenths, in the
-   * order the pair was passed. Shown because it is the product's own unit and
-   * a reader can check it against themselves a week later, which is more than
-   * a match percentage ever offers.
-   */
-  predicted: { username: string; rating: number }[];
 };
 
 /* ------------------------------------------------------------------ *
@@ -957,10 +950,6 @@ export async function recommendForPair(a: SessionUser, b: SessionUser): Promise<
       posterPath: s.film.posterPath,
       director: s.film.director,
       blurb: blurbs[i],
-      predicted: [
-        { username: a.username, rating: s.a.rating },
-        { username: b.username, rating: s.b.rating },
-      ],
     })),
   };
 }

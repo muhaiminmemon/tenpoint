@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { usePresence } from "@/lib/usePresence";
 import Link from "next/link";
 import { posterUrl } from "@/lib/tmdb-urls";
-import { formatTenths, ratingColor } from "@/lib/format";
 import { errorFrom, readJson } from "@/lib/http";
 
 type RecFilm = {
@@ -15,7 +14,6 @@ type RecFilm = {
   posterPath: string | null;
   director: string | null;
   blurb: string;
-  predicted: { username: string; rating: number }[];
 };
 
 type RecResponse =
@@ -150,11 +148,6 @@ export default function RecsView({ friend }: { friend: string }) {
                   />
                 </div>
                 {f.director && <p className="text-xs text-ash">{f.director}</p>}
-                {/* What the model thinks each of you would give it. Printed in
-                    the product's own unit rather than as a match percentage,
-                    because a reader can check a 7.8 against themselves once
-                    they have actually watched the thing. */}
-                <Predicted predicted={f.predicted} friend={friend} />
                 <p className="mt-1.5 text-sm text-ash">{f.blurb}</p>
                 <button
                   type="button"
@@ -184,27 +177,6 @@ export default function RecsView({ friend }: { friend: string }) {
         </button>
       </div>
     </div>
-  );
-}
-
-function Predicted({
-  predicted,
-  friend,
-}: {
-  predicted: { username: string; rating: number }[];
-  friend: string;
-}) {
-  const mine = predicted.find((p) => p.username !== friend);
-  const theirs = predicted.find((p) => p.username === friend);
-  if (!mine || !theirs) return null;
-  return (
-    <p className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 text-[12px] text-dim">
-      <span className={`num ${ratingColor(mine.rating)}`}>{formatTenths(mine.rating)}</span>
-      <span>for you</span>
-      <span aria-hidden>·</span>
-      <span className={`num ${ratingColor(theirs.rating)}`}>{formatTenths(theirs.rating)}</span>
-      <span>for {friend}</span>
-    </p>
   );
 }
 
