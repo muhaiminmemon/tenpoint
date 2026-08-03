@@ -43,7 +43,7 @@ export default function TasteCardFlip({
   // node would overwrite the flip. Tilting the parent instead composes the way
   // it does in the hand — the card turns over, and the whole thing leans.
   return (
-    <TiltCard radius="18px" maxTilt={4} className="mx-auto w-full max-w-[368px] sm:max-w-[320px]">
+    <TiltCard radius="0px" maxTilt={4} className="mx-auto w-full max-w-[368px] sm:max-w-[320px]">
     <div className="w-full" style={{ perspective: "1600px" }}>
       <button
         type="button"
@@ -58,7 +58,7 @@ export default function TasteCardFlip({
       >
         {/* front */}
         <div
-          className="col-start-1 row-start-1 min-h-full rounded-[18px] p-[1.5px]"
+          className="col-start-1 row-start-1 min-h-full p-[1.5px]"
           style={{
             background: border,
             boxShadow: `${glow === "none" ? "" : glow + ", "}0 30px 70px rgba(0,0,0,.6)`,
@@ -70,7 +70,7 @@ export default function TasteCardFlip({
           }}
         >
           <div
-            className="relative h-full overflow-hidden rounded-[17px]"
+            className="relative h-full overflow-hidden"
             style={{ background: stock?.material ?? "linear-gradient(158deg,#18181e,#0f0f13)" }}
           >
             {stock?.texture && (
@@ -84,7 +84,7 @@ export default function TasteCardFlip({
 
         {/* back */}
         <div
-          className="col-start-1 row-start-1 min-h-full rounded-[18px] p-[1.5px]"
+          className="col-start-1 row-start-1 min-h-full p-[1.5px]"
           style={{
             background: border,
             boxShadow: "0 30px 70px rgba(0,0,0,.6)",
@@ -97,7 +97,7 @@ export default function TasteCardFlip({
           }}
         >
           <div
-            className="relative h-full overflow-hidden rounded-[17px]"
+            className="relative h-full overflow-hidden"
             style={{ background: stock?.material ?? "linear-gradient(158deg,#18181e,#0f0f13)" }}
           >
             {stock?.texture && (

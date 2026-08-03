@@ -48,11 +48,11 @@ function Glassine() {
 function TierSpecimen({ tier, held }: { tier: TierRow["tier"]; held: boolean }) {
   return (
     <span
-      className="relative block h-[62px] w-[46px] shrink-0 overflow-hidden rounded-[4px] p-px"
+      className="relative block h-[62px] w-[46px] shrink-0 overflow-hidden p-px"
       style={{ background: tier.border, boxShadow: held && tier.glow !== "none" ? tier.glow : undefined }}
       aria-hidden
     >
-      <span className="relative block size-full overflow-hidden rounded-[3px] bg-[linear-gradient(158deg,#18181e,#0f0f13)]">
+      <span className="relative block size-full overflow-hidden bg-[linear-gradient(158deg,#18181e,#0f0f13)]">
         {/* A finish you hold catches the light. One you don't is the same foil,
             standing still — held back, not hidden. */}
         <CardGrain intensity={tier.sheenOp} />
@@ -66,11 +66,11 @@ function TierSpecimen({ tier, held }: { tier: TierRow["tier"]; held: boolean }) 
 function VariantSpecimen({ stock, held }: { stock: StockDef; held: boolean }) {
   return (
     <span
-      className="relative block h-[62px] w-[46px] shrink-0 overflow-hidden rounded-[4px] bg-seam p-px"
+      className="relative block h-[62px] w-[46px] shrink-0 overflow-hidden bg-seam p-px"
       aria-hidden
     >
       <span
-        className="relative block size-full overflow-hidden rounded-[3px]"
+        className="relative block size-full overflow-hidden"
         style={{ background: stock.material }}
       >
         {stock.texture && (

@@ -228,7 +228,6 @@ function Poster({
         style={{
           width: cardW,
           display: "flex",
-          borderRadius: px(30),
           padding: px(3),
           background: tier.border,
           position: "relative",
@@ -239,7 +238,6 @@ function Poster({
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            borderRadius: px(27),
             background: ground,
             padding: px(38),
             position: "relative",
@@ -250,8 +248,7 @@ function Poster({
             style={{
               position: "absolute",
               inset: 0,
-              borderRadius: px(27),
-              background:
+                background:
                 "linear-gradient(112deg, rgba(255,255,255,0) 28%, rgba(255,255,255,.09) 44%," +
                 " rgba(255,255,255,.16) 50%, rgba(255,255,255,.07) 57%, rgba(255,255,255,0) 74%)",
               display: "flex",

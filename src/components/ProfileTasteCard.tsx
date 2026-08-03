@@ -47,12 +47,12 @@ export default function ProfileTasteCard({
       {/* The tilt wraps the button alone. The dialog below is `position:
           fixed`, and a transformed ancestor would become its containing block
           and clip it to the card. */}
-      <TiltCard radius="20px">
+      <TiltCard radius="0px">
         <button
           type="button"
           onClick={() => setOpen(true)}
           aria-label={`Open ${displayName}'s taste card`}
-          className="block w-full rounded-[20px] p-px text-left"
+          className="block w-full p-px text-left"
           style={{
             background: data.tier.border,
             boxShadow: data.tier.glow === "none" ? undefined : data.tier.glow,

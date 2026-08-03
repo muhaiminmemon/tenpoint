@@ -68,7 +68,7 @@ export default function TasteCardFace({
   // behind it would be a finish the binder can't explain.
   return (
       <div
-        className="relative overflow-hidden rounded-[19px]"
+        className="relative overflow-hidden"
         style={{ background: stock?.material ?? "linear-gradient(158deg,#18181e,#0f0f13)" }}
       >
         {stock?.texture && (

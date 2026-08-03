@@ -82,14 +82,14 @@ export default function TasteFoilCard({
       {/* The tilt wraps the button alone, never this outer div: a transform
           becomes the containing block for `position: fixed`, and the dialog
           below would be positioned against the card instead of the viewport. */}
-      <TiltCard radius="20px">
+      <TiltCard radius="0px">
       <button
         type="button"
         onClick={() => {
           setOpenTab("Card");
           setOpen(true);
         }}
-        className={`block w-full rounded-[20px] p-px text-left ${justReminted ? "card-tier-pop" : ""}`}
+        className={`block w-full p-px text-left ${justReminted ? "card-tier-pop" : ""}`}
         style={{ background: tier.border, boxShadow: tier.glow === "none" ? undefined : tier.glow }}
       >
         <TasteCardFace

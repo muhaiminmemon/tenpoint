@@ -34,11 +34,11 @@ export default function SpecimenCard({
 
   return (
     <div
-      className={`w-[210px] rounded-[20px] p-px sm:w-[248px] ${className}`}
+      className={`w-[210px] p-px sm:w-[248px] ${className}`}
       style={{ background: tier.border, boxShadow: tier.glow === "none" ? undefined : tier.glow }}
     >
       <div
-        className="relative overflow-hidden rounded-[19px]"
+        className="relative overflow-hidden"
         style={{ background: stock?.material ?? "linear-gradient(158deg,#18181e,#0f0f13)" }}
       >
         {stock?.texture && (
