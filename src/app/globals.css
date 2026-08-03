@@ -63,17 +63,22 @@ body {
   letter-spacing: -0.02em;
 }
 
-/* ratings and anything columnar: decimal points must align */
-.num {
-  font-family: var(--font-space-grotesk), sans-serif;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-  letter-spacing: -0.01em;
+/* No scrollbars, anywhere.
+ *
+ * Every scrolling surface here is one somebody is already inside: a page, a
+ * dialog, a panel of traits. The bar told them nothing they could not see by
+ * looking at the content, and a stubby grey track pinned to the edge of a dark
+ * panel is the loudest piece of default browser chrome on the site.
+ *
+ * Scrolling itself is untouched. Wheel, trackpad, touch, keyboard and the
+ * scrollbar's own drag all still work; only the painted track is gone. */
+* {
+  scrollbar-width: none;
 }
-
-.display {
-  font-family: var(--font-space-grotesk), sans-serif;
-  letter-spacing: -0.02em;
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 ::selection {

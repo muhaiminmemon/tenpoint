@@ -502,7 +502,11 @@ const ANCHOR = {
   subtitleShare: { typical: 0.1, spread: 0.14 },
   rewatchShare: { typical: 0.1, spread: 0.1 },
   oneDirector: { typical: 1.25, spread: 0.55 },
-  criticGap: { typical: 0.15, spread: 0.12 },
+  // Measured across every library on the service, not guessed. The old figure
+  // said a typical person rates 15% of their films far from the IMDb crowd;
+  // the real median is 2.6%, so everybody scored a full standard deviation
+  // into the agreeing side and one word led a third of all titles.
+  criticGap: { typical: 0.042, spread: 0.051 },
   // The opinion axes. Each is a difference between two averages in tenths, so
   // zero is "rates both kinds the same" and the spread is roughly how far
   // apart a person has to hold them before it is a preference rather than
@@ -512,7 +516,7 @@ const ANCHOR = {
   foreignLift: { typical: 0, spread: 6 },
   oneFace: { typical: 1.25, spread: 0.55 },
   languages: { typical: 4, spread: 2.5 },
-  crowdBias: { typical: -2, spread: 10 },
+  crowdBias: { typical: 2.3, spread: 9.2 },
   perfectShare: { typical: 0.03, spread: 0.08 },
   decimalShare: { typical: 0.6, spread: 0.35 },
 } satisfies Record<string, Anchor>;
@@ -575,7 +579,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       s.mean,
       ANCHOR.mean,
       ["Generous", `Your average rating is ${avg}.`],
-      ["Hard-Marker", `Your average rating is ${avg}.`],
+      ["Exacting", `Your average rating is ${avg}.`],
     );
   }
 
@@ -583,8 +587,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.ratingStdDev,
       ANCHOR.spreadOfRatings,
-      ["All-Or-Nothing", "Your ratings swing hard in both directions."],
-      ["Even-Handed", "Your ratings cluster close together."],
+      ["Polarised", "Your ratings swing hard in both directions."],
+      ["Measured", "Your ratings cluster close together."],
     );
   }
 
@@ -593,8 +597,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       share,
       ANCHOR.topGenreShare,
-      ["Single-Minded", `${pct(share)}% of your rated films carry ${topGenre}.`],
-      ["Wide-Ranging", `You spread across ${s.distinctGenres} genres with no single one dominating.`],
+      ["Devoted", `${pct(share)}% of your rated films carry ${topGenre}.`],
+      ["Omnivorous", `You spread across ${s.distinctGenres} genres with no single one dominating.`],
     );
   }
 
@@ -614,7 +618,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       again,
       ANCHOR.rewatchShare,
       ["Rewatcher", `${pct(again)}% of your viewings are rewatches.`],
-      ["One-Watch", "You almost never watch the same film twice."],
+      ["Onward", "You almost never watch the same film twice."],
     );
   }
 
@@ -623,7 +627,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       s.topDirectorLift,
       ANCHOR.oneDirector,
       [
-        "Director-Loyal",
+        "Faithful",
         s.topDirectorName
           ? `You have rated ${s.maxDirectorCount} films directed by ${s.topDirectorName}, well past what chance would give you.`
           : `You keep returning to one director.`,
@@ -640,7 +644,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       s.topCastLift,
       ANCHOR.oneFace,
       [
-        "Cast-Loyal",
+        "Starstruck",
         s.topCastName
           ? `${s.topCastName} turns up in ${s.maxCastCount} of your films, more than chance would give you.`
           : `You keep returning to the same faces.`,
@@ -664,7 +668,11 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       gap,
       ANCHOR.criticGap,
       ["Contrarian", `${pct(gap)}% of your ratings sit far from the IMDb crowd.`],
-      ["Consensus", `${pct(1 - gap)}% of your ratings land close to the IMDb crowd.`],
+      // No word for the other side. Landing near the IMDb crowd is what almost
+      // everybody does, because that average is itself a crowd: it described
+      // three quarters of the service and named a third of it, which is a
+      // default dressed up as an identity.
+      null,
     );
   }
 
@@ -686,11 +694,11 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       lift,
       ANCHOR.obscureLift,
       [
-        "Deep-Cut",
+        "Fringe",
         `You rate the least-known films in your library ${tenths(lift)} higher than the famous ones.`,
       ],
       [
-        "Crowd-Pleased",
+        "Mainstream",
         `You rate the famous films in your library ${tenths(lift)} higher than the obscure ones.`,
       ],
     );
@@ -730,7 +738,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       tens,
       ANCHOR.perfectShare,
-      ["Perfect-Ten", `${pct(tens)}% of your ratings are a flat 10.0.`],
+      ["Wholehearted", `${pct(tens)}% of your ratings are a flat 10.0.`],
       null,
     );
 
@@ -739,7 +747,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       decimals,
       ANCHOR.decimalShare,
       ["Precisionist", `${pct(decimals)}% of your ratings use the decimal.`],
-      ["Round-Number", `${pct(1 - decimals)}% of your ratings are round numbers.`],
+      ["Blunt", `${pct(1 - decimals)}% of your ratings are round numbers.`],
     );
   }
 
