@@ -63,6 +63,19 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* ratings and anything columnar: decimal points must align */
+.num {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+}
+
+.display {
+  font-family: var(--font-space-grotesk), sans-serif;
+  letter-spacing: -0.02em;
+}
+
 ::selection {
   background: #8faecc;
   color: #141417;

@@ -174,9 +174,12 @@ export default function CommandPalette() {
         type="button"
         onClick={openPalette}
         aria-label="Search films"
-        className="flex items-center gap-2 rounded-card border border-seam px-2.5 py-1.5 text-xs text-ash hover:text-paper sm:px-3"
+        className="flex size-9 shrink-0 items-center justify-center rounded-card border border-seam text-ash hover:text-paper sm:size-auto sm:gap-2 sm:px-3 sm:py-1.5 sm:text-xs"
       >
-        <MagnifyingGlass className="pointer-events-none absolute left-4 size-5 text-dim" aria-hidden />
+        {/* Sits in the button's own flow. Absolutely positioned it had no
+            positioned ancestor to hang from, so on a phone the glass landed
+            over the logo and this rendered as an empty capsule. */}
+        <MagnifyingGlass aria-hidden className="pointer-events-none size-4 shrink-0" />
         {/* The label is desktop-only: on a phone the icon carries it, and the
             header has a logo and an avatar to fit alongside. */}
         <span className="hidden sm:inline">Search films</span>

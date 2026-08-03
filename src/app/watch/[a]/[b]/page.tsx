@@ -27,7 +27,8 @@ export default async function WatchPage(ctx: { params: Promise<{ a: string; b: s
     <div className="mx-auto max-w-xl">
       <h1 className="display text-2xl">What should we watch?</h1>
       <p className="mt-1 text-sm text-ash">
-        Five films neither you nor {other.displayName ?? other.username} has logged.
+        Five films neither you nor {other.displayName ?? other.username} has logged, with a guess
+        at what each of you would rate them.
       </p>
       <div className="mt-6">
         <RecsView friend={other.username} />

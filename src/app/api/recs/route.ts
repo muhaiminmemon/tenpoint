@@ -9,9 +9,11 @@ import { recommendForPair } from "@/lib/recs";
 import { areFriends } from "@/lib/social";
 
 /**
- * A run fans out to ~17 TMDB calls and scores a couple of thousand candidates,
- * which comfortably exceeds the 10s default a serverless platform gives a
- * route handler.
+ * A run reads both diaries, builds a taste neighbourhood across every account,
+ * and scores several hundred candidates against both people. It calls nothing
+ * outside the database, so it is fast, but the default 10s a serverless
+ * platform allows a route handler is not a margin worth trusting as the
+ * catalogue grows.
  */
 export const maxDuration = 60;
 
@@ -21,7 +23,7 @@ export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
 
-  // Per-account, not per-IP: this spends someone else's API quota.
+  // Per-account, not per-IP: a run is the most expensive read in the product.
   const limited = enforceRateLimit(req, "recs", LIMITS.recs, user.id);
   if (limited) return limited;
 

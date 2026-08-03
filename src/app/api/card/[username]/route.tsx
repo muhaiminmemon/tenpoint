@@ -308,6 +308,7 @@ function Poster({
                 lineHeight: 1.04,
                 color: "#eceae6",
                 marginTop: px(10),
+                textAlign: "center",
               }}
             >
               {data.archetype ?? displayName}
@@ -315,7 +316,7 @@ function Poster({
           </div>
 
           {chips.length > 0 && (
-            <div style={{ display: "flex", gap: px(10), marginTop: px(26) }}>
+            <div style={{ display: "flex", justifyContent: "center", gap: px(10), marginTop: px(26) }}>
               {chips.map((g) => (
                 <div
                   key={g.name}

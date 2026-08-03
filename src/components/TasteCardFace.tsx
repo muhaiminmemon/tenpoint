@@ -123,11 +123,17 @@ export default function TasteCardFace({
                 </div>
               )}
             </div>
-            <div className="display mt-1 text-[20px] leading-[1.05] text-paper">{data.archetype}</div>
+            {/* Centred, because the title is the one line on the card that is
+                a name rather than a field. Left-aligned it wrapped ragged
+                under a row already split to both edges; centred it reads as
+                the plate the rest of the card is pretending to be. */}
+            <div className="display mt-1 text-center text-[20px] leading-[1.05] text-paper">
+              {data.archetype}
+            </div>
           </div>
 
           {chips.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap justify-center gap-1.5">
               {/* Themes, with their share. Genre tags put Adventure and Action
                   on almost every card; a theme is what the library keeps
                   returning to, and it is the same reading the title, the stock
@@ -175,7 +181,7 @@ export default function TasteCardFace({
           )}
 
           {data.traitsHeldCount > 0 && (
-            <div className="mt-4 flex items-center gap-2.5 border-t border-seam pt-3">
+            <div className="mt-4 flex items-center justify-center gap-2.5 border-t border-seam pt-3">
               <span className="num text-[10px] text-gold">{data.traitsHeldCount} traits</span>
             </div>
           )}

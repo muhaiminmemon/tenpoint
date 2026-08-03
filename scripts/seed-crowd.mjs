@@ -96,12 +96,28 @@ async function seedCrowd() {
   if (!demo) throw new Error("No `demo` account to attach the crowd to.");
 
   const films = await sql`
-    select id, year, genres, original_language, vote_count
+    select id, year, genres, original_language, vote_count, embedding, imdb_rating, director
     from films
     where poster_path is not null and jsonb_typeof(genres) = 'array'
   `;
   if (films.length < 50) throw new Error("Too few films in the catalogue to build libraries from.");
-  console.log(`\n  ${films.length} films to draw from.\n`);
+  const embedded = films.filter((f) => Array.isArray(f.embedding) && f.embedding.length);
+  console.log(`\n  ${films.length} films to draw from, ${embedded.length} with a position on the map.\n`);
+  if (embedded.length < 50) {
+    throw new Error("Run scripts/backfill-embeddings.mjs first: without embeddings the crowd has no taste.");
+  }
+
+  /**
+   * A shared sense of which films are good, held to about a third of the
+   * strength of personal taste. People do agree with each other more than
+   * chance and less than a lot.
+   */
+  const qualityZ = (() => {
+    const vals = films.map((f) => f.imdb_rating).filter((v) => v != null);
+    const mu = vals.reduce((s, x) => s + x, 0) / Math.max(1, vals.length);
+    const sd = Math.sqrt(vals.reduce((s, x) => s + (x - mu) ** 2, 0) / Math.max(1, vals.length)) || 1;
+    return (f) => (f.imdb_rating == null ? 0 : (f.imdb_rating - mu) / sd);
+  })();
 
   const existing = new Set(
     (await sql`select username from users`).map((u) => u.username),
@@ -120,7 +136,62 @@ async function seedCrowd() {
     // A rating scale of their own: where the middle sits and how far they
     // stray from it. Hard markers and generous ones are both real.
     const centre = 55 + Math.floor(rnd() * 35);
-    const spread = 6 + Math.floor(rnd() * 22);
+    const spread = 6 + Math.floor(rnd() * 15);
+
+    /**
+     * What this person actually likes, as a point on the same map the
+     * catalogue lives on.
+     *
+     * Built by blending three real films rather than drawing 384 random
+     * numbers, because a random direction in embedding space is a place no
+     * film sits and every distance from it comes out the same. Three anchors
+     * put the persona on the manifold and let it be genuinely nearer some
+     * corners of the catalogue than others.
+     *
+     * This is the part the old seed was missing. Before, a leaning decided
+     * which films someone watched and then their ratings were noise around a
+     * centre, so no relationship existed between a film and what anybody
+     * thought of it. Any recommender scored on that data was being asked to
+     * predict a dice roll.
+     */
+    const anchors = [pick(embedded), pick(embedded), pick(embedded)];
+    const taste = new Array(anchors[0].embedding.length).fill(0);
+    for (const a of anchors) for (let k = 0; k < taste.length; k++) taste[k] += a.embedding[k];
+    const mag = Math.sqrt(taste.reduce((s, x) => s + x * x, 0)) || 1;
+    for (let k = 0; k < taste.length; k++) taste[k] /= mag;
+
+    const affinityOf = (f) => {
+      if (!Array.isArray(f.embedding) || !f.embedding.length) return 0;
+      let d = 0;
+      for (let k = 0; k < taste.length; k++) d += taste[k] * f.embedding[k];
+      return d;
+    };
+    // Standardised across the catalogue, so "how far above their usual this
+    // one sits" means the same thing for a picky persona and a broad one.
+    const affs = films.map(affinityOf);
+    const aMu = affs.reduce((s, x) => s + x, 0) / affs.length;
+    const aSd = Math.sqrt(affs.reduce((s, x) => s + (x - aMu) ** 2, 0) / affs.length) || 1;
+    const affinityZ = (f) => (affinityOf(f) - aMu) / aSd;
+
+    /** How much of their rating is taste, and how much is agreeing with everyone. */
+    const affGain = 4 + rnd() * 6;
+    const qualGain = 2 + rnd() * 3;
+
+    /**
+     * The two or three names they follow.
+     *
+     * Real diaries have them and a position on a similarity map does not
+     * capture them: a director's second film can sit nowhere near their first
+     * and still be watched for the same reason. Without this in the data a
+     * recommender's director signal is being scored against pure noise, which
+     * makes it look harmful whatever it is really worth.
+     */
+    const favouriteDirectors = new Set();
+    for (let k = 0; k < 2 + Math.floor(rnd() * 2); k++) {
+      const d = pick(films).director;
+      if (d) favouriteDirectors.add(d);
+    }
+    const dirGain = 3 + rnd() * 5;
     const oldLean = rnd();
     const subLean = rnd();
     const obscureLean = rnd();
@@ -152,6 +223,9 @@ async function seedCrowd() {
       if (f.year && f.year < 1990 && rnd() > oldLean * 0.85 + 0.1) continue;
       if (f.original_language && f.original_language !== "en" && rnd() > subLean * 0.85 + 0.1) continue;
       if ((f.vote_count ?? 0) >= 3000 && rnd() < obscureLean * 0.5) continue;
+      // People mostly watch what they expect to like, which is exactly what
+      // makes recommending hard: a diary is a biased sample of a catalogue.
+      if (affinityZ(f) < -0.5 && rnd() < 0.5) continue;
       chosen.set(f.id, f);
     }
 
@@ -160,7 +234,10 @@ async function seedCrowd() {
       // Triangular noise around their centre, so ratings cluster the way a
       // person's do rather than spreading flat across the scale.
       const noise = (rnd() + rnd() + rnd() - 1.5) * spread;
-      const rating = Math.max(10, Math.min(100, Math.round((centre + noise) / 10) * 10 + (rnd() < 0.45 ? 0 : range(-4, 4))));
+      const followed = f.director && favouriteDirectors.has(f.director) ? dirGain : 0;
+      const wanted = centre + affGain * affinityZ(f) + qualGain * qualityZ(f) + followed + noise;
+      // Half points, the way a ten point scale is actually used.
+      const rating = Math.max(10, Math.min(100, Math.round(wanted / 5) * 5));
       const daysAgo = range(1, 900);
       rows.push({
         id: randomUUID(),
