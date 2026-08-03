@@ -84,6 +84,25 @@ export default function LandingMarquee({ posters }: { posters: WallPoster[] }) {
                   Sign in
                 </Link>
               </div>
+
+              {/* The other door, and in practice the one that matters.
+                  Everything downstream of a diary is a function of how much of
+                  it there is: the tier, the class, the binder, whether the
+                  recommender has anybody to compare you to. Rating films one
+                  at a time gets there eventually; an export gets there before
+                  the page has finished loading. Almost every rating on the
+                  service so far arrived this way, and until now the only route
+                  to it was a settings page you had to already know about. */}
+              <p className="mt-5 text-[14px] leading-relaxed text-ash">
+                Already keep a diary on Letterboxd?{" "}
+                <Link
+                  href="/signup?next=/import"
+                  className="text-paper underline decoration-seam underline-offset-4 transition-colors hover:decoration-paper"
+                >
+                  Bring it with you
+                </Link>{" "}
+                and your card arrives fully formed, ratings and all.
+              </p>
             </div>
 
             <StartBadge />

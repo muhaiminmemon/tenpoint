@@ -22,6 +22,15 @@ import postgres from "postgres";
 import { pipeline, env } from "@xenova/transformers";
 
 env.allowLocalModels = false;
+/**
+ * Somewhere writable to keep the model weights.
+ *
+ * The library caches about 25MB on first use and re-downloads it on every cold
+ * container otherwise. A scheduled run on a host with a read-only project
+ * directory fails here, before a single film is embedded, which looks from the
+ * outside exactly like the job never ran.
+ */
+env.cacheDir = process.env.TRANSFORMERS_CACHE || "/tmp/transformers-cache";
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -32,6 +41,16 @@ const arg = (name, fallback) => {
 
 const LIMIT = arg("limit", 0) || 1_000_000;
 const ALL = process.argv.includes("--all");
+/**
+ * A wall-clock budget, so a scheduled run ends on its own terms.
+ *
+ * Production stalled at 512 of 574 films and stayed there for two nights: a
+ * clean stop on a batch boundary, which is what being killed looks like rather
+ * than what crashing looks like. Every film is written as it is embedded, so a
+ * killed run keeps its work either way, but stopping deliberately means the
+ * job reports what is left instead of dying mid-sentence and looking fine.
+ */
+const MINUTES = arg("minutes", 0) || 25;
 
 const { DATABASE_URL } = process.env;
 if (!DATABASE_URL) throw new Error("DATABASE_URL is not set.");
@@ -85,11 +104,17 @@ if (rows.length === 0) {
 console.log("  loading the model (first run downloads it)...\n");
 const embed = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
 
+const deadline = Date.now() + MINUTES * 60_000;
 let done = 0;
+let ranOut = false;
 // Batched because the round trip dominates: the model handles a handful at a
 // time far faster than one at a time, and the database likes fewer statements.
 const BATCH = 16;
 for (let i = 0; i < rows.length; i += BATCH) {
+  if (Date.now() > deadline) {
+    ranOut = true;
+    break;
+  }
   const batch = rows.slice(i, i + BATCH);
   const out = await embed(batch.map(describe), { pooling: "mean", normalize: true });
   const dim = out.dims[out.dims.length - 1];
@@ -109,6 +134,13 @@ for (let i = 0; i < rows.length; i += BATCH) {
 const [totals] = await sql`
   select count(*)::int total, count(embedding)::int with_embedding from films`;
 console.log(`\n\n  catalogue: ${totals.total} films`);
-console.log(`  with an embedding: ${totals.with_embedding}\n`);
+console.log(`  with an embedding: ${totals.with_embedding}`);
+const left = totals.total - totals.with_embedding;
+if (ranOut) {
+  console.log(`\n  stopped after ${MINUTES} minutes with ${left} still to do. Run again to continue.`);
+} else if (left > 0) {
+  console.log(`\n  ${left} films could not be embedded.`);
+}
+console.log();
 
 await sql.end();
