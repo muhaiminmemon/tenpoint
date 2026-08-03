@@ -13,6 +13,8 @@ import FilmStickyHeader from "@/components/FilmStickyHeader";
 import RewatchTimeline from "@/components/RewatchTimeline";
 import ReviewsSection from "@/components/ReviewsSection";
 import SimilarRail from "@/components/SimilarRail";
+import CastList from "@/components/CastList";
+import { personHref } from "@/lib/browse";
 import { similarTo } from "@/lib/similar";
 
 export async function generateMetadata(ctx: { params: Promise<{ slug: string }> }) {
@@ -94,6 +96,13 @@ export default async function FilmPage(ctx: {
     .filter(Boolean)
     .join(" · ");
 
+  // Split on the comma because a co-directed film stores both names in one
+  // field, and a single link covering two people goes to neither.
+  const directors = film.director?.split(", ").map((d) => d.trim()).filter(Boolean) ?? [];
+  const rest = [film.runtime ? `${film.runtime} min` : null, film.genres?.join(", ")].filter(
+    (x): x is string => Boolean(x),
+  );
+
   return (
     <div className="flex flex-col gap-8 md:flex-row">
       <FilmStickyHeader
@@ -117,12 +126,25 @@ export default async function FilmPage(ctx: {
           {film.title}{" "}
           {film.year && <span className="num text-xl font-normal text-ash">{film.year}</span>}
         </h1>
+        {/* The director is the same door as any face in the cast list, so it
+            opens the same way rather than sitting here as dead text. */}
         <p className="mt-1 text-sm text-ash">
-          {[film.director, film.runtime ? `${film.runtime} min` : null, film.genres?.join(", ")]
-            .filter(Boolean)
-            .join(" · ")}
+          {directors.map((name, i) => (
+            <span key={name}>
+              {i > 0 && ", "}
+              <Link href={personHref(name)} className="hover:text-paper hover:underline">
+                {name}
+              </Link>
+            </span>
+          ))}
+          {rest.map((part, i) => (
+            // The separator belongs to the part that follows it, so a film with
+            // no director does not open on a floating middot.
+            <span key={part}>{i === 0 && directors.length === 0 ? part : ` · ${part}`}</span>
+          ))}
         </p>
         {film.overview && <p className="mt-4 max-w-xl text-sm text-ash">{film.overview}</p>}
+        <CastList names={film.castNames ?? []} />
 
         <div className="mt-8 space-y-8">
           <CriticScores scores={scores} />

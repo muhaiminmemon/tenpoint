@@ -113,6 +113,18 @@ export type BrowseFilters = {
 /** Long enough for any real name or title, short enough to bound the URL. */
 export const MAX_QUERY = 80;
 
+/**
+ * A browse link for one person, forced to the person reading.
+ *
+ * Built here rather than in each caller because the `as=person` half is the
+ * point: left to guess, "Michael Caine" is a person and "Alien" is a title,
+ * and a cast link that lands on a title search for somebody named Rose is the
+ * kind of failure nobody reports and everybody notices.
+ */
+export function personHref(name: string): string {
+  return `/browse?q=${encodeURIComponent(name.slice(0, MAX_QUERY))}&as=person`;
+}
+
 export const DEFAULT_SORT: SortKey = "popular";
 
 export const EMPTY_FILTERS: BrowseFilters = {
