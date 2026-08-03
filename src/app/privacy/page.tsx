@@ -40,7 +40,7 @@ export default function PrivacyPage() {
             rating, review text, and whether you marked it a rewatch, a spoiler, or private.
           </li>
           <li>
-            <strong className="text-paper">Your lists</strong>: watchlist, favourites, custom and
+            <strong className="text-paper">Your lists</strong>: watchlist, custom and
             shared lists, and the manual ordering you drag things into.
           </li>
           <li>

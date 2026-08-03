@@ -11,6 +11,18 @@ export type QuickRateFilm = {
   posterPath: string | null;
 };
 
+/**
+ * How many the deck offers at once.
+ *
+ * Six, which is one full row on a wide screen and two on a phone, and it is
+ * the same count and the same grid the "more like this" rail uses. Ten in a
+ * horizontal scroller looked like more choice and was worse: the row ran off
+ * the edge into a scrollbar, the last two titles were cut through the middle,
+ * and nothing said there was anything past them. Shuffle is the way to see
+ * others, which is what it was already there for.
+ */
+const SHOWN = 6;
+
 function sample(pool: QuickRateFilm[], n: number): QuickRateFilm[] {
   const copy = [...pool];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -24,7 +36,7 @@ function sample(pool: QuickRateFilm[], n: number): QuickRateFilm[] {
 export default function QuickRateDeck({ pool }: { pool: QuickRateFilm[] }) {
   // deterministic on first render (server and client must match); shuffling
   // afterward is a plain client interaction, so Math.random() there is safe
-  const [shown, setShown] = useState(() => pool.slice(0, 10));
+  const [shown, setShown] = useState(() => pool.slice(0, SHOWN));
 
   if (pool.length === 0) return null;
 
@@ -36,17 +48,17 @@ export default function QuickRateDeck({ pool }: { pool: QuickRateFilm[] }) {
         </h2>
         <button
           type="button"
-          onClick={() => setShown(sample(pool, 10))}
+          onClick={() => setShown(sample(pool, SHOWN))}
           className="text-sm text-beam hover:underline"
         >
           Shuffle
         </button>
       </div>
-      <ul className="flex gap-3 overflow-x-auto pb-1">
+      <ul className="grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 lg:grid-cols-6">
         {shown.map((f) => {
           const poster = posterUrl(f.posterPath, "w154");
           return (
-            <li key={f.tmdbId} className="w-24 shrink-0">
+            <li key={f.tmdbId} className="min-w-0">
               <Link href={`/film/t/${f.tmdbId}`} className="block">
                 {poster ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -61,7 +73,11 @@ export default function QuickRateDeck({ pool }: { pool: QuickRateFilm[] }) {
                     {f.title}
                   </span>
                 )}
-                <span className="mt-1.5 line-clamp-2 block text-[12px] text-paper">{f.title}</span>
+                {/* Two lines always, so a row of titles ends level instead of
+                    one wrapping and the next not. */}
+                <span className="mt-1.5 line-clamp-2 block min-h-[2.4em] text-[12px] leading-snug text-paper">
+                  {f.title}
+                </span>
               </Link>
             </li>
           );

@@ -71,8 +71,6 @@ export type TasteSignals = {
   totalRuntimeMinutes: number;
   /** rated films that have at least one genre tag on file — the real denominator for genre share */
   genreTaggedCount: number;
-  /** rated films also marked a favourite — a deliberate-curation signal, not a time-in-app one */
-  favouriteCount: number;
 
   /**
    * The bands the personality profile is built from.
@@ -267,7 +265,6 @@ export async function getTasteSignals(
       (select count(*) from cur_f where reach is not null)::int as vote_known_count,
       coalesce((select sum(runtime)::int from cur_f where runtime is not null), 0) as total_runtime_minutes,
       (select count(*) from cur_f where genres is not null and jsonb_array_length(genres) > 0)::int as genre_tagged_count,
-      (select count(*) from cur_f cf join favourites fav on fav.film_id = cf.film_id and fav.user_id = ${userId})::int as favourite_count,
 
       -- rating bands: every rated film lands in exactly one
       (select count(*) from cur where rating >= 85)::int as rate_loved,
@@ -356,7 +353,6 @@ export async function getTasteSignals(
     voteKnownCount: (r.vote_known_count as number) ?? 0,
     totalRuntimeMinutes: (r.total_runtime_minutes as number) ?? 0,
     genreTaggedCount: (r.genre_tagged_count as number) ?? 0,
-    favouriteCount: (r.favourite_count as number) ?? 0,
     ratingBands: band(r, "rate_loved", "rate_liked", "rate_fair", "rate_harsh"),
     eraBands: band(r, "era_classic", "era_seventies", "era_nineties", "era_recent"),
     runtimeBands: band(r, "run_short", "run_standard", "run_long", "run_epic"),

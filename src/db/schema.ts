@@ -271,25 +271,6 @@ export const watchlist = pgTable(
   (t) => [uniqueIndex("watchlist_user_film_uq").on(t.userId, t.filmId)],
 );
 
-/**
- * A favourite is a separate signal from a rating: a 7.2 you'd rewatch tonight
- * belongs here, a technically-perfect 9.1 you never revisit does not.
- */
-export const favourites = pgTable(
-  "favourites",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    filmId: uuid("film_id")
-      .notNull()
-      .references(() => films.id),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [uniqueIndex("favourites_user_film_uq").on(t.userId, t.filmId)],
-);
-
 /** Mutual friendship, one row per pair; ids stored low/high so the pair is unique. */
 export const friendships = pgTable(
   "friendships",

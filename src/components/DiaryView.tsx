@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useUrlNumber, useUrlState } from "@/lib/useUrlState";
 import Link from "next/link";
+import { CaretDown, CaretLeft, CaretRight } from "@phosphor-icons/react/ssr";
 import { accentFor, formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import Sheet from "./Sheet";
@@ -27,6 +28,7 @@ const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
 
 const DIARY_VIEWS = ["calendar", "timeline"] as const;
 
@@ -65,6 +67,20 @@ export default function DiaryView({ rows }: { rows: DiaryRow[] }) {
   // nearest real month instead of an empty grid.
   const [monthIndex, setMonthIndex] = useUrlNumber("m", 0, Math.max(0, months.length - 1));
   const active = months[Math.min(monthIndex, months.length - 1)] ?? null;
+
+  /** Open state for the month jump. Closing on a pick is what makes it feel like a step rather than a mode. */
+  const [jumping, setJumping] = useState(false);
+
+  /** How many viewings each month holds, so the jump can show where the diary actually is. */
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of filtered) {
+      if (!r.watchedOn) continue;
+      const k = monthKey(r.watchedOn);
+      map.set(k, (map.get(k) ?? 0) + 1);
+    }
+    return map;
+  }, [filtered]);
 
   const inMonth = useMemo(
     () => (active ? filtered.filter((r) => r.watchedOn && monthKey(r.watchedOn) === active) : []),
@@ -120,26 +136,49 @@ export default function DiaryView({ rows }: { rows: DiaryRow[] }) {
       <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-b border-seam p-4">
         {view === "calendar" && active ? (
           <>
-            <h2 className="display text-[22px] text-paper">{monthLabel(active)}</h2>
-            <div className="flex gap-1">
+            {/* The month name is the control. Stepping one month at a time is
+                fine for last month and useless for 2014, and the heading was
+                already the thing people aimed at.
+
+                Unless there is only one month, which is most diaries here: a
+                picker offering the month somebody is already looking at is a
+                control that does nothing, so the heading stays a heading. */}
+            {months.length > 1 ? (
               <button
                 type="button"
-                onClick={() => setMonthIndex(Math.min(months.length - 1, monthIndex + 1))}
+                onClick={() => setJumping((j) => !j)}
+                aria-expanded={jumping}
+                className="group flex items-center gap-1.5 rounded-card text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-beam-edge"
+              >
+                <h2 className="display text-[22px] text-paper">{monthLabel(active)}</h2>
+                <CaretDown
+                  aria-hidden
+                  weight="bold"
+                  className={`size-3.5 text-ash transition-transform duration-200 group-hover:text-paper ${jumping ? "rotate-180" : ""}`}
+                />
+              </button>
+            ) : (
+              <h2 className="display text-[22px] text-paper">{monthLabel(active)}</h2>
+            )}
+            <div className={`flex gap-1 ${months.length > 1 ? "" : "hidden"}`}>
+              <StepButton
+                dir="prev"
+                label="Older month"
                 disabled={monthIndex >= months.length - 1}
-                aria-label="Older month"
-                className="rounded-card border border-seam px-2 py-1 text-xs text-ash hover:text-paper disabled:opacity-40"
-              >
-                ←
-              </button>
-              <button
-                type="button"
-                onClick={() => setMonthIndex(Math.max(0, monthIndex - 1))}
+                onClick={() => {
+                  setJumping(false);
+                  setMonthIndex(Math.min(months.length - 1, monthIndex + 1));
+                }}
+              />
+              <StepButton
+                dir="next"
+                label="Newer month"
                 disabled={monthIndex <= 0}
-                aria-label="Newer month"
-                className="rounded-card border border-seam px-2 py-1 text-xs text-ash hover:text-paper disabled:opacity-40"
-              >
-                →
-              </button>
+                onClick={() => {
+                  setJumping(false);
+                  setMonthIndex(Math.max(0, monthIndex - 1));
+                }}
+              />
             </div>
           </>
         ) : (
@@ -151,17 +190,22 @@ export default function DiaryView({ rows }: { rows: DiaryRow[] }) {
         <div className="ml-auto w-full sm:w-auto">{search}</div>
       </div>
 
-      {view === "calendar" && active && (
-        <div className="grid grid-cols-2 border-b border-seam sm:grid-cols-4">
-          <PaceStat label="Watched" value={String(pace.watched)} unit="films" />
-          <PaceStat
-            label="Avg rating"
-            value={pace.mean !== null ? formatTenths(pace.mean) : "0.0"}
-          />
-          <PaceStat label="Rewatches" value={String(pace.rewatches)} />
-          <PaceStat label="Hours" value={pace.hours ?? "0"} last />
-        </div>
-      )}
+      {/* Eased rather than toggled. Switching to the timeline removes sixty
+          pixels of stats, and dropping them on the same frame made the card
+          lurch before the grid below it had started moving. */}
+      <AutoHeight>
+        {view === "calendar" && active ? (
+          <div className="grid grid-cols-2 border-b border-seam sm:grid-cols-4">
+            <PaceStat label="Watched" value={String(pace.watched)} unit="films" />
+            <PaceStat
+              label="Avg rating"
+              value={pace.mean !== null ? formatTenths(pace.mean) : "0.0"}
+            />
+            <PaceStat label="Rewatches" value={String(pace.rewatches)} />
+            <PaceStat label="Hours" value={pace.hours ?? "0"} last />
+          </div>
+        ) : null}
+      </AutoHeight>
 
       {/* A month is a fixed-size thing, and months differ by a whole row, so
           the grid is worth easing between: paging back through the year should
@@ -173,7 +217,17 @@ export default function DiaryView({ rows }: { rows: DiaryRow[] }) {
             {query ? "Nothing matches that." : "Nothing logged yet."}
           </p>
         ) : view === "calendar" ? (
-          active ? (
+          jumping && active ? (
+            <MonthJump
+              months={months}
+              counts={counts}
+              active={active}
+              onPick={(key) => {
+                setMonthIndex(months.indexOf(key));
+                setJumping(false);
+              }}
+            />
+          ) : active ? (
             <CalendarGrid key={active} monthKey={active} rows={inMonth} />
           ) : (
             <p className="py-8 text-sm text-ash">No dated viewings to show.</p>
@@ -183,6 +237,143 @@ export default function DiaryView({ rows }: { rows: DiaryRow[] }) {
         )}
       </AutoHeight>
     </div>
+  );
+}
+
+/**
+ * Reaching any month in two taps, at a height that never changes.
+ *
+ * The first attempt at this printed every year as a heading and every month as
+ * a full-width tile underneath, which produced a panel taller than the screen,
+ * pushed the calendar out of view, and left the years as labels somebody could
+ * read but not press. The fix is not smaller tiles. It is that a year is a
+ * control: pick the year, then pick the month, and the panel is the same two
+ * rows whether the diary covers one year or fifteen.
+ *
+ * Only months that hold something can be pressed. A generic date picker would
+ * happily send somebody to March 2019 and show them an empty grid, which is a
+ * worse answer than not letting them ask. Empty months keep their slot anyway,
+ * because reading Jan through Dec in place is the whole affordance, and a grid
+ * that closes the gaps stops being a year.
+ */
+function MonthJump({
+  months,
+  counts,
+  active,
+  onPick,
+}: {
+  months: string[];
+  counts: Map<string, number>;
+  active: string;
+  onPick: (key: string) => void;
+}) {
+  // Newest first, matching the direction the month arrows already walk.
+  const years = useMemo(
+    () => [...new Set(months.map((k) => k.slice(0, 4)))].sort().reverse(),
+    [months],
+  );
+  const [year, setYear] = useState(active.slice(0, 4));
+  // A diary that gains a year while the panel is open should not strand the
+  // selection on a year that is no longer in the filtered set.
+  const shownYear = years.includes(year) ? year : (years[0] ?? active.slice(0, 4));
+
+  return (
+    // Capped, because this is a control rather than a layout: left to fill a
+    // wide card, a slot holding three letters stretches past two hundred
+    // pixels and the panel reads as a table of contents. Centred, because a
+    // capped block pinned to the left of a card this wide leaves the right
+    // half looking like something failed to load.
+    <div className="fade-up mx-auto max-w-[34rem]">
+      {years.length > 1 && (
+        // Wrapped, not scrolled. A row of years that runs off the edge hides
+        // the oldest ones behind an overlay scrollbar macOS does not draw
+        // until you touch it, and opening on a month from 2017 would scroll
+        // the selected year out of sight entirely. Ten years is two rows here
+        // and nothing is hidden.
+        <div role="group" aria-label="Year" className="flex flex-wrap gap-1 pb-3">
+          {years.map((y) => (
+            <button
+              key={y}
+              type="button"
+              aria-pressed={y === shownYear}
+              onClick={() => setYear(y)}
+              className={`num flex min-h-9 shrink-0 items-center rounded-card px-3 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-beam-edge ${
+                y === shownYear ? "bg-tray-2 text-paper" : "text-ash hover:text-paper"
+              }`}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-6 gap-1">
+        {MONTHS_SHORT.map((label, i) => {
+          const key = `${shownYear}-${String(i + 1).padStart(2, "0")}`;
+          const count = counts.get(key) ?? 0;
+          const isActive = key === active;
+          if (count === 0) {
+            // Present, so the year still reads left to right, and outlined
+            // faintly enough that twelve slots read as a year rather than as
+            // four boxes with holes between them. Nothing to press, nothing to
+            // focus, and no number to imply there is something there.
+            return (
+              <span
+                key={key}
+                aria-hidden
+                className="flex h-12 items-center justify-center rounded-card border border-seam/40 text-[12px] text-dim/50"
+              >
+                {label}
+              </span>
+            );
+          }
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-current={isActive ? "true" : undefined}
+              aria-label={`${MONTHS[i]} ${shownYear}, ${count} ${count === 1 ? "viewing" : "viewings"}`}
+              onClick={() => onPick(key)}
+              className={`flex h-12 flex-col items-center justify-center gap-px rounded-card border text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-beam-edge ${
+                isActive
+                  ? "border-transparent bg-paper font-medium text-carbon"
+                  : "border-seam text-paper hover:border-dim hover:bg-tray"
+              }`}
+            >
+              {label}
+              <span className={`num text-[10px] ${isActive ? "text-carbon/55" : "text-ash"}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StepButton({
+  dir,
+  label,
+  onClick,
+  disabled,
+}: {
+  dir: "prev" | "next";
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  const Icon = dir === "prev" ? CaretLeft : CaretRight;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="flex size-8 items-center justify-center rounded-card border border-seam text-ash transition-colors hover:border-dim hover:text-paper focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-beam-edge disabled:pointer-events-none disabled:opacity-40"
+    >
+      <Icon aria-hidden weight="bold" className="size-3" />
+    </button>
   );
 }
 

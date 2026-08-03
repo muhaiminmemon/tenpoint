@@ -45,7 +45,18 @@ export default function AutoHeight({
     const el = inner.current;
     if (!el) return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setHeight(entry.contentRect.height);
+      if (!entry) return;
+      /*
+       * The border box, not the content box. `contentRect` reports the content
+       * height with padding subtracted, and padding is deliberately on this
+       * element rather than the wrapper, so writing that number onto a wrapper
+       * that then renders the padding too clipped every consumer by exactly
+       * its own vertical padding. It went unnoticed for as long as the last
+       * thing in each panel had slack under it, and showed up the moment
+       * something ended on a hard edge.
+       */
+      const box = entry.borderBoxSize?.[0];
+      setHeight(box ? box.blockSize : el.offsetHeight);
     });
     observer.observe(el);
     return () => observer.disconnect();

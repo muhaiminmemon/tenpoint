@@ -65,12 +65,11 @@ const SORT_LABELS: Record<SortMode, string> = {
 };
 
 /** One-tap slices of the collection, in place of a stack of dropdowns. */
-type SavedView = "all" | "great" | "favourites" | "thisYear" | "rewatched" | "unrated";
+type SavedView = "all" | "great" | "thisYear" | "rewatched" | "unrated";
 
 const SAVED_VIEWS: { key: SavedView; label: string }[] = [
   { key: "all", label: "Everything" },
   { key: "great", label: "8.0+" },
-  { key: "favourites", label: "Favourites" },
   { key: "thisYear", label: "This year" },
   { key: "rewatched", label: "Rewatched" },
   { key: "unrated", label: "No rating" },
@@ -119,7 +118,6 @@ export default function LibraryView({ films, editable }: Props) {
     }
     const thisYear = String(new Date().getFullYear());
     if (saved === "great") out = out.filter((x) => x.rating !== null && x.rating >= 80);
-    if (saved === "favourites") out = out.filter((x) => x.favourite);
     if (saved === "thisYear") out = out.filter((x) => x.lastWatched?.startsWith(thisYear));
     if (saved === "rewatched") out = out.filter((x) => x.rewatched);
     if (saved === "unrated") out = out.filter((x) => x.rating === null);
@@ -150,28 +148,11 @@ export default function LibraryView({ films, editable }: Props) {
   // manual tie-reorder only makes sense in the default ranking with nothing hidden
   const dragEnabled = editable && sort === "rating" && !filter && saved === "all";
 
-  /** Optimistic favourite toggle; the server call follows. */
-  async function toggleFavourite(filmId: string, next: boolean) {
-    setItems((list) =>
-      list.map((f) => (f.filmId === filmId ? { ...f, favourite: next } : f)),
-    );
-    await fetch("/api/favourites", {
-      method: next ? "POST" : "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filmId }),
-    }).catch(() => {
-      setItems((list) =>
-        list.map((f) => (f.filmId === filmId ? { ...f, favourite: !next } : f)),
-      );
-    });
-  }
-
   const counts = useMemo(() => {
     const thisYear = String(new Date().getFullYear());
     return {
       all: items.length,
       great: items.filter((x) => x.rating !== null && x.rating >= 80).length,
-      favourites: items.filter((x) => x.favourite).length,
       thisYear: items.filter((x) => x.lastWatched?.startsWith(thisYear)).length,
       rewatched: items.filter((x) => x.rewatched).length,
       unrated: items.filter((x) => x.rating === null).length,
@@ -256,11 +237,7 @@ export default function LibraryView({ films, editable }: Props) {
       </div>
 
       {visible.length === 0 ? (
-        <p className="py-8 text-sm text-ash">
-          {saved === "favourites"
-            ? "No favourites yet. Tap the star on a poster to mark one."
-            : "No films match those filters."}
-        </p>
+        <p className="py-8 text-sm text-ash">No films match those filters.</p>
       ) : (
         // Keyed so switching between the shelf and the ledger plays an
         // entrance. The height is deliberately not eased: these lists run to
@@ -275,7 +252,7 @@ export default function LibraryView({ films, editable }: Props) {
               <FlatLedger films={shown} showRank={sort === "rating"} />
             )
           ) : (
-            <Shelf films={shown} editable={editable} onToggleFavourite={toggleFavourite} />
+            <Shelf films={shown} />
           )}
           </MatchQuery.Provider>
         </div>
@@ -454,11 +431,6 @@ function LedgerRow({
       <span className="min-w-0 flex-1">
         <Link href={`/film/${film.slug}`} className="block truncate text-paper hover:underline">
           {film.title}
-          {film.favourite && (
-            <span className="ml-1.5 text-gold" title="Favourite" aria-label="Favourite">
-              ★
-            </span>
-          )}
         </Link>
         <span className="block truncate text-xs text-ash">
           {[film.year, billed ? `with ${billed}` : film.director].filter(Boolean).join(" · ")}
@@ -483,38 +455,17 @@ function LedgerRow({
   );
 }
 
-function Shelf({
-  films,
-  editable,
-  onToggleFavourite,
-}: {
-  films: LibraryFilm[];
-  editable: boolean;
-  onToggleFavourite: (filmId: string, next: boolean) => void;
-}) {
+function Shelf({ films }: { films: LibraryFilm[] }) {
   return (
     <ul className="fade-up grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
       {films.map((film) => (
-        <ShelfTile
-          key={film.filmId}
-          film={film}
-          editable={editable}
-          onToggleFavourite={onToggleFavourite}
-        />
+        <ShelfTile key={film.filmId} film={film} />
       ))}
     </ul>
   );
 }
 
-function ShelfTile({
-  film,
-  editable,
-  onToggleFavourite,
-}: {
-  film: LibraryFilm;
-  editable: boolean;
-  onToggleFavourite: (filmId: string, next: boolean) => void;
-}) {
+function ShelfTile({ film }: { film: LibraryFilm }) {
   const poster = posterUrl(film.posterPath, "w342");
   const billed = useBilledMatch(film);
   return (
@@ -543,26 +494,6 @@ function ShelfTile({
                 <span className="mt-0.5 block truncate text-[11px] text-dim">with {billed}</span>
               )}
             </Link>
-            {editable && (
-              <button
-                type="button"
-                onClick={() => onToggleFavourite(film.filmId, !film.favourite)}
-                aria-pressed={film.favourite}
-                aria-label={
-                  film.favourite
-                    ? `Remove ${film.title} from favourites`
-                    : `Mark ${film.title} as a favourite`
-                }
-                // always visible once set, otherwise revealed on hover/focus
-                className={`absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-[rgba(8,8,10,.7)] text-sm backdrop-blur transition-opacity ${
-                  film.favourite
-                    ? "text-gold opacity-100"
-                    : "text-paper opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
-                }`}
-              >
-                {film.favourite ? "★" : "☆"}
-              </button>
-            )}
           </li>
   );
 }

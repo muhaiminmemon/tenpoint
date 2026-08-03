@@ -278,7 +278,7 @@ export function TasteCardBackBig({
 
       {data.favsCard.length > 0 && (
         <div>
-          <SectionLabel>Favourites</SectionLabel>
+          <SectionLabel>Most watched</SectionLabel>
           <div className="flex flex-col gap-1">
             {data.favsCard.map((f) => (
               <div key={f.label} className="flex items-baseline justify-between border-b border-[#1a1a20] pb-1">
