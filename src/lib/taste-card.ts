@@ -17,6 +17,16 @@ export type RarityTier = {
   range: string;
   effect: string;
   border: string;
+  /**
+   * The same rim, drawn without a conic gradient.
+   *
+   * The shared image is rendered by Satori, which cannot parse `conic-gradient`
+   * at all: it throws while parsing the declaration, both attempts to draw fail,
+   * and the endpoint answers 500. That silently broke the share card for every
+   * account on the top two tiers, which are the accounts most likely to want
+   * one. Present only where the screen rim is conic.
+   */
+  borderFlat?: string;
   glow: string;
   labelColor: string;
   swatch: string;
@@ -85,6 +95,7 @@ export const RARITY_TIERS: RarityTier[] = [
     range: "300–499",
     effect: "Gold foil, warm glow.",
     border: "conic-gradient(from 210deg,#4a3f24,#d9b25f,#3a3a44,#d9b25f,#4a3f24)",
+    borderFlat: "linear-gradient(130deg,#4a3f24,#d9b25f 28%,#3a3a44 52%,#d9b25f 76%,#4a3f24)",
     glow: "0 0 26px rgba(217,178,95,.25)",
     labelColor: "#d9b25f",
     swatch: "linear-gradient(120deg,#3a2f16,#d9b25f)",
@@ -98,6 +109,7 @@ export const RARITY_TIERS: RarityTier[] = [
     range: "500+ films",
     effect: "Full foil, drifting light, particles.",
     border: "conic-gradient(from 0deg,#8faecc,#d9b25f,#c4756a,#8faecc)",
+    borderFlat: "linear-gradient(130deg,#8faecc,#d9b25f 34%,#c4756a 66%,#8faecc)",
     glow: "0 0 34px rgba(143,174,204,.28)",
     labelColor: "#eceae6",
     swatch: "conic-gradient(from 0deg,#8faecc,#d9b25f,#c4756a,#8faecc)",

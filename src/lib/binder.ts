@@ -104,8 +104,19 @@ export async function loadBinder(
   user: { id: string },
   { thirdPerson = false }: { thirdPerson?: boolean } = {},
 ): Promise<Binder> {
-  const taste = await getTasteProfile(user.id, { includePrivate: true });
-  const signals = await getTasteSignals(user.id, { includePrivate: true });
+  /**
+   * A viewing marked "only me" stays only theirs, here too.
+   *
+   * This read private entries unconditionally, which meant a friend looking at
+   * somebody's binder was shown signature films, personality shares, themes and
+   * traits computed from viewings that person had deliberately hidden — and the
+   * signature panel names those films outright. It also produced the symptom
+   * that surfaced it: the card respects the flag and the binder did not, so the
+   * two disagreed about the same person's own quartet.
+   */
+  const includePrivate = !thirdPerson;
+  const taste = await getTasteProfile(user.id, { includePrivate });
+  const signals = await getTasteSignals(user.id, { includePrivate });
 
   const hasCard = taste.rated > 0;
   const tier = hasCard ? computeTier(taste.rated, signals) : null;
@@ -170,7 +181,7 @@ export async function loadBinder(
     themes: themeReadings(signals, 6),
     signature: (
       await pickSignatureFilms(user.id, signals, archetype?.themeKey ?? null, {
-        includePrivate: true,
+        includePrivate,
       })
     ).map((f) => (thirdPerson ? { ...f, reason: inThirdPerson(f.reason) } : f)),
     yoursVariant,

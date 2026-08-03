@@ -136,7 +136,11 @@ export async function GET(
     // One poster that will not load should cost the posters, not the card.
     try {
       png = await draw(false);
-    } catch {
+    } catch (e) {
+      // Surfaced rather than swallowed: a card that will not draw at all is a
+      // bug in the composition, and "could not draw this card" told nobody
+      // which one or why.
+      console.error(`share card failed for ${profile.username}:`, e);
       return new Response("Could not draw this card", { status: 500 });
     }
   }
@@ -229,7 +233,7 @@ function Poster({
           width: cardW,
           display: "flex",
           padding: px(3),
-          background: tier.border,
+          background: tier.borderFlat ?? tier.border,
           position: "relative",
         }}
       >
@@ -337,6 +341,7 @@ function Poster({
               ))}
             </div>
           )}
+
 
           {withImages && data.signatureFilms.length > 0 && (
             <div style={{ display: "flex", gap: px(12), marginTop: px(30) }}>
