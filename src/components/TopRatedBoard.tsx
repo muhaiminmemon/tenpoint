@@ -3,14 +3,22 @@ import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import type { TopRatedFilm } from "@/lib/leaderboard";
 
-/** The community leaderboard: highest-rated films across everyone here. */
+/**
+ * The community leaderboard.
+ *
+ * The count under each score is not decoration: the order is weighted by it,
+ * so the board reads wrong without knowing that. A 9.5 from two people sitting
+ * under an 8.7 from nine looks like a bug unless the rule is stated, and the
+ * one place to state it is here, above the list it governs.
+ */
 export default function TopRatedBoard({ films }: { films: TopRatedFilm[] }) {
   return (
     <div className="overflow-hidden rounded-xl border border-seam bg-carbon">
       <div className="border-b border-seam p-4">
         <h2 className="display text-[19px] text-paper">Top rated on Tenpoint</h2>
         <p className="mt-0.5 text-sm text-ash">
-          The highest-rated films across everyone here, not just you.
+          The highest-rated films across everyone here, not just you. A score counts for more
+          the more people stand behind it, so a 9.5 from two can sit below an 8.7 from nine.
         </p>
       </div>
 
