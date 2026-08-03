@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CaretDown } from "@phosphor-icons/react/ssr";
 import Sheet from "./Sheet";
 import RatingGrid from "./RatingGrid";
 import PosterImg from "./PosterImg";
@@ -166,7 +167,13 @@ export default function LogSheet({
           <span className="text-[13px] text-paper">
             {review.trim() ? "Review" : "Write a review"}
           </span>
-          <span className="text-xs text-beam">{reviewOpen ? "Collapse ↑" : "Expand ↓"}</span>
+          <span className="flex items-center gap-1.5 text-xs text-beam">
+            {reviewOpen ? "Collapse" : "Expand"}
+            <CaretDown
+              aria-hidden
+              className={`size-3 transition-transform ${reviewOpen ? "rotate-180" : ""}`}
+            />
+          </span>
         </button>
         {reviewOpen && (
           <div className="px-3 pb-3">

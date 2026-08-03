@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CaretDown } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LogSheet, { type LogPayload } from "./LogSheet";
@@ -261,7 +262,11 @@ export default function FilmPanel({
               aria-expanded={addOpen}
               className="rounded-card border border-beam-edge bg-[#161d24] px-3.5 py-2.5 text-sm text-beam hover:bg-[#1a232c]"
             >
-              Add to list {addOpen ? "↑" : "↓"}
+              Add to list
+              <CaretDown
+                aria-hidden
+                className={`ml-1.5 inline-block size-3 align-[-1px] transition-transform ${addOpen ? "rotate-180" : ""}`}
+              />
             </button>
             {addOpen && (
               <div className="absolute left-0 top-full z-20 mt-2 w-[300px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-seam bg-lift shadow-[0_16px_44px_rgba(0,0,0,.5)]">

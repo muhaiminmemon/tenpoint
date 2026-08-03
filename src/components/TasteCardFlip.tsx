@@ -9,8 +9,8 @@ import { stockDef } from "@/lib/taste-card";
 
 /**
  * The full-detail card, front and back, as a real 3D flip — used inside the
- * expanded popup. `flipped`/`onFlip` are controlled so the dialog's "Flip ⇄"
- * button and clicking the card itself stay in sync.
+ * expanded popup. `flipped`/`onFlip` are controlled so the dialog's flip button
+ * and clicking the card itself stay in sync.
  *
  * Front and back are stacked in the same CSS grid cell rather than pinned to
  * a fixed aspect-ratio box: whichever face has more content (traits held,

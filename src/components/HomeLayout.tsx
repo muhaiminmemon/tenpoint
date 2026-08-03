@@ -48,11 +48,12 @@ export default function HomeLayout({
 
   return (
     <div className="py-6">
-      <p className="display mb-3 text-[13px] uppercase tracking-[0.14em] text-beam">
-        Welcome, {name}
-      </p>
+      {/* The greeting used to sit above this as a small-caps kicker, which is
+          the one page pattern the floor bans outright. It is not lost: a name
+          belongs in the sentence addressed to that person, not in a label
+          introducing it. */}
       <h1 className="display text-[32px] font-medium leading-[1.05] text-paper sm:text-[38px]">
-        {isNew ? "Let's put the first film on the shelf." : "Add another to the shelf."}
+        {isNew ? `Let's put the first film on the shelf, ${name}.` : `Add another to the shelf, ${name}.`}
       </h1>
       <p className="mt-3 max-w-lg text-base leading-relaxed text-ash">
         {isNew
@@ -83,8 +84,7 @@ export default function HomeLayout({
       ) : (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <div className="rounded-xl border border-seam bg-carbon p-5">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-ash">Coming from elsewhere?</p>
-            <h2 className="display mt-2 text-xl text-paper">Bring your existing diary</h2>
+            <h2 className="display text-xl text-paper">Bring your existing diary</h2>
             <p className="mt-2 text-sm leading-relaxed text-ash">
               Upload the CSV, preview every row, undo anytime. Nothing is written until you confirm.
             </p>

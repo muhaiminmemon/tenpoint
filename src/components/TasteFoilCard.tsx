@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ArrowRight } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useToast } from "./Toast";
 import TasteCardDialog from "./TasteCardDialog";
@@ -122,7 +123,10 @@ export default function TasteFoilCard({
           }}
           className="flex-1 rounded-card border border-seam bg-tray py-2.5 text-[13px] text-ash hover:text-paper"
         >
-          View card →
+          <span className="flex items-center justify-center gap-1.5">
+            View card
+            <ArrowRight aria-hidden className="size-3.5" />
+          </span>
         </button>
       </div>
 

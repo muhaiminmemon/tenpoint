@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useUrlNumber, useUrlState } from "@/lib/useUrlState";
 import Link from "next/link";
-import { CaretDown, CaretLeft, CaretRight } from "@phosphor-icons/react/ssr";
+import { ArrowCounterClockwise, CaretDown, CaretLeft, CaretRight } from "@phosphor-icons/react/ssr";
 import { accentFor, formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import Sheet from "./Sheet";
@@ -491,7 +491,12 @@ function CalendarGrid({ monthKey: key, rows }: { monthKey: string; rows: DiaryRo
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                       <span className="truncate text-sm text-paper">{f.title}</span>
-                      {f.rewatch && <span className="text-[10px] text-beam">↺ rewatch</span>}
+                      {f.rewatch && (
+                        <span className="flex items-center gap-1 text-[10px] text-beam">
+                          <ArrowCounterClockwise aria-hidden className="size-2.5" />
+                          rewatch
+                        </span>
+                      )}
                     </span>
                     <span className="num block text-[11px] text-ash">{f.year ?? ""}</span>
                   </span>
@@ -614,9 +619,9 @@ function DayCell({ day, films }: { day: number; films: DiaryRow[] }) {
       {films.some((f) => f.rewatch) && (
         <span
           aria-hidden
-          className="absolute right-1 top-0.5 text-[9px] text-beam sm:right-1.5 sm:top-1"
+          className="absolute right-1 top-0.5 text-beam sm:right-1.5 sm:top-1"
         >
-          ↺
+          <ArrowCounterClockwise className="size-2 sm:size-2.5" />
         </span>
       )}
 
@@ -694,7 +699,12 @@ function Timeline({ rows }: { rows: DiaryRow[] }) {
                       >
                         {r.title}
                       </Link>
-                      {r.rewatch && <span className="text-[10px] text-beam">↺ rewatch</span>}
+                      {r.rewatch && (
+                        <span className="flex items-center gap-1 text-[10px] text-beam">
+                          <ArrowCounterClockwise aria-hidden className="size-2.5" />
+                          rewatch
+                        </span>
+                      )}
                       {r.private && <span className="text-[10px] text-dim">only me</span>}
                     </div>
                     {r.rating !== null && (

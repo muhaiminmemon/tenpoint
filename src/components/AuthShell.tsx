@@ -19,11 +19,11 @@ export default function AuthShell({ mode, posters, children }: Props) {
     <div className="mx-auto max-w-3xl py-6">
       <div className="grid overflow-hidden rounded-xl border border-seam bg-carbon md:grid-cols-2">
         <aside className="relative hidden overflow-hidden border-r border-seam bg-[#0f0f12] p-8 md:block">
-          <p className="display mb-3 text-[13px] uppercase tracking-[0.14em] text-beam">
-            {APP_POSITIONING}
-          </p>
+          {/* No kicker over the heading. The positioning line says the same
+              thing the heading does and saying it twice, once in small caps,
+              makes the heading look like it needed an introduction. */}
           <h2 className="display text-[30px] font-medium leading-[1.05] text-paper">
-            Your film cabinet, kept honest.
+            {APP_POSITIONING} Your film cabinet, kept honest.
           </h2>
           <p className="mt-3.5 max-w-[280px] text-sm text-ash">
             Ratings in tenths, rewatch history that never lies, and taste you can compare with a

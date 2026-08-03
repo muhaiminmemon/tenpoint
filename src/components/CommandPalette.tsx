@@ -204,9 +204,7 @@ export default function CommandPalette() {
             <div aria-hidden className="mx-auto mt-2.5 h-1 w-9 rounded-full bg-seam sm:hidden" />
 
             <div className="flex items-center gap-2.5 border-b border-seam px-4 py-3.5">
-              <span aria-hidden className="text-dim">
-                ⌕
-              </span>
+              <MagnifyingGlass aria-hidden className="size-4 shrink-0 text-dim" />
               <input
                 ref={inputRef}
                 value={q}

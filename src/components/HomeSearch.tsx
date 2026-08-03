@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { accentFor } from "@/lib/format";
 
@@ -86,9 +87,7 @@ export default function HomeSearch() {
   return (
     <div ref={boxRef} className="relative">
       <div className="flex items-center gap-2.5 rounded-xl border border-seam bg-carbon px-4 py-3.5 transition-colors focus-within:border-beam">
-        <span aria-hidden className="text-dim">
-          ⌕
-        </span>
+        <MagnifyingGlass aria-hidden className="size-4 shrink-0 text-dim" />
         <input
           ref={inputRef}
           value={q}

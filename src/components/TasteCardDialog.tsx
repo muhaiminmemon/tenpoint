@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ArrowsLeftRight } from "@phosphor-icons/react/ssr";
 import { Check } from "@phosphor-icons/react/ssr";
 import { usePresence } from "@/lib/usePresence";
 import AutoHeight from "./AutoHeight";
@@ -154,7 +155,10 @@ export default function TasteCardDialog({
               onClick={() => setFlipped((f) => !f)}
               className="mx-auto mt-3 block w-full max-w-[368px] rounded-card border border-seam bg-tray py-2 text-[12.5px] text-ash hover:text-paper sm:max-w-[320px]"
             >
-              {flipped ? "Show front ⇄" : "Show back ⇄"}
+              <span className="flex items-center justify-center gap-1.5">
+                {flipped ? "Show front" : "Show back"}
+                <ArrowsLeftRight aria-hidden className="size-3.5" />
+              </span>
             </button>
           </div>
 
