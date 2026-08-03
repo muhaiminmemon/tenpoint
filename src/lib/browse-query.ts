@@ -107,14 +107,33 @@ async function resolveQuery(q: string, forced: QueryAs | null) {
     searchMovies(q).catch(() => []),
   ]);
 
-  const person = people[0];
-  const namedExactly = person
-    ? (() => {
-        const n = fold(person.name);
-        return n === nq || n.split(" ").includes(nq) || n.startsWith(nq);
-      })()
-    : false;
-  const wellKnown = (person?.popularity ?? 0) >= 2;
+  /**
+   * The best match by name, not simply the first row back.
+   *
+   * TMDB returns four people called Michael Caine, one of whom is a camera
+   * operator. Ranking the exact-name matches by popularity picks the actor
+   * without needing to care what order the index happened to answer in.
+   */
+  const named = (p: { name: string }) => {
+    const n = fold(p.name);
+    return n === nq || n.split(" ").includes(nq) || n.startsWith(nq);
+  };
+  const exact = people.filter(named);
+  const person = exact[0] ?? people[0];
+  const namedExactly = exact.length > 0;
+
+  /**
+   * A floor low enough to let the rest of the world through.
+   *
+   * This was 2, and TMDB's popularity is a rolling engagement score weighted
+   * toward Hollywood and toward whatever came out recently. Amitabh Bachchan
+   * sits at 1.49, so one of the most filmed actors alive failed the test, his
+   * person was thrown away, and the page quietly ran a title search for his
+   * name and found nothing. The real guard against reading "Alien" as a person
+   * is the exact-name match above; popularity only has to rule out a nobody who
+   * happens to share a name with a film.
+   */
+  const wellKnown = (person?.popularity ?? 0) >= 0.1;
 
   const sameName = titles
     .slice(0, 6)
@@ -125,7 +144,17 @@ async function resolveQuery(q: string, forced: QueryAs | null) {
   const kind: QueryAs =
     forced ?? (personFits && sameName < 400 ? "person" : "title");
 
-  return { kind, person: personFits ? person : undefined, titles };
+  /**
+   * A caller that already knows it is a person is believed.
+   *
+   * `forced` set the kind but the person object was still filtered by the
+   * guess, so a cast link built from a cast list, which cannot be about
+   * anything but a person, could still be downgraded to a title search. When
+   * the reading is stated, the only question left is which person, not whether.
+   */
+  const trusted = forced === "person" ? (person ?? undefined) : personFits ? person : undefined;
+
+  return { kind, person: trusted, titles };
 }
 
 /**
