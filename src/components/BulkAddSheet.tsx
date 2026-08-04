@@ -122,7 +122,7 @@ export default function BulkAddSheet({ open, onClose, films, busy, onAdd }: Prop
               ? "Adding…"
               : picked.size === 0
                 ? "Pick some films"
-                : `Add ${picked.size} ${picked.size === 1 ? "film" : "films"}`}
+                : `Add ${picked.size} ${picked.size === 1 ? "title" : "titles"}`}
           </button>
         </div>
       )}

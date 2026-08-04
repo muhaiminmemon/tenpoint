@@ -307,7 +307,7 @@ export default function ListDetail({
               ))}
             </div>
             <span className="num text-[13px] text-ash">
-              {rows.length} {rows.length === 1 ? "film" : "films"}
+              {rows.length} {rows.length === 1 ? "title" : "titles"}
             </span>
           </div>
         </div>

@@ -139,7 +139,7 @@ function ArchetypeSection({ binder, person }: { binder: Binder; person?: string 
       {a === null ? (
         <p className="mt-7 border-y border-seam py-5 text-[15px] text-paper">
           Not named yet. {binder.toArchetype} more{" "}
-          {binder.toArchetype === 1 ? "film" : "films"} and {person ? "their" : "your"} title is
+          {binder.toArchetype === 1 ? "title" : "titles"} and {person ? "their" : "your"} title is
           read for the first time.
         </p>
       ) : (
@@ -313,7 +313,7 @@ function ThemesSection({ themes, person }: { themes: Binder["themes"]; person?: 
             <div className="flex items-baseline gap-3">
               <dt className="display flex-1 text-[17px] leading-tight text-paper">{t.name}</dt>
               <dd className="num shrink-0 text-[13px] text-dim">
-                {t.count} {t.count === 1 ? "film" : "films"} · {t.pct}%
+                {t.count} {t.count === 1 ? "title" : "titles"} · {t.pct}%
               </dd>
               <dd className="num w-14 shrink-0 text-right text-[17px] leading-tight text-beam">
                 {t.lift.toFixed(1)}&times;

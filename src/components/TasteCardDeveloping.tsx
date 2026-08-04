@@ -37,7 +37,7 @@ export default function TasteCardDeveloping({
               <h3 className="display mt-1 truncate text-xl text-paper">{data.archetype}</h3>
             ) : (
               <p className="mt-1 text-sm text-dim">
-                Names itself at 5 films rated. {5 - data.rated} to go.
+                Names itself at 5 titles rated. {5 - data.rated} to go.
               </p>
             )}
           </div>

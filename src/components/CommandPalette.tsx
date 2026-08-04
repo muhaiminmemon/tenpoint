@@ -183,7 +183,7 @@ export default function CommandPalette() {
       <button
         type="button"
         onClick={openPalette}
-        aria-label="Search films"
+        aria-label="Search films and series"
         className="flex size-9 shrink-0 items-center justify-center rounded-card border border-seam text-ash hover:text-paper sm:size-auto sm:gap-2 sm:px-3 sm:py-1.5 sm:text-xs"
       >
         {/* Sits in the button's own flow. Absolutely positioned it had no

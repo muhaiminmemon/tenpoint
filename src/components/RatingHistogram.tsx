@@ -22,7 +22,7 @@ export default function RatingHistogram({ ratings }: { ratings: number[] }) {
         {buckets.map((count, i) => (
           <div
             key={i}
-            title={`${i + 1}.0–${i + 1}.9 · ${count} ${count === 1 ? "film" : "films"}`}
+            title={`${i + 1}.0–${i + 1}.9 · ${count} ${count === 1 ? "title" : "titles"}`}
             className="w-2.5 rounded-t-[2px] bg-seam transition-colors hover:bg-ash"
             style={{ height: `${max ? Math.max(count / max, count > 0 ? 0.08 : 0) * 100 : 0}%` }}
           />

@@ -42,7 +42,9 @@ export default function ProfileReading({
       )}
 
       <div className="mt-6 flex flex-wrap items-baseline gap-x-9 gap-y-4">
-        <Figure label="Films rated" value={String(data.rated)} />
+        {/* Titles, because this counts seasons too. It said Films while the
+            number beside it included every season of every series. */}
+        <Figure label="Titles rated" value={String(data.rated)} />
         {data.mean !== null && (
           <Figure
             label="Average"
