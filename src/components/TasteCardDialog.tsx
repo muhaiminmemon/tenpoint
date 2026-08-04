@@ -278,10 +278,18 @@ function CardTab({ data, binderHref }: { data: HomeTasteCardData; binderHref?: s
               <p className="mt-2 text-[12px] leading-relaxed text-dim">
                 {standing.gate.filmsToNext > 0 ? (
                   <>
-                    <span className="num text-ash">{standing.gate.filmsToNext}</span> more films,
-                    or <span className="num text-ash">{standing.gate.seasonsToNext}</span> more
-                    seasons, and the count catches up, which is what puts {standing.next?.name}{" "}
-                    within reach. Any mix of the two counts.
+                    {data.tier.name} sits at{" "}
+                    <span className="num text-ash">{data.tier.floor}</span> films on their own, or{" "}
+                    <span className="num text-ash">{data.tier.seasonFloor}</span> seasons on their
+                    own. Your films are worth{" "}
+                    <span className="num text-ash">{standing.gate.filmPct}%</span> of that and your
+                    seasons <span className="num text-ash">{standing.gate.seasonPct}%</span>, which
+                    is <span className="num text-ash">{standing.gate.progressPct}%</span> together.
+                    The last{" "}
+                    <span className="num text-ash">{100 - standing.gate.progressPct}%</span> is{" "}
+                    <span className="num text-ash">{standing.gate.filmsToNext}</span> more films or{" "}
+                    <span className="num text-ash">{standing.gate.seasonsToNext}</span> more
+                    seasons, and reaching it is what puts {standing.next?.name} within reach.
                   </>
                 ) : (
                   <>The next tier opens from here.</>
@@ -305,17 +313,15 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
           Traits · {data.traitsHeldCount} held of {data.traitsTotal}
         </span>
       </div>
-      {/* The key. Three dots with nothing explaining them is a symbol the
-          reader has to guess at, and the bar alone cannot say which rung it is
-          filling: eight of twenty looks the same on the first rung as on the
-          second. */}
       <p className="mb-3 text-[11.5px] leading-snug text-dim">
-        Each one has three rungs. The dots are the rungs you have passed, and the bar is how far
-        you are through the next.
+        Every one of these is a count you can check against your own diary, and the bar is how far
+        you are from the next mark.
       </p>
-      {/* Every trait carries its own number and the rung it is on. A badge that
-          is only held or not stops moving the moment it is earned; a count
-          keeps going, and the bar underneath is the distance to the next one. */}
+      {/* Every trait carries its own number. A badge that is only held or not
+          stops moving the moment it is earned; a count keeps going, and the bar
+          underneath is the distance to the next mark. The marks themselves stay
+          out of the way: three of them shown as dots was a symbol the reader
+          had to be taught, and the number plus the bar already say it. */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {data.traits.map((t) => {
           const target = t.rungs[Math.min(2, t.level)];
@@ -335,29 +341,11 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
                 <span className={`display text-[13.5px] ${t.held ? "text-paper" : "text-dim"}`}>
                   {t.name}
                 </span>
-                <span className="flex shrink-0 items-center gap-1.5">
-                  {t.side === "show" && (
-                    <span className="text-[9px] uppercase tracking-[.1em] text-dim">Series</span>
-                  )}
-                  {t.level > 0 && (
-                    // Pips rather than a word: the level is a quantity, and
-                    // "Held" said the same thing at every stage.
-                    <span
-                      aria-label={`Rung ${t.level} of 3`}
-                      title={`Rung ${t.level} of 3 · ${t.rungs.join(", ")}`}
-                      className="flex gap-[3px]"
-                    >
-                      {[0, 1, 2].map((i) => (
-                        <span
-                          key={i}
-                          className={`block size-[5px] rounded-full ${
-                            i < t.level ? "bg-gold" : "bg-[#2a2a31]"
-                          }`}
-                        />
-                      ))}
-                    </span>
-                  )}
-                </span>
+                {t.side === "show" && (
+                  <span className="shrink-0 text-[9px] uppercase tracking-[.1em] text-dim">
+                    Series
+                  </span>
+                )}
               </div>
               <div className="mt-0.5 text-[11.5px] leading-snug text-dim">
                 <span className={t.held ? "num text-ash" : "num"}>{t.count}</span> {t.unit}
@@ -370,7 +358,7 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
               </div>
               <div className="mt-1.5 text-[10.5px] text-dim">
                 {t.toNext === null
-                  ? "Every rung passed."
+                  ? "Every mark passed."
                   : `${t.toNext} more for ${target}.`}
               </div>
             </div>

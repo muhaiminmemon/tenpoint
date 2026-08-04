@@ -130,7 +130,7 @@ export function TasteCardFrontBig({
               </span>
             }
           >
-            Movie DNA
+            Taste DNA
           </SectionLabel>
           <div className="flex flex-col gap-1.5">
             {genreDNA.map((d) => (
@@ -327,18 +327,10 @@ export function TasteCardBackBig({
                 className="flex items-center gap-1 rounded-full border border-[#3a3320] bg-[rgba(217,178,95,.05)] px-1.5 py-0.5 text-[8.5px] text-[#c9b48a]"
               >
                 {t.name}
-                {/* The level, as pips. At this size a number would be
-                    unreadable and the word "gold" would mean nothing. */}
-                <span aria-hidden className="flex gap-[2px]">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className={`block size-[3px] rounded-full ${
-                        i < t.level ? "bg-[#d9b25f]" : "bg-[#3a3320]"
-                      }`}
-                    />
-                  ))}
-                </span>
+                {/* The count, which is the thing worth showing at this size.
+                    Ranked strongest first, so the ten that fit are the ten
+                    that say most. */}
+                <span className="num text-[#8a7a55]">{t.count}</span>
               </span>
             ))}
           </div>

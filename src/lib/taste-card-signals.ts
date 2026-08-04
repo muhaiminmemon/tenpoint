@@ -395,7 +395,9 @@ export async function getTasteSignals(
       (select count(*) from cur_f where kind = 'season')::int as season_count,
       (select count(*) from cur_f where kind = 'show')::int as whole_show_count,
       (select coalesce(sum(seasons_credited), 0) from show_credit)::int as seasons_credited,
-      (select count(distinct show_id) from seasons)::int as shows_touched,
+      -- Every series this library has an opinion about, counted once whether
+      -- that opinion is on the whole thing, on its seasons, or on both.
+      (select count(*) from show_credit)::int as shows_touched,
       (select coalesce(max(rated_seasons), 0) from per_show)::int as longest_run,
       -- Every season of something, which is the only trait here that requires
       -- finishing rather than sampling.

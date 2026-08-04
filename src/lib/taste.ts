@@ -462,7 +462,7 @@ export function computePersonality(
     "rating",
     "How you rate",
     "Where your ratings land. Everyone's shape is different: some libraries are nearly all sevens and eights, some use the whole scale.",
-    rated === 1 ? "rated film" : "rated films",
+    rated === 1 ? "rated title" : "rated titles",
     ["Loved, 8.5 and up", "Liked, 7.0 to 8.4", "Fair, 5.5 to 6.9", "Didn't work, under 5.5"],
     signals.ratingBands,
   );
@@ -561,7 +561,7 @@ export type HomeTasteCardData = TasteProfile & {
   ratings: number[];
   profStats: Stat[];
   /** the film-against-series split, weighted the way the ladder weighs it */
-  mix: { films: number; seasons: number; showShare: number };
+  mix: { films: number; shows: number; seasons: number; showShare: number };
   personality: PersonalityAxis[];
   favsCard: Stat[];
   social: TasteMatch[];
@@ -632,7 +632,7 @@ export async function buildHomeTasteCard(
       decadeBreakdown,
       ratings: [],
       profStats: [],
-      mix: { films: 0, seasons: 0, showShare: 0 },
+      mix: { films: 0, shows: 0, seasons: 0, showShare: 0 },
       personality: [],
       favsCard: [],
       social: [],
@@ -670,6 +670,15 @@ export async function buildHomeTasteCard(
   const filmCount = taste.rated - signals.seasonCount - signals.wholeShowCount;
   const mix = {
     films: filmCount,
+    /**
+     * Series, counted as series.
+     *
+     * A season is the unit of opinion but it is not the unit anybody compares
+     * to a film: "43 seasons" next to "250 films" reads as two different kinds
+     * of thing. The count shown is series watched; the share below stays
+     * weighted by seasons, so an eight-season run still outweighs a one-off.
+     */
+    shows: signals.showsTouched,
     seasons: signals.seasonsCredited,
     showShare:
       seasonWeighted + filmCount > 0
@@ -724,10 +733,8 @@ export async function buildHomeTasteCard(
     ratings: ratedFilms.map((f) => f.rating),
     mix,
     profStats: [
-      { label: "Titles", value: String(taste.rated) },
-      ...(mix.seasons > 0
-        ? [{ label: "Series", value: `${mix.showShare}%` }]
-        : []),
+      { label: "Films", value: String(mix.films) },
+      ...(mix.shows > 0 ? [{ label: "Shows", value: String(mix.shows) }] : []),
       { label: "Avg", value: taste.mean !== null ? formatTenths(taste.mean) : "-" },
       { label: "Rewatch", value: `${rewatchPct}%` },
       { label: "Reviews", value: String(signals.reviewCount) },

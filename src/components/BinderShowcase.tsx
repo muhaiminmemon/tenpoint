@@ -290,7 +290,7 @@ function ThemesSection({ themes, person }: { themes: Binder["themes"]; person?: 
       </div>
       <div className="mt-5 max-w-[58ch]">
         <h2 id="dna" className="display text-[26px] leading-none text-paper">
-          Movie DNA
+          Taste DNA
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
           The names on the back of {person ? "their" : "your"} card, and what each one counts. A
@@ -492,7 +492,7 @@ export default function BinderShowcase({
             Tiers
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-ash">
-            Six finishes, in order. Each one is issued at a count of rated films, so every tier
+            Six finishes, in order. Each one is issued at a count of what you have watched, so every tier
             below the current one was genuinely passed through.
           </p>
         </div>

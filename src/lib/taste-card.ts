@@ -220,7 +220,15 @@ export const MILESTONES_TO_PROMOTE = 3;
  */
 export type TierGate =
   | { kind: "milestones"; milestones: Milestone[]; met: number; needed: number }
-  | { kind: "films"; filmsToNext: number; seasonsToNext: number };
+  | {
+      kind: "films";
+      filmsToNext: number;
+      seasonsToNext: number;
+      /** what each half is worth toward the next rung, as whole percentages */
+      filmPct: number;
+      seasonPct: number;
+      progressPct: number;
+    };
 
 export type TierStanding = {
   /** the tier in force */
@@ -271,19 +279,22 @@ export function tierStanding(films: number, seasons: number, signals: TasteSigna
     gate: promoted
       ? // The lift is spent. Only watching moves the floor now, and once it
         // moves the conditions for the rung after this one come back into play.
-        {
-          kind: "films",
-          // Stated as films, because that is the unit somebody is most likely
-          // to add next; the panel names the season equivalent beside it.
-          filmsToNext: Math.max(
-            0,
-            Math.ceil((1 - ladderProgress(films, seasons, tier)) * tier.floor),
-          ),
-          seasonsToNext: Math.max(
-            0,
-            Math.ceil((1 - ladderProgress(films, seasons, tier)) * tier.seasonFloor),
-          ),
-        }
+        (() => {
+          // Both halves are shown as their own share of the rung, because
+          // "any mix" explains nothing: the two percentages add to the
+          // progress, and a reader can check either against their own diary.
+          const filmPct = Math.round((films / Math.max(1, tier.floor)) * 100);
+          const seasonPct = Math.round((seasons / Math.max(1, tier.seasonFloor)) * 100);
+          const left = Math.max(0, 1 - ladderProgress(films, seasons, tier));
+          return {
+            kind: "films" as const,
+            filmsToNext: Math.ceil(left * tier.floor),
+            seasonsToNext: Math.ceil(left * tier.seasonFloor),
+            filmPct,
+            seasonPct,
+            progressPct: Math.min(100, filmPct + seasonPct),
+          };
+        })()
       : { kind: "milestones", milestones: step, met, needed: MILESTONES_TO_PROMOTE },
   };
 }
@@ -976,7 +987,7 @@ export function readArchetype(
     }
 
     const nounMeaning =
-      `${top.count} of your films are about ${top.cluster.note}` +
+      `${top.count} of your titles are about ${top.cluster.note}` +
       `, ${times}\u00d7 what a shelf that size usually holds and ${share}% of the whole shelf.`;
 
     return {
