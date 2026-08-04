@@ -119,8 +119,15 @@ export async function hydrateFilm(film: Film): Promise<Film> {
    * season: opening a season took you to a random movie, and the damage was
    * saved to the row. Seasons get everything they need from the show at
    * ingest, so there is nothing here to fetch.
+   *
+   * The test is "is this a film", not "is this a season", because the same
+   * collision bit twice. The row standing for a whole series carries the
+   * series' TMDB id, and TMDB id 45950 is High School DxD as a programme and
+   * La passione as a film: opening the series wrote the Italian drama over it.
+   * Naming the one kind that may be fetched means anything added later is
+   * excluded by default rather than by somebody remembering to add it.
    */
-  if (film.kind === "season") return film;
+  if (film.kind !== "movie") return film;
   const fresh = film.refreshedAt && Date.now() - film.refreshedAt.getTime() < STALE_MS;
   if (
     film.director &&
