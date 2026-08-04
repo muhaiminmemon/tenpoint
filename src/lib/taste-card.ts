@@ -848,6 +848,14 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
  * much of the catalogue carries it, so a theme that is everywhere has to be
  * everywhere in *your* library before it names you. Four films minimum, or a
  * single heist would make somebody a thief.
+ *
+ * A theme also has to be ahead of ordinary by a margin, not merely ahead. The
+ * count floor alone let a library of nature documentaries and Chernobyl come
+ * back named for sitcoms, on four matches at 1.2x, because nothing in it
+ * matched anything and 1.2x was the best on offer. Winning a field of nothing
+ * is not a signature, and there is already a genre reading for exactly this
+ * case, so below the margin the title falls through to it rather than
+ * inventing a theme out of noise.
  */
 function signatureClusters(s: TasteSignals) {
   const total = s.clusterFilmCount;
@@ -866,12 +874,22 @@ function signatureClusters(s: TasteSignals) {
    */
   const PRIOR = 5;
 
+  /**
+   * How far past ordinary a theme must sit before it can name somebody.
+   *
+   * Set just under the median winning lift across the seeded crowd, which is
+   * 1.68x: high enough to drop the eight libraries being named for something
+   * they barely over-watch, low enough that a genuine but mild concentration
+   * still counts.
+   */
+  const MARGIN = 1.35;
+
   const ranked = CLUSTERS.map((c) => {
     const count = s.clusters[c.key] ?? 0;
     const expected = total * (CLUSTER_PREVALENCE[c.key] ?? 0.05);
     return { cluster: c, count, lift: (count + PRIOR) / (expected + PRIOR) };
   })
-    .filter((r) => r.count >= floor)
+    .filter((r) => r.count >= floor && r.lift >= MARGIN)
     .sort((a, b) => b.lift - a.lift || b.count - a.count);
 
   /**

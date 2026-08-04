@@ -339,9 +339,13 @@ export const CLUSTERS: Cluster[] = [
     key: "shounen",
     name: "The Rival",
     note: "shounen, manga adaptations and power escalation",
+    // "based on manga" is deliberately absent. It was in this list and it
+    // caught every manga adaptation there is, so a library of Monster, Cowboy
+    // Bebop and Frieren came back as shounen: the adaptation source says
+    // nothing about whether the thing is a battle series.
     keywords: [
-      "shounen", "based on manga", "super power", "tournament", "rival",
-      "power up", "quirk", "titan", "based on anime",
+      "shounen", "super power", "tournament", "rival",
+      "power up", "quirk", "titan", "martial arts tournament",
     ],
   },
   {
@@ -382,7 +386,7 @@ export const CLUSTERS: Cluster[] = [
 export const CLUSTER_PREVALENCE: Record<string, number> = {
   hearth: 0.189, caped: 0.146, deadpan: 0.135, comingofage: 0.123,
   dissident: 0.122, sitcom: 0.116, investigation: 0.103, satire: 0.103,
-  grief: 0.101, myth: 0.101, shounen: 0.097, blade: 0.095, noir: 0.095,
+  grief: 0.101, myth: 0.101, blade: 0.095, noir: 0.095, shounen: 0.092,
   road: 0.093, machine: 0.091, revenge: 0.087, void: 0.086, period: 0.085,
   slasher: 0.083, adultanimation: 0.08, ghost: 0.077, identity: 0.073,
   apocalypse: 0.072, ink: 0.07, alien: 0.07, creature: 0.069, war: 0.067,
