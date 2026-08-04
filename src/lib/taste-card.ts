@@ -655,7 +655,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       wide,
       ANCHOR.wideShare,
-      ["Blockbuster", `${pct(wide)}% of your films have been rated by thousands of people.`],
+      ["Populist", `${pct(wide)}% of your films have been rated by thousands of people.`],
       ["Underground", `${pct(1 - wide)}% of your films have fewer than 2,000 ratings anywhere.`],
     );
   }
@@ -694,7 +694,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       sub,
       ANCHOR.subtitleShare,
-      ["Subtitled", `${pct(sub)}% of your films were not made in English.`],
+      ["Cosmopolitan", `${pct(sub)}% of your films were not made in English.`],
       null,
     );
   }
@@ -704,7 +704,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       again,
       ANCHOR.rewatchShare,
-      ["Rewatcher", `${pct(again)}% of your viewings are rewatches.`],
+      ["Returning", `${pct(again)}% of your viewings are rewatches.`],
       ["Onward", "You almost never watch the same film twice."],
     );
   }
@@ -796,8 +796,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       lift,
       ANCHOR.oldLift,
-      ["Nostalgist", `You rate films made before 1990 ${tenths(lift)} higher than newer ones.`],
-      ["Modernist", `You rate films made since 1990 ${tenths(lift)} higher than older ones.`],
+      ["Nostalgic", `You rate films made before 1990 ${tenths(lift)} higher than newer ones.`],
+      ["Modern", `You rate films made since 1990 ${tenths(lift)} higher than older ones.`],
     );
   }
 
@@ -815,8 +815,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.imdbBias,
       ANCHOR.crowdBias,
-      ["Believer", `You rate ${tenths(s.imdbBias)} above the IMDb score on average.`],
-      ["Skeptic", `You rate ${tenths(s.imdbBias)} below the IMDb score on average.`],
+      ["Trusting", `You rate ${tenths(s.imdbBias)} above the IMDb score on average.`],
+      ["Sceptical", `You rate ${tenths(s.imdbBias)} below the IMDb score on average.`],
     );
   }
 
@@ -833,7 +833,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       decimals,
       ANCHOR.decimalShare,
-      ["Precisionist", `${pct(decimals)}% of your ratings use the decimal.`],
+      ["Precise", `${pct(decimals)}% of your ratings use the decimal.`],
       ["Blunt", `${pct(1 - decimals)}% of your ratings are round numbers.`],
     );
   }
@@ -970,7 +970,7 @@ export function readArchetype(
      * The runner-up, and how close it came.
      *
      * A title is more interesting for the one it nearly was, and the number is
-     * real: this is how many more films of that theme would have overtaken the
+     * real: this is how many more of that theme would have overtaken the
      * winner, given both are measured against how common they are.
      */
     let nearMiss: string | undefined;
@@ -982,7 +982,7 @@ export function readArchetype(
       );
       nearMiss =
         needed > 0 && needed <= 8
-          ? `${needed} more ${needed === 1 ? "film" : "films"} about ${next.cluster.note} and you would be ${next.cluster.name}.`
+          ? `${needed} more ${needed === 1 ? "title" : "titles"} about ${next.cluster.note} and you would be ${next.cluster.name}.`
           : `Closest behind: ${next.cluster.name}.`;
     }
 

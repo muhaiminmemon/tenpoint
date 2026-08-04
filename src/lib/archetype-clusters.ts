@@ -114,7 +114,7 @@ export const CLUSTERS: Cluster[] = [
   },
   {
     key: "apocalypse",
-    name: "The Last Light",
+    name: "The Survivor",
     note: "the end of the world and surviving it",
     keywords: ["post-apocalyptic future", "end of the world", "survival", "zombie", "wasteland", "disaster", "disaster movie", "apocalypse", "outbreak", "nuclear", "famine"],
   },
@@ -138,13 +138,13 @@ export const CLUSTERS: Cluster[] = [
   },
   {
     key: "investigation",
-    name: "The Watcher",
+    name: "The Sleuth",
     note: "detectives, police work and missing people",
     keywords: ["investigation", "whodunit", "detective", "fbi", "central intelligence agency (cia)", "missing person", "police", "private detective", "cold case", "mystery", "clue", "interrogation"],
   },
   {
     key: "identity",
-    name: "The Unnamed",
+    name: "The Sleepwalker",
     note: "amnesia, dreams and psychological unease",
     keywords: ["amnesia", "identity", "doppelganger", "dreams", "surrealism", "magic realism", "psychological thriller", "psychological horror", "psychological drama", "hallucination", "memory", "mind"],
   },
@@ -180,7 +180,7 @@ export const CLUSTERS: Cluster[] = [
   },
   {
     key: "road",
-    name: "The Waypoint",
+    name: "The Drifter",
     note: "road trips, journeys and being on the run",
     keywords: ["road trip", "journey", "travel", "on the run", "adventurer", "desert", "hitchhiking", "quest", "expedition", "wilderness"],
   },
@@ -198,7 +198,7 @@ export const CLUSTERS: Cluster[] = [
   },
   {
     key: "deadpan",
-    name: "The Deadpan",
+    name: "The Dry Wit",
     note: "dark comedy, parody and absurd humour",
     keywords: ["dark comedy", "absurd", "parody", "slapstick comedy", "buddy comedy", "farce", "black comedy", "spoof", "irony"],
   },
@@ -210,7 +210,7 @@ export const CLUSTERS: Cluster[] = [
   },
   {
     key: "noir",
-    name: "The Nightside",
+    name: "The Nightcrawler",
     note: "noir, gangsters and organised crime",
     keywords: ["neo-noir", "film noir", "gangster", "organized crime", "mafia", "crime boss", "drugs", "drug dealer", "shootout", "underworld", "femme fatale", "double cross"],
   },
@@ -222,7 +222,7 @@ export const CLUSTERS: Cluster[] = [
   },
   {
     key: "truestory",
-    name: "The Case File",
+    name: "The Biographer",
     note: "biographies and true stories",
     keywords: ["biography", "historical figure", "real events", "docudrama", "true crime", "memoir", "journalism", "scandal"],
   },
@@ -240,13 +240,13 @@ export const CLUSTERS: Cluster[] = [
   },
   {
     key: "hearth",
-    name: "The Inheritance",
+    name: "The Heir",
     note: "families, parents and children",
     keywords: ["family relationships", "parent child relationship", "father son relationship", "mother son relationship", "sibling relationship", "dysfunctional family", "single mother", "father daughter relationship", "adoption", "divorce", "inheritance", "orphan"],
   },
   {
     key: "romance",
-    name: "The First Love",
+    name: "The Romantic",
     note: "romance, marriage and heartbreak",
     keywords: ["romance", "love", "romcom", "love of one's life", "wedding", "marriage", "infidelity", "love triangle", "long distance relationship", "heartbreak", "courtship"],
   },
@@ -258,19 +258,19 @@ export const CLUSTERS: Cluster[] = [
   },
   {
     key: "caped",
-    name: "The Caped",
+    name: "The Cape Chaser",
     note: "superheroes and super powers",
     keywords: ["superhero", "super power", "supervillain", "superhero team", "teen superhero", "super villain", "superhuman", "mutant", "secret lair", "alter ego"],
   },
   {
     key: "creature",
-    name: "The Creature Feature",
+    name: "The Beastkeeper",
     note: "monsters, dinosaurs and giant creatures",
     keywords: ["dinosaur", "giant monster", "kaiju", "tyrannosaurus rex", "monster", "creature", "shark", "sea monster", "beast", "godzilla"],
   },
   {
     key: "ghost",
-    name: "The Threshold",
+    name: "The Medium",
     note: "ghosts, haunted houses and the supernatural",
     keywords: ["ghost", "haunted house", "spirit", "supernatural", "afterlife", "seance", "poltergeist", "haunting", "skeleton"],
   },
@@ -312,9 +312,45 @@ export const CLUSTERS: Cluster[] = [
   },
   {
     key: "alien",
-    name: "The First Contact",
+    name: "The Skywatcher",
     note: "aliens, invasions and first contact",
     keywords: ["alien", "alien invasion", "extraterrestrial", "ufo", "first contact", "abduction", "invasion"],
+  },
+  /**
+   * The three below are television's own, and exist because it did not have any.
+   *
+   * Every cluster above was measured off a film catalogue, so a heavy watcher of
+   * series came out holding a noun drawn from cinema: The Office and The Simpsons
+   * and Attack on Titan matched nothing at all, and their viewers fell through to
+   * whatever their handful of films happened to say. The commonest keywords across
+   * the season catalogue are sitcom, adult animation and shounen, and none of them
+   * appear anywhere above.
+   */
+  {
+    key: "sitcom",
+    name: "The Regular",
+    note: "sitcoms, workplace comedy and ensemble casts",
+    keywords: [
+      "sitcom", "workplace comedy", "situation comedy", "office", "employer employee relationship",
+      "mockumentary", "roommate", "ensemble cast", "boss", "work",
+    ],
+  },
+  {
+    key: "shounen",
+    name: "The Rival",
+    note: "shounen, manga adaptations and power escalation",
+    keywords: [
+      "shounen", "based on manga", "super power", "tournament", "rival",
+      "power up", "quirk", "titan", "based on anime",
+    ],
+  },
+  {
+    key: "adultanimation",
+    name: "The Late Nighter",
+    note: "adult animation and animated satire",
+    keywords: [
+      "adult animation", "adult humor", "cartoon", "animated sitcom", "social satire",
+    ],
   },
   {
     key: "winterholiday",
@@ -327,22 +363,33 @@ export const CLUSTERS: Cluster[] = [
 /**
  * How much of the catalogue falls into each cluster.
  *
- * Measured across every film we hold keywords for, and frozen rather than
- * recomputed: a title should move when somebody's taste moves, not when the
- * catalogue grows. Nothing here passes 17%, where the leading genre tag
- * reached 41%, which is the whole reason the noun moved off genre.
+ * Measured across the catalogue and frozen rather than recomputed: a title
+ * should move when somebody's taste moves, not when the catalogue grows.
+ * Nothing here passes 19%, where the leading genre tag reached 41%, which is
+ * the whole reason the noun moved off genre.
+ *
+ * The basis is one row per rateable unit, which is films and seasons: a season
+ * is what somebody rates, so a twelve-season series contributes twelve to this
+ * denominator exactly as it can contribute twelve to a library. Whole-show rows
+ * are excluded because counting them too would count every series twice.
+ *
+ * These were re-measured on that basis when television arrived. The earlier
+ * numbers were taken across films alone, and leaving them while adding three
+ * television clusters measured another way would have put two denominators in
+ * one table, which reliably ends with two parts of this codebase disagreeing
+ * about the same quantity.
  */
 export const CLUSTER_PREVALENCE: Record<string, number> = {
-  caped: 0.165, hearth: 0.15, dissident: 0.133, void: 0.115, revenge: 0.109,
-  myth: 0.105, machine: 0.102, grief: 0.102, noir: 0.099, road: 0.096,
-  slasher: 0.091, identity: 0.091, comingofage: 0.09, investigation: 0.087,
-  blade: 0.087, ink: 0.087, war: 0.085, period: 0.082, deadpan: 0.081,
-  creature: 0.078, apocalypse: 0.076, romance: 0.075, occult: 0.069,
-  spy: 0.067, prison: 0.066, loop: 0.063, body: 0.063, ghost: 0.063,
-  alien: 0.061, sport: 0.06, satire: 0.057, stage: 0.052, sea: 0.052,
-  winterholiday: 0.051, heist: 0.048, truestory: 0.042, flight: 0.036,
-  outsider: 0.034, undead: 0.031, faith: 0.031, speed: 0.03, town: 0.021,
-  court: 0.013,
+  hearth: 0.189, caped: 0.146, deadpan: 0.135, comingofage: 0.123,
+  dissident: 0.122, sitcom: 0.116, investigation: 0.103, satire: 0.103,
+  grief: 0.101, myth: 0.101, shounen: 0.097, blade: 0.095, noir: 0.095,
+  road: 0.093, machine: 0.091, revenge: 0.087, void: 0.086, period: 0.085,
+  slasher: 0.083, adultanimation: 0.08, ghost: 0.077, identity: 0.073,
+  apocalypse: 0.072, ink: 0.07, alien: 0.07, creature: 0.069, war: 0.067,
+  romance: 0.066, sea: 0.061, occult: 0.06, spy: 0.059, loop: 0.057,
+  stage: 0.054, prison: 0.05, body: 0.045, sport: 0.042, heist: 0.039,
+  undead: 0.035, winterholiday: 0.035, truestory: 0.03, faith: 0.027,
+  town: 0.026, flight: 0.025, outsider: 0.024, speed: 0.02, court: 0.015,
 };
 
 /**
@@ -369,12 +416,14 @@ export const STOCK_BY_CLUSTER: Record<string, string> = {
   // people, rooms, paper
   hearth: "Vellum", romance: "Vellum", comingofage: "Vellum", grief: "Vellum",
   town: "Vellum", outsider: "Vellum", faith: "Vellum", stage: "Vellum",
+  sitcom: "Vellum",
   // what could not happen
   void: "Nebula", machine: "Nebula", loop: "Nebula", alien: "Nebula",
   myth: "Nebula", ink: "Nebula", creature: "Nebula", apocalypse: "Nebula",
+  shounen: "Nebula",
   // the record, and remarks upon it
   period: "Marble", satire: "Marble", truestory: "Marble", court: "Marble",
-  deadpan: "Marble", winterholiday: "Marble",
+  deadpan: "Marble", winterholiday: "Marble", adultanimation: "Marble",
 };
 
 /** Every keyword any cluster cares about, for the query that counts them. */
