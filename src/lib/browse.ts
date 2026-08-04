@@ -298,12 +298,20 @@ function narrowing(f: BrowseFilters): string {
  * knows: "Films with Christopher Nolan" reads better than the text somebody
  * typed, and it is also the receipt for a guess they can overturn.
  */
+/** What one result is called, so a count never says "films" about a series. */
+export function unitFor(f: BrowseFilters, n: number): string {
+  if (f.media === "show") return n === 1 ? "show" : "shows";
+  return n === 1 ? "film" : "films";
+}
+
 export function describeFilters(f: BrowseFilters, heading?: string): string {
   const narrowed = narrowing(f);
 
   if (heading) return [heading, narrowed].filter(Boolean).join(" · ");
 
-  const subject = narrowed || "All films";
+  // A grid of series is not a grid of films, and the word appears three times
+  // on the page: the subject line, the count and the empty state.
+  const subject = narrowed || (f.media === "show" ? "All shows" : "All films");
   if (f.source !== "tmdb") {
     const label = SOURCES.find((s) => s.key === f.source)?.label ?? "";
     return `${subject}, by ${label}`;

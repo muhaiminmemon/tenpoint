@@ -116,16 +116,24 @@ export default async function ShowPage(ctx: { params: Promise<{ slug: string }> 
             <h2 id="seasons" className="display text-[19px] text-paper">
               Seasons
             </h2>
-            {score !== null && (
-              // Never "your rating". It is the average of what has been rated,
-              // and saying so is what stops it becoming a second opinion.
-              <span className="text-[12.5px] text-ash">
-                Your seasons average{" "}
-                <span className={`num text-[15px] ${ratingColor(score)}`}>
-                  {formatTenths(score)}
+            <span className="flex items-baseline gap-4 text-[12.5px] text-ash">
+              {score !== null && (
+                // Never "your rating". It is the average of what has been
+                // rated, and saying so is what stops it becoming a second
+                // opinion somebody has to reconcile with the seasons.
+                <span>
+                  Your seasons average{" "}
+                  <span className={`num text-[15px] ${ratingColor(score)}`}>
+                    {formatTenths(score)}
+                  </span>
                 </span>
-              </span>
-            )}
+              )}
+              {show.voteAverage !== null && (
+                <span className="text-dim">
+                  Audience <span className="num text-[15px] text-ash">{formatTenths(show.voteAverage)}</span>
+                </span>
+              )}
+            </span>
           </div>
 
           {seasons.length === 0 ? (

@@ -250,6 +250,14 @@ export const shows = pgTable("shows", {
   form: text("form"),
   popularity: doublePrecision("popularity"),
   voteCount: integer("vote_count"),
+  /** TMDB's audience average, in tenths, so nothing reaches a float before display */
+  voteAverage: smallint("vote_average"),
+  /**
+   * The join key to anything outside TMDB, kept so critic scores can be
+   * fetched for a series the same way they are for a film. Nothing reads it
+   * yet; storing it now means not refetching every show later to get it.
+   */
+  imdbId: text("imdb_id"),
   refreshedAt: timestamp("refreshed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

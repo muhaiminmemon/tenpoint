@@ -237,7 +237,7 @@ export default function LibraryView({ films, editable }: Props) {
       </div>
 
       {visible.length === 0 ? (
-        <p className="py-8 text-sm text-ash">No films match those filters.</p>
+        <p className="py-8 text-sm text-ash">Nothing matches those filters.</p>
       ) : (
         // Keyed so switching between the shelf and the ledger plays an
         // entrance. The height is deliberately not eased: these lists run to

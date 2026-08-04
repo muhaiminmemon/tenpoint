@@ -199,6 +199,7 @@ export async function trendingThisWeek(): Promise<TmdbMovie[]> {
 export type TmdbShow = {
   id: number;
   name: string;
+  vote_average?: number;
   first_air_date?: string;
   poster_path?: string | null;
   backdrop_path?: string | null;
@@ -220,6 +221,7 @@ export type TmdbSeason = {
 };
 
 export type TmdbShowDetails = TmdbShow & {
+  vote_average?: number;
   last_air_date?: string | null;
   status?: string;
   number_of_seasons?: number;
@@ -302,6 +304,7 @@ export async function discoverShows(params: Record<string, string>): Promise<Dis
       overview: t.overview,
       popularity: t.popularity,
       vote_count: t.vote_count,
+      vote_average: t.vote_average,
       original_language: t.original_language,
       genre_ids: t.genre_ids,
     })),

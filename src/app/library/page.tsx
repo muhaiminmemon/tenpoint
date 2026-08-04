@@ -20,7 +20,7 @@ export default async function LibraryPage() {
         <div>
           <h1 className="display text-2xl">Library</h1>
           <p className="mt-1 text-sm text-ash">
-            Every film you&apos;ve seen, ranked by your current rating, one row per film.
+            Everything you&apos;ve seen, ranked by your current rating, one row per title.
             Individual viewings live in your{" "}
             <Link href="/diary" className="text-paper underline underline-offset-2">
               diary

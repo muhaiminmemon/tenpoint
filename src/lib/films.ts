@@ -110,6 +110,17 @@ const STALE_MS = 30 * 24 * 60 * 60 * 1000;
 /** Fill in director/runtime/genres on demand; refresh stale metadata. */
 export async function hydrateFilm(film: Film): Promise<Film> {
   if (!film.tmdbId) return film;
+  /**
+   * A season is never hydrated from the movie endpoint.
+   *
+   * TMDB numbers seasons in their own space, so a season's id is also some
+   * unrelated film's id, and asking `/movie/{id}` for it returns that film.
+   * This then wrote that film's title, poster, cast, year and runtime over the
+   * season: opening a season took you to a random movie, and the damage was
+   * saved to the row. Seasons get everything they need from the show at
+   * ingest, so there is nothing here to fetch.
+   */
+  if (film.kind === "season") return film;
   const fresh = film.refreshedAt && Date.now() - film.refreshedAt.getTime() < STALE_MS;
   if (
     film.director &&

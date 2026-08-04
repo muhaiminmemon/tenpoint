@@ -111,8 +111,13 @@ async function runShowQuery(f: BrowseFilters): Promise<BrowseResult> {
       overview: t.overview,
       popularity: t.popularity,
       vote_count: t.vote_count,
+      vote_average: t.vote_average,
       original_language: t.original_language,
       genre_ids: t.genre_ids,
+      score:
+        typeof t.vote_average === "number" && t.vote_average > 0
+          ? t.vote_average.toFixed(1)
+          : undefined,
     }));
 
   return {

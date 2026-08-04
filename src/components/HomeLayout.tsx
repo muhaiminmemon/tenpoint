@@ -53,12 +53,12 @@ export default function HomeLayout({
           belongs in the sentence addressed to that person, not in a label
           introducing it. */}
       <h1 className="display text-[32px] font-medium leading-[1.05] text-paper sm:text-[38px]">
-        {isNew ? `Let's put the first film on the shelf, ${name}.` : `Add another to the shelf, ${name}.`}
+        {isNew ? `Let's put the first title on the shelf, ${name}.` : `Add another to the shelf, ${name}.`}
       </h1>
       <p className="mt-3 max-w-lg text-base leading-relaxed text-ash">
         {isNew
-          ? "Everything starts with one rating. Name a film you've seen, and the shelf fills in from there."
-          : "Name a film you've seen, or see what's rising to the top below."}
+          ? "Everything starts with one rating. Name a film or a show you've seen, and the shelf fills in from there."
+          : "Name a film or a show you've seen, or see what's rising to the top below."}
       </p>
 
       <div className="mt-6">

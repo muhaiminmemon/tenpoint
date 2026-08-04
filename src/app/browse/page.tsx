@@ -10,6 +10,7 @@ import {
   describeFilters,
   filtersToQuery,
   isFiltered,
+  unitFor,
   parseFilters,
 } from "@/lib/browse";
 import { runBrowse } from "@/lib/browse-query";
@@ -66,7 +67,7 @@ async function Grid({ filters }: { filters: ReturnType<typeof parseFilters> }) {
   } catch {
     return (
       <p className="mt-10 text-sm text-ash">
-        Couldn&apos;t reach the film database just now. The filters are still in the address bar,
+        Couldn&apos;t reach the database just now. The filters are still in the address bar,
         so a refresh will try again.
       </p>
     );
@@ -98,7 +99,7 @@ async function Grid({ filters }: { filters: ReturnType<typeof parseFilters> }) {
           ) : (
             <>
               The rating floor is the usual culprit: asking for 9.0 and up inside a single decade
-              leaves very few films standing. Try widening one thing at a time.
+              leaves very little standing. Try widening one thing at a time.
             </>
           )}
         </p>
@@ -118,7 +119,7 @@ async function Grid({ filters }: { filters: ReturnType<typeof parseFilters> }) {
       <div className="mt-6 flex flex-wrap items-baseline justify-between gap-3">
         <p className="text-[12.5px] text-ash">{describeFilters(described, match?.heading)}</p>
         <p className="num text-[12.5px] text-dim">
-          {page.totalResults.toLocaleString()} films
+          {page.totalResults.toLocaleString()} {unitFor(filters, page.totalResults)}
         </p>
       </div>
 

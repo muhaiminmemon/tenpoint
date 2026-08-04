@@ -18,7 +18,7 @@ export default function TasteCardBlank() {
         <div className="flex flex-col items-center justify-center gap-2 px-6 py-8 text-center">
           <span className="display text-2xl text-seam">?</span>
           <span className="max-w-[220px] text-xs leading-relaxed text-dim">
-            Rate your first film to expose it: your average, your favourite decade, the genres
+            Rate your first film or season to expose it: your average, your favourite decade, the genres
             you keep coming back to.
           </span>
         </div>

@@ -170,7 +170,7 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
           <h1 className="display text-3xl font-medium">{displayLabel}</h1>
           <p className="num mt-1 text-sm text-ash">
             @{profile.username}
-            {films_.length ? ` · ${films_.length} films` : ""}
+            {films_.length ? ` · ${films_.length} ${films_.length === 1 ? "title" : "titles"}` : ""}
             {mean ? ` · average ${mean}` : ""}
           </p>
           {profile.bio && <p className="mt-3 max-w-lg text-sm text-ash">{profile.bio}</p>}
@@ -221,7 +221,7 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
       ) : (
         <p className="mt-8 border-t border-seam pt-8 text-sm text-ash">
           {isOwner
-            ? "Rate a film and your card is issued."
+            ? "Rate a film or a season and your card is issued."
             : `${displayLabel} hasn't rated anything yet.`}
         </p>
       )}

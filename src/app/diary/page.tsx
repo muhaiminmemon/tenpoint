@@ -47,7 +47,7 @@ export default async function DiaryPage() {
       </div>
       {entries.length === 0 ? (
         <p className="text-ash">
-          Nothing logged yet. Find a film up top, or{" "}
+          Nothing logged yet. Find a film or a show up top, or{" "}
           <Link href="/import" className="text-paper underline">
             import an existing diary
           </Link>

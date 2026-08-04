@@ -102,6 +102,11 @@ export async function ensureShow(input: TmdbShow | number): Promise<Show | null>
       form,
       popularity: details.popularity ?? null,
       voteCount: details.vote_count ?? null,
+      voteAverage:
+        typeof details.vote_average === "number" && details.vote_average > 0
+          ? Math.round(details.vote_average * 10)
+          : null,
+      imdbId: details.external_ids?.imdb_id ?? null,
       refreshedAt: new Date(),
     })
     .onConflictDoNothing({ target: shows.tmdbId })
