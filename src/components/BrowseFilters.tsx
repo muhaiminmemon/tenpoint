@@ -6,6 +6,8 @@ import { CaretDown, Faders, MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import Sheet from "./Sheet";
 import {
   BROWSE_GENRES,
+  SHOW_GENRES,
+  MEDIA,
   DECADES,
   EMPTY_FILTERS,
   LANGUAGES,
@@ -109,7 +111,10 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
         onChange={(v) => apply({ genre: v ? Number(v) : null })}
         options={[
           { value: "", label: "Any genre" },
-          ...BROWSE_GENRES.map((g) => ({ value: String(g.id), label: g.name })),
+          ...(filters.media === "show" ? SHOW_GENRES : BROWSE_GENRES).map((g) => ({
+            value: String(g.id),
+            label: g.name,
+          })),
         ]}
       />
       <Select
@@ -170,6 +175,32 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
       className={`transition-opacity duration-200 ${pending ? "opacity-60" : "opacity-100"}`}
       aria-busy={pending}
     >
+      {/* Which index is being read, not a filter over one list. Films and
+          series are separate at TMDB with separate genre taxonomies, so this
+          sits apart from the controls and clears the genre when it changes:
+          the same id means a different genre on the other side. */}
+      <div
+        role="group"
+        aria-label="Media"
+        className="mb-3 flex w-fit overflow-hidden rounded-full border border-seam"
+      >
+        {MEDIA.map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            aria-pressed={filters.media === m.key}
+            onClick={() => apply({ media: m.key, genre: null, q: "", as: null })}
+            className={`px-4 py-1.5 text-[13px] transition-colors sm:text-[12.5px] ${
+              filters.media === m.key
+                ? "bg-paper text-carbon"
+                : "text-ash hover:text-paper"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
       <form onSubmit={search} className="mb-3 flex items-center gap-2" role="search">
         <label className="relative flex min-w-0 flex-1 items-center sm:max-w-[320px]">
           <span className="sr-only">Search by title, director or cast</span>
@@ -182,7 +213,7 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             maxLength={MAX_QUERY}
-            placeholder="Title, director or cast"
+            placeholder={filters.media === "show" ? "Search shows" : "Title, director or cast"}
             aria-label="Search by title, director or cast"
             // 16px on touch, like the selects, or iOS zooms the page in.
             className={`${CONTROL_H} w-full rounded-full border border-seam bg-tray pl-9 pr-3 text-base text-paper placeholder:text-dim transition-colors hover:border-dim focus:border-beam focus:outline-none sm:text-[12.5px]`}

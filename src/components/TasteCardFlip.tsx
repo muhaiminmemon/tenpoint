@@ -58,7 +58,7 @@ export default function TasteCardFlip({
       >
         {/* front */}
         <div
-          className="col-start-1 row-start-1 min-h-full p-[4px]"
+          className="col-start-1 row-start-1 min-h-full p-[3px]"
           style={{
             background: border,
             boxShadow: `${glow === "none" ? "" : glow + ", "}0 30px 70px rgba(0,0,0,.6)`,
@@ -84,7 +84,7 @@ export default function TasteCardFlip({
 
         {/* back */}
         <div
-          className="col-start-1 row-start-1 min-h-full p-[4px]"
+          className="col-start-1 row-start-1 min-h-full p-[3px]"
           style={{
             background: border,
             boxShadow: "0 30px 70px rgba(0,0,0,.6)",

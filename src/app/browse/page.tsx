@@ -4,6 +4,8 @@ import FilmRail from "@/components/FilmRail";
 import PosterTile from "@/components/PosterTile";
 import {
   BROWSE_GENRES,
+  SHOW_GENRES,
+  type Media,
   EMPTY_FILTERS,
   describeFilters,
   filtersToQuery,
@@ -40,8 +42,10 @@ export default async function BrowsePage(ctx: {
       <header className="mb-7">
         <h1 className="display text-[32px] leading-none text-paper">Browse</h1>
         <p className="mt-3 max-w-[54ch] text-[15px] leading-relaxed text-ash">
-          Every film TMDB has a record of. Nothing here is ranked by what anyone on this site
-          thinks. Open one to rate it and it joins your library.
+          {filters.media === "show"
+            ? "Every series TMDB has a record of. Open one and rate it a season at a time."
+            : "Every film TMDB has a record of. Open one to rate it and it joins your library."}{" "}
+          Nothing here is ranked by what anyone on this site thinks.
         </p>
       </header>
 
@@ -49,7 +53,7 @@ export default async function BrowsePage(ctx: {
         <BrowseFilters filters={filters} />
       </div>
 
-      {filtered ? <Grid filters={filters} /> : <Rails />}
+      {filtered ? <Grid filters={filters} /> : <Rails media={filters.media} />}
     </div>
   );
 }
@@ -143,7 +147,7 @@ async function Grid({ filters }: { filters: ReturnType<typeof parseFilters> }) {
       <ul className="mt-4 grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 lg:grid-cols-6">
         {page.results.map((m) => (
           <li key={m.id}>
-            <PosterTile movie={m} />
+            <PosterTile movie={m} media={filters.media} />
           </li>
         ))}
       </ul>
@@ -200,14 +204,68 @@ function Pager({
   );
 }
 
-/** The unfiltered view: named shelves instead of an undifferentiated wall. */
-async function Rails() {
+/**
+ * The unfiltered view: named shelves instead of an undifferentiated wall.
+ *
+ * Shows get their own shelves rather than the film ones with a switch flipped.
+ * "In cinemas" and "under ninety minutes" mean nothing about a series, and the
+ * genre list is a different taxonomy entirely, so the two sides are written
+ * out separately and only the rail component is shared.
+ */
+async function Rails({ media }: { media: Media }) {
   // One failure should cost one rail, not the page.
   const settle = async (p: Promise<TmdbMovie[]>) => p.catch(() => [] as TmdbMovie[]);
   const grab = (q: Partial<Parameters<typeof runBrowse>[0]>) =>
     runBrowse({ ...EMPTY_FILTERS, ...q })
       .then((r) => r.results)
       .catch(() => [] as TmdbMovie[]);
+
+  const link = (q: Parameters<typeof filtersToQuery>[0]) => `/browse${filtersToQuery({ ...q, media })}`;
+
+  if (media === "show") {
+    const [trendingShows, acclaimed, anime, ongoing] = await Promise.all([
+      grab({ media, sort: "popular" }),
+      grab({ media, sort: "rated" }),
+      grab({ media, sort: "rated", genre: 16 }),
+      grab({ media, sort: "new" }),
+    ]);
+    return (
+      <div className="mt-8 flex flex-col gap-11">
+        <FilmRail title="Being watched" note="What people are looking at right now" movies={trendingShows} media="show" />
+        <FilmRail
+          title="The canon"
+          note="Highest rated of all time, with enough votes to mean it"
+          movies={acclaimed}
+          media="show"
+          href={link({ sort: "rated" })}
+        />
+        <FilmRail
+          title="Animation and anime"
+          note="Drawn, in every language"
+          movies={anime}
+          media="show"
+          href={link({ sort: "rated", genre: 16 })}
+        />
+        <FilmRail title="Just arrived" note="Newest first" movies={ongoing} media="show" href={link({ sort: "new" })} />
+
+        <section>
+          <h2 className="display mb-3 text-[19px] leading-none text-paper">Every genre</h2>
+          <ul className="flex flex-wrap gap-2">
+            {SHOW_GENRES.map((g) => (
+              <li key={g.id}>
+                <Link
+                  href={link({ genre: g.id })}
+                  className="inline-block rounded-full border border-seam px-3.5 py-1.5 text-[12.5px] text-ash transition-colors hover:border-dim hover:text-paper"
+                >
+                  {g.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    );
+  }
 
   const [inCinemas, trending, acclaimed, japanese, shortFilms] = await Promise.all([
     settle(nowPlaying()),
@@ -216,8 +274,6 @@ async function Rails() {
     grab({ sort: "rated", language: "ja" }),
     grab({ sort: "rated", runtime: "short" }),
   ]);
-
-  const link = (q: Parameters<typeof filtersToQuery>[0]) => `/browse${filtersToQuery(q)}`;
 
   return (
     <div className="mt-8 flex flex-col gap-11">

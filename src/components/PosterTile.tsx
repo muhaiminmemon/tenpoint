@@ -9,17 +9,24 @@ import type { BrowseFilm } from "@/lib/browse-query";
  * size a poster is the only thing anyone actually reads — a row of titles in a
  * grid is a spreadsheet. Everything else stays out of the way until hover.
  *
- * It links into `/film/t/{tmdbId}`, which resolves a TMDB id to a local film
- * and catalogues it on the way through. Scrolling the grid writes nothing —
- * the results come straight from TMDB — so a person can look through ten
- * thousand films and only the ones they actually open become rows.
+ * It links into `/film/t/{tmdbId}`, or `/show/t/{tmdbId}` for a series, which
+ * resolves a TMDB id to a local row and catalogues it on the way through.
+ * Scrolling the grid writes nothing — the results come straight from TMDB — so
+ * a person can look through ten thousand titles and only the ones they
+ * actually open become rows.
  */
-export default function PosterTile({ movie }: { movie: BrowseFilm }) {
+export default function PosterTile({
+  movie,
+  media = "movie",
+}: {
+  movie: BrowseFilm;
+  media?: "movie" | "show";
+}) {
   const year = movie.release_date ? movie.release_date.slice(0, 4) : null;
 
   return (
     <Link
-      href={`/film/t/${movie.id}`}
+      href={media === "show" ? `/show/t/${movie.id}` : `/film/t/${movie.id}`}
       className="group block focus-visible:outline-none"
       title={movie.title}
     >

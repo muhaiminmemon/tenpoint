@@ -10,8 +10,10 @@ import { db } from "@/db";
 import { films } from "@/db/schema";
 import {
   discoverMovies,
+  discoverShows,
   searchMovies,
   searchPeople,
+  searchShows,
   type DiscoverPage,
   type TmdbMovie,
 } from "./tmdb";
@@ -77,7 +79,49 @@ export type QueryMatch = {
 export async function runBrowse(f: BrowseFilters): Promise<BrowseResult> {
   const filters = normalise(f);
   if (filters.source !== "tmdb") return runLeaderboard(filters);
+  if (filters.q && filters.media === "show") return runShowQuery(filters);
   return filters.q ? runQuery(filters) : runTmdb(filters);
+}
+
+/**
+ * A typed query while browsing shows.
+ *
+ * Kept apart from the film path rather than folded into it: that one carries
+ * the whole person-versus-title reading, and TMDB has no equivalent
+ * `with_people` discover for television, so pretending the two are the same
+ * function would mean a branch inside every step of it.
+ */
+async function runShowQuery(f: BrowseFilters): Promise<BrowseResult> {
+  const found = await searchShows(f.q);
+  const results = found
+    .filter((t) => {
+      if (f.genre && !(t.genre_ids ?? []).includes(f.genre)) return false;
+      if (f.language && t.original_language !== f.language) return false;
+      if (f.decade && !f.year) {
+        const y = Number.parseInt((t.first_air_date ?? "").slice(0, 4), 10);
+        if (!Number.isFinite(y) || y < f.decade || y > f.decade + 9) return false;
+      }
+      return true;
+    })
+    .map((t) => ({
+      id: t.id,
+      title: t.name,
+      release_date: t.first_air_date,
+      poster_path: t.poster_path,
+      overview: t.overview,
+      popularity: t.popularity,
+      vote_count: t.vote_count,
+      original_language: t.original_language,
+      genre_ids: t.genre_ids,
+    }));
+
+  return {
+    results,
+    page: 1,
+    totalPages: 1,
+    totalResults: results.length,
+    match: { kind: "title", heading: `Shows matching \u201c${f.q}\u201d` },
+  };
 }
 
 /** Accents off, punctuation off, case off: how two names are compared. */
@@ -235,8 +279,13 @@ async function runTmdb(
 ): Promise<DiscoverPage> {
   const sort = SORTS.find((s) => s.key === f.sort) ?? SORTS[0];
 
+  // Television is a different index with different field names, so the sort
+  // key and the date window are translated rather than reused.
+  const tv = f.media === "show";
+  const sortBy = tv ? sort.tmdb.replace("primary_release_date", "first_air_date") : sort.tmdb;
+
   const params: Record<string, string> = {
-    sort_by: sort.tmdb,
+    sort_by: sortBy,
     page: String(f.page),
     // A person's filmography is a few dozen films, not a chart: the floor that
     // keeps a chart honest would hide half of it.
@@ -251,20 +300,21 @@ async function runTmdb(
   if (band?.gte) params["with_runtime.gte"] = String(band.gte);
   if (band?.lte) params["with_runtime.lte"] = String(band.lte);
 
+  const dateField = tv ? "first_air_date" : "primary_release_date";
   if (f.year) {
-    params.primary_release_year = String(f.year);
+    params[tv ? "first_air_date_year" : "primary_release_year"] = String(f.year);
   } else if (f.decade) {
-    params["primary_release_date.gte"] = `${f.decade}-01-01`;
-    params["primary_release_date.lte"] = `${f.decade + 9}-12-31`;
+    params[`${dateField}.gte`] = `${f.decade}-01-01`;
+    params[`${dateField}.lte`] = `${f.decade + 9}-12-31`;
   } else if (f.sort === "new") {
-    // Sorting by newest without a ceiling returns films announced but not out,
-    // most with no poster and nothing to say about them.
-    params["primary_release_date.lte"] = new Date().toISOString().slice(0, 10);
+    // Sorting by newest without a ceiling returns titles announced but not
+    // out, most with no poster and nothing to say about them.
+    params[`${dateField}.lte`] = new Date().toISOString().slice(0, 10);
   }
 
   if (f.minRating) params["vote_average.gte"] = String(f.minRating / 10);
 
-  const page = await discoverMovies(params);
+  const page = tv ? await discoverShows(params) : await discoverMovies(params);
   return {
     ...page,
     results: page.results.map((m) => ({

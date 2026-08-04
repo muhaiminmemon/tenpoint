@@ -280,3 +280,33 @@ export function formOf(
   if (!animated) return "live_action";
   return originalLanguage === "ja" ? "anime" : "animation";
 }
+
+export async function discoverShows(params: Record<string, string>): Promise<DiscoverPage> {
+  const data = await tmdb<{
+    results: TmdbShow[];
+    page: number;
+    total_pages: number;
+    total_results: number;
+  }>("/discover/tv", { include_adult: "false", ...params });
+
+  // Normalised into the movie shape the grid already speaks, so one tile
+  // component serves both. `name` and `first_air_date` are the only fields
+  // TMDB calls something different for television.
+  return {
+    results: (data.results ?? []).map((t) => ({
+      id: t.id,
+      title: t.name,
+      release_date: t.first_air_date,
+      poster_path: t.poster_path,
+      backdrop_path: t.backdrop_path,
+      overview: t.overview,
+      popularity: t.popularity,
+      vote_count: t.vote_count,
+      original_language: t.original_language,
+      genre_ids: t.genre_ids,
+    })),
+    page: data.page ?? 1,
+    totalPages: Math.min(data.total_pages ?? 1, 500),
+    totalResults: data.total_results ?? 0,
+  };
+}

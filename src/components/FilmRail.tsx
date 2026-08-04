@@ -16,6 +16,7 @@ import type { TmdbMovie } from "@/lib/tmdb";
  */
 export default function FilmRail({
   title,
+  media = "movie",
   note,
   movies,
   href,
@@ -23,6 +24,7 @@ export default function FilmRail({
   title: string;
   note?: string;
   movies: TmdbMovie[];
+  media?: "movie" | "show";
   /** the filtered grid this rail is a slice of */
   href?: string;
 }) {
@@ -51,7 +53,7 @@ export default function FilmRail({
       <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
         {movies.map((m) => (
           <li key={m.id} className="w-[116px] shrink-0 snap-start sm:w-[132px]">
-            <PosterTile movie={m} />
+            <PosterTile movie={m} media={media} />
           </li>
         ))}
       </ul>

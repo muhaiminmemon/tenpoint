@@ -27,6 +27,28 @@ export const SORTS: { key: SortKey; label: string; tmdb: string }[] = [
  * by the backfill, so they cover far fewer films and are honest leaderboards
  * rather than a filter over everything.
  */
+/**
+ * What is being browsed.
+ *
+ * Films and series are separate indexes at TMDB with separate genre
+ * taxonomies, so this is not a filter over one list, it is which list.
+ */
+export type Media = "movie" | "show";
+
+export const MEDIA: { key: Media; label: string }[] = [
+  { key: "movie", label: "Movies" },
+  { key: "show", label: "Shows" },
+];
+
+/** TMDB's television genres. Overlapping ids mean different things per index. */
+export const SHOW_GENRES: { id: number; name: string }[] = [
+  { id: 10759, name: "Action & Adventure" }, { id: 16, name: "Animation" },
+  { id: 35, name: "Comedy" }, { id: 80, name: "Crime" }, { id: 99, name: "Documentary" },
+  { id: 18, name: "Drama" }, { id: 10751, name: "Family" }, { id: 9648, name: "Mystery" },
+  { id: 10765, name: "Sci-Fi & Fantasy" }, { id: 10764, name: "Reality" },
+  { id: 10768, name: "War & Politics" }, { id: 37, name: "Western" },
+];
+
 export type Source = "tmdb" | "imdb" | "rt";
 
 export const SOURCES: { key: Source; label: string; note: string }[] = [
@@ -93,6 +115,7 @@ export function yearOptions(): number[] {
 export type QueryAs = "person" | "title";
 
 export type BrowseFilters = {
+  media: Media;
   source: Source;
   sort: SortKey;
   genre: number | null;
@@ -128,6 +151,7 @@ export function personHref(name: string): string {
 export const DEFAULT_SORT: SortKey = "popular";
 
 export const EMPTY_FILTERS: BrowseFilters = {
+  media: "movie",
   source: "tmdb",
   sort: DEFAULT_SORT,
   genre: null,
@@ -157,10 +181,12 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
   const langRaw = one("lang");
   const runtimeRaw = one("len");
   const asRaw = one("as");
+  const mediaRaw = one("media");
   const year = num("year");
   const years = yearOptions();
 
   const f: BrowseFilters = {
+    media: mediaRaw === "show" ? "show" : "movie",
     source: SOURCES.some((s) => s.key === sourceRaw) ? (sourceRaw as Source) : "tmdb",
     sort: SORTS.some((s) => s.key === sortRaw) ? (sortRaw as SortKey) : DEFAULT_SORT,
     genre: BROWSE_GENRES.some((g) => g.id === num("genre")) ? num("genre") : null,
@@ -201,6 +227,18 @@ export function normalise(f: BrowseFilters): BrowseFilters {
   // sort is implied — picking IMDb *is* the ordering.
   if (out.source !== "tmdb") out.sort = "rated";
 
+  // Television has no box office, and the critic leaderboards are built from
+  // scores only fetched for films, so shows fall back to the audience index.
+  if (out.media === "show") {
+    if (out.source !== "tmdb") out.source = "tmdb";
+    if (out.sort === "grossing") out.sort = "popular";
+    // Genre ids do not mean the same thing across TMDB's two indexes, so a
+    // genre carried over from films would silently select a different one.
+    if (out.genre !== null && !SHOW_GENRES.some((g) => g.id === out.genre)) out.genre = null;
+  } else if (out.genre !== null && !BROWSE_GENRES.some((g) => g.id === out.genre)) {
+    out.genre = null;
+  }
+
   return out;
 }
 
@@ -208,6 +246,8 @@ export function normalise(f: BrowseFilters): BrowseFilters {
 export function filtersToQuery(f: Partial<BrowseFilters>): string {
   const full = normalise({ ...EMPTY_FILTERS, ...f });
   const p = new URLSearchParams();
+  // First, because it decides what every other parameter means.
+  if (full.media !== "movie") p.set("media", full.media);
   if (full.source !== "tmdb") p.set("src", full.source);
   if (full.sort !== DEFAULT_SORT && full.source === "tmdb") p.set("sort", full.sort);
   if (full.genre) p.set("genre", String(full.genre));
