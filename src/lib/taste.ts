@@ -656,7 +656,10 @@ export async function buildHomeTasteCard(
    * is the correction and the binder states it.
    */
   const ladderSize = Math.round(
-    weightedSize(taste.rated - signals.seasonCount, signals.seasonCount),
+    weightedSize(
+      taste.rated - signals.seasonCount - signals.wholeShowCount,
+      signals.seasonsCredited,
+    ),
   );
   const standing = tierStanding(ladderSize, signals);
   const tier = standing.tier;
@@ -760,7 +763,12 @@ export async function syncUserTier(userId: string): Promise<void> {
   const tier =
     taste.rated > 0
       ? tierStanding(
-          Math.round(weightedSize(taste.rated - signals.seasonCount, signals.seasonCount)),
+          Math.round(
+            weightedSize(
+              taste.rated - signals.seasonCount - signals.wholeShowCount,
+              signals.seasonsCredited,
+            ),
+          ),
           signals,
         ).tier.name
       : null;

@@ -122,7 +122,12 @@ export async function loadBinder(
   const hasCard = taste.rated > 0;
   const tier = hasCard
     ? computeTier(
-        Math.round(weightedSize(taste.rated - signals.seasonCount, signals.seasonCount)),
+        Math.round(
+          weightedSize(
+            taste.rated - signals.seasonCount - signals.wholeShowCount,
+            signals.seasonsCredited,
+          ),
+        ),
         signals,
       )
     : null;

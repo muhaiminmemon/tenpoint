@@ -124,6 +124,15 @@ export type TasteSignals = {
    */
   seasonCount: number;
   wholeShowCount: number;
+  /**
+   * Seasons of viewing this library represents, however it was recorded.
+   *
+   * Rating a whole series is a statement about all of its seasons, so it
+   * credits all of them; rating some of them credits those. Doing both credits
+   * the larger, never the sum. This is what the ladder weighs, not the row
+   * count, which would price a whole-show rating at one film.
+   */
+  seasonsCredited: number;
   showsTouched: number;
   longestRun: number;
   completedShows: number;
@@ -222,6 +231,28 @@ export async function getTasteSignals(
     show_totals as (
       select f.show_id, count(*)::int as total_seasons
       from films f where f.kind = 'season' and f.show_id is not null group by f.show_id
+    ),
+    /*
+     * What each series is worth, in seasons, without counting it twice.
+     *
+     * Rating the whole of Breaking Bad is a claim about five seasons, so it
+     * credits five. Rating three of its seasons credits three. Doing both
+     * credits five, not eight: the greater of the two readings, because they
+     * describe the same watching rather than adding to it.
+     */
+    show_credit as (
+      select t.show_id,
+             greatest(
+               coalesce(rs.rated_seasons, 0),
+               case when w.whole > 0 then t.total_seasons else 0 end
+             ) as seasons_credited
+      from show_totals t
+      left join (select show_id, count(*)::int as rated_seasons from seasons group by show_id) rs
+        on rs.show_id = t.show_id
+      left join (
+        select show_id, count(*)::int as whole from cur_f where kind = 'show' group by show_id
+      ) w on w.show_id = t.show_id
+      where coalesce(rs.rated_seasons, 0) > 0 or coalesce(w.whole, 0) > 0
     ),
     genre_counts as (
       select g.value as genre, count(*)::int as count
@@ -363,6 +394,7 @@ export async function getTasteSignals(
       -- television
       (select count(*) from cur_f where kind = 'season')::int as season_count,
       (select count(*) from cur_f where kind = 'show')::int as whole_show_count,
+      (select coalesce(sum(seasons_credited), 0) from show_credit)::int as seasons_credited,
       (select count(distinct show_id) from seasons)::int as shows_touched,
       (select coalesce(max(rated_seasons), 0) from per_show)::int as longest_run,
       -- Every season of something, which is the only trait here that requires
@@ -444,6 +476,7 @@ export async function getTasteSignals(
     imdbKnownCount: num(r, "imdb_known_count"),
     seasonCount: num(r, "season_count"),
     wholeShowCount: num(r, "whole_show_count"),
+    seasonsCredited: num(r, "seasons_credited"),
     showsTouched: num(r, "shows_touched"),
     longestRun: num(r, "longest_run"),
     completedShows: num(r, "completed_shows"),

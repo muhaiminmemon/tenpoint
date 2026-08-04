@@ -299,11 +299,19 @@ function CardTab({ data, binderHref }: { data: HomeTasteCardData; binderHref?: s
 function TraitsTab({ data }: { data: HomeTasteCardData }) {
   return (
     <div>
-      <div className="mb-3 flex items-baseline justify-between">
+      <div className="mb-1 flex items-baseline justify-between">
         <span className="text-[10px] uppercase tracking-[.14em] text-ash">
           Traits · {data.traitsHeldCount} held of {data.traitsTotal}
         </span>
       </div>
+      {/* The key. Three dots with nothing explaining them is a symbol the
+          reader has to guess at, and the bar alone cannot say which rung it is
+          filling: eight of twenty looks the same on the first rung as on the
+          second. */}
+      <p className="mb-3 text-[11.5px] leading-snug text-dim">
+        Each one has three rungs. The dots are the rungs you have passed, and the bar is how far
+        you are through the next.
+      </p>
       {/* Every trait carries its own number and the rung it is on. A badge that
           is only held or not stops moving the moment it is earned; a count
           keeps going, and the bar underneath is the distance to the next one. */}
@@ -331,9 +339,13 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
                     <span className="text-[9px] uppercase tracking-[.1em] text-dim">Series</span>
                   )}
                   {t.level > 0 && (
-                    // Three pips rather than a word: the level is a quantity,
-                    // and "Held" said the same thing at every stage.
-                    <span aria-label={`Level ${t.level} of 3`} className="flex gap-[3px]">
+                    // Pips rather than a word: the level is a quantity, and
+                    // "Held" said the same thing at every stage.
+                    <span
+                      aria-label={`Rung ${t.level} of 3`}
+                      title={`Rung ${t.level} of 3 · ${t.rungs.join(", ")}`}
+                      className="flex gap-[3px]"
+                    >
                       {[0, 1, 2].map((i) => (
                         <span
                           key={i}
