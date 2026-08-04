@@ -183,6 +183,12 @@ export default function TasteCardFace({
           {data.traitsHeldCount > 0 && (
             <div className="mt-4 flex items-center justify-center gap-2.5 border-t border-seam pt-3">
               <span className="num text-[10px] text-gold">{data.traitsHeldCount} traits</span>
+              {/* The split, once there is one. A shelf that is a third series
+                  is a fact about somebody, and it is the reading the tier and
+                  the signature quartet were both decided on. */}
+              {data.mix.seasons > 0 && (
+                <span className="num text-[10px] text-dim">{data.mix.showShare}% series</span>
+              )}
             </div>
           )}
         </div>

@@ -223,7 +223,7 @@ export function TasteCardBackBig({
       {data.profStats.length > 0 && (
         <div>
           <SectionLabel>Profile stats</SectionLabel>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className={`grid gap-1.5 ${data.profStats.length > 5 ? "grid-cols-6" : "grid-cols-5"}`}>
             {data.profStats.map((s) => (
               <div key={s.label} className="rounded-[7px] border border-[#232329] bg-white/[.02] py-1.5 text-center">
                 <div className="num text-[14px] text-paper">{s.value}</div>

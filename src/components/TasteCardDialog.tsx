@@ -272,15 +272,16 @@ function CardTab({ data, binderHref }: { data: HomeTasteCardData; binderHref?: s
                and only the film count moves the floor now. */
             <>
               <p className="text-[12.5px] leading-relaxed text-paper">
-                {data.tier.name} is already ahead of your film count, earned on breadth rather
-                than volume.
+                {data.tier.name} is already ahead of what you have watched, earned on breadth
+                rather than volume.
               </p>
               <p className="mt-2 text-[12px] leading-relaxed text-dim">
                 {standing.gate.filmsToNext > 0 ? (
                   <>
-                    Rate{" "}
-                    <span className="num text-ash">{standing.gate.filmsToNext}</span> more and the
-                    count catches up, which is what puts {standing.next?.name} within reach.
+                    <span className="num text-ash">{standing.gate.filmsToNext}</span> more films,
+                    or <span className="num text-ash">{standing.gate.seasonsToNext}</span> more
+                    seasons, and the count catches up, which is what puts {standing.next?.name}{" "}
+                    within reach. Any mix of the two counts.
                   </>
                 ) : (
                   <>The next tier opens from here.</>

@@ -14,7 +14,7 @@ import {
   ERA_BY_DECADE,
   evaluateTraits,
   tierStanding,
-  weightedSize,
+  SEASON_WEIGHT,
   RARITY_TIERS,
   type RarityTier,
   type TierStanding,
@@ -560,6 +560,8 @@ export type HomeTasteCardData = TasteProfile & {
   /** every rated tenths value, for the rating-fingerprint histogram on the back */
   ratings: number[];
   profStats: Stat[];
+  /** the film-against-series split, weighted the way the ladder weighs it */
+  mix: { films: number; seasons: number; showShare: number };
   personality: PersonalityAxis[];
   favsCard: Stat[];
   social: TasteMatch[];
@@ -630,6 +632,7 @@ export async function buildHomeTasteCard(
       decadeBreakdown,
       ratings: [],
       profStats: [],
+      mix: { films: 0, seasons: 0, showShare: 0 },
       personality: [],
       favsCard: [],
       social: [],
@@ -655,13 +658,26 @@ export async function buildHomeTasteCard(
    * television watcher climb five times slower per hour spent. `SEASON_WEIGHT`
    * is the correction and the binder states it.
    */
-  const ladderSize = Math.round(
-    weightedSize(
-      taste.rated - signals.seasonCount - signals.wholeShowCount,
-      signals.seasonsCredited,
-    ),
-  );
-  const standing = tierStanding(ladderSize, signals);
+  /**
+   * How the shelf splits, weighted the way the ladder weighs it.
+   *
+   * By rows this library is a sixth television; by hours it is half. The card
+   * prints the weighted reading because that is the one the tier and the
+   * signature quartet were decided on, and a card that shows a figure nothing
+   * acts on is worse than one that shows none.
+   */
+  const seasonWeighted = signals.seasonsCredited * SEASON_WEIGHT;
+  const filmCount = taste.rated - signals.seasonCount - signals.wholeShowCount;
+  const mix = {
+    films: filmCount,
+    seasons: signals.seasonsCredited,
+    showShare:
+      seasonWeighted + filmCount > 0
+        ? Math.round((seasonWeighted / (seasonWeighted + filmCount)) * 100)
+        : 0,
+  };
+
+  const standing = tierStanding(mix.films, mix.seasons, signals);
   const tier = standing.tier;
 
   const variant = computeVariant(
@@ -706,8 +722,12 @@ export async function buildHomeTasteCard(
     signatureFilms,
     decadeBreakdown,
     ratings: ratedFilms.map((f) => f.rating),
+    mix,
     profStats: [
-      { label: "Films", value: String(taste.rated) },
+      { label: "Titles", value: String(taste.rated) },
+      ...(mix.seasons > 0
+        ? [{ label: "Series", value: `${mix.showShare}%` }]
+        : []),
       { label: "Avg", value: taste.mean !== null ? formatTenths(taste.mean) : "-" },
       { label: "Rewatch", value: `${rewatchPct}%` },
       { label: "Reviews", value: String(signals.reviewCount) },
@@ -763,12 +783,8 @@ export async function syncUserTier(userId: string): Promise<void> {
   const tier =
     taste.rated > 0
       ? tierStanding(
-          Math.round(
-            weightedSize(
-              taste.rated - signals.seasonCount - signals.wholeShowCount,
-              signals.seasonsCredited,
-            ),
-          ),
+          taste.rated - signals.seasonCount - signals.wholeShowCount,
+          signals.seasonsCredited,
           signals,
         ).tier.name
       : null;

@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { AxisRow, Binder, FinishState, PersonalityRow, TierRow } from "@/lib/binder";
 
 import { inThirdPerson } from "@/lib/voice";
-import { SEASON_WEIGHT } from "@/lib/taste-card";
 
 
 import { posterUrl } from "@/lib/tmdb-urls";
@@ -522,7 +521,7 @@ export default function BinderShowcase({
                     <p className="mt-1 text-sm text-ash">
                       {row.tier.index === 0
                         ? "Issued with the first film rated."
-                        : `Issued at ${row.tier.floor} titles, counting a season as ${SEASON_WEIGHT}.`}{" "}
+                        : `Issued at ${row.tier.floor} films, or ${row.tier.seasonFloor} seasons, or any mix.`}{" "}
                       {row.tier.effect}
                     </p>
                   </div>

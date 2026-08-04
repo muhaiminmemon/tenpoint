@@ -13,7 +13,10 @@ import { CLUSTERS, CLUSTER_PREVALENCE, STOCK_BY_CLUSTER } from "./archetype-clus
 export type RarityTier = {
   name: "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic";
   index: number;
+  /** films alone that reach this rung */
   floor: number;
+  /** seasons alone that reach it, roughly a quarter of the film count */
+  seasonFloor: number;
   range: string;
   effect: string;
   border: string;
@@ -40,7 +43,8 @@ export const RARITY_TIERS: RarityTier[] = [
     name: "Common",
     index: 0,
     floor: 1,
-    range: "1–39",
+    seasonFloor: 1,
+    range: "Your first film or season",
     effect: "Matte. Just the essentials.",
     border: "#2a2a31",
     glow: "none",
@@ -53,7 +57,8 @@ export const RARITY_TIERS: RarityTier[] = [
     name: "Uncommon",
     index: 1,
     floor: 40,
-    range: "40–119",
+    seasonFloor: 10,
+    range: "40 films or 10 seasons",
     effect: "A cleaner edge, faint sheen.",
     border: "#34343d",
     glow: "none",
@@ -66,7 +71,8 @@ export const RARITY_TIERS: RarityTier[] = [
     name: "Rare",
     index: 2,
     floor: 120,
-    range: "120–299",
+    seasonFloor: 30,
+    range: "120 films or 30 seasons",
     effect: "Beam-blue border.",
     border: "linear-gradient(160deg,#34506a,#8faecc)",
     glow: "none",
@@ -79,7 +85,8 @@ export const RARITY_TIERS: RarityTier[] = [
     name: "Epic",
     index: 3,
     floor: 300,
-    range: "300–649",
+    seasonFloor: 75,
+    range: "300 films or 75 seasons",
     effect: "Silver foil, quiet shimmer.",
     border: "linear-gradient(160deg,#5a5570,#b3a3d6)",
     glow: "none",
@@ -91,8 +98,9 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Legendary",
     index: 4,
-    floor: 650,
-    range: "650–1,299",
+    floor: 700,
+    seasonFloor: 175,
+    range: "700 films or 175 seasons",
     effect: "Gold foil, warm glow.",
     border: "conic-gradient(from 210deg,#4a3f24,#d9b25f,#3a3a44,#d9b25f,#4a3f24)",
     borderFlat: "linear-gradient(130deg,#4a3f24,#d9b25f 28%,#3a3a44 52%,#d9b25f 76%,#4a3f24)",
@@ -105,8 +113,9 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Mythic",
     index: 5,
-    floor: 1300,
-    range: "1,300+",
+    floor: 1400,
+    seasonFloor: 350,
+    range: "1,400 films or 350 seasons",
     effect: "Full foil, drifting light, particles.",
     border: "conic-gradient(from 0deg,#8faecc,#d9b25f,#c4756a,#8faecc)",
     borderFlat: "linear-gradient(130deg,#8faecc,#d9b25f 34%,#c4756a 66%,#8faecc)",
@@ -211,7 +220,7 @@ export const MILESTONES_TO_PROMOTE = 3;
  */
 export type TierGate =
   | { kind: "milestones"; milestones: Milestone[]; met: number; needed: number }
-  | { kind: "films"; filmsToNext: number };
+  | { kind: "films"; filmsToNext: number; seasonsToNext: number };
 
 export type TierStanding = {
   /** the tier in force */
@@ -226,10 +235,22 @@ export type TierStanding = {
   gate: TierGate | null;
 };
 
-export function tierStanding(rated: number, signals: TasteSignals): TierStanding {
+/**
+ * How far along a rung somebody is, as a fraction of the two stated numbers.
+ *
+ * A rung is "300 films or 75 seasons", and either alone reaches it, so the two
+ * are read as fractions and added: half the films plus half the seasons is a
+ * whole rung. That is the only rule that does not punish somebody for watching
+ * both, and it needs no multiplier to explain, which the previous version did.
+ */
+export function ladderProgress(films: number, seasons: number, tier: RarityTier): number {
+  return films / Math.max(1, tier.floor) + seasons / Math.max(1, tier.seasonFloor);
+}
+
+export function tierStanding(films: number, seasons: number, signals: TasteSignals): TierStanding {
   let byCount = RARITY_TIERS[0];
   for (const t of RARITY_TIERS) {
-    if (rated >= t.floor) byCount = t;
+    if (ladderProgress(films, seasons, t) >= 1) byCount = t;
   }
 
   const step = milestonesAt(byCount.index, signals);
@@ -248,9 +269,21 @@ export function tierStanding(rated: number, signals: TasteSignals): TierStanding
     promoted,
     next,
     gate: promoted
-      ? // The lift is spent. Only films move the floor now, and once it moves
-        // the conditions for the rung after this one come back into play.
-        { kind: "films", filmsToNext: Math.max(0, tier.floor - rated) }
+      ? // The lift is spent. Only watching moves the floor now, and once it
+        // moves the conditions for the rung after this one come back into play.
+        {
+          kind: "films",
+          // Stated as films, because that is the unit somebody is most likely
+          // to add next; the panel names the season equivalent beside it.
+          filmsToNext: Math.max(
+            0,
+            Math.ceil((1 - ladderProgress(films, seasons, tier)) * tier.floor),
+          ),
+          seasonsToNext: Math.max(
+            0,
+            Math.ceil((1 - ladderProgress(films, seasons, tier)) * tier.seasonFloor),
+          ),
+        }
       : { kind: "milestones", milestones: step, met, needed: MILESTONES_TO_PROMOTE },
   };
 }
@@ -264,21 +297,23 @@ export function tierStanding(rated: number, signals: TasteSignals): TierStanding
  * most of somebody's viewing time, and hours would turn a film diary into a
  * television one.
  *
- * 3.5 is the number that puts the typical library at 40% television, sitting
- * deliberately between the two. It is stated here and in the binder rather
- * than buried, because every other constant on this card is.
+ * Four sits deliberately between the two, and it is the same ratio the ladder
+ * states out loud: every rung is a film count and a season count roughly four
+ * times smaller. Nothing here relies on a reader trusting a hidden multiplier.
  *
  * It is a weight and not a quota on purpose. A quota would give shows to
  * somebody who watches none and cap somebody who watches almost nothing else;
  * a weight is true for both of them and happens to land on 40/60 in the middle.
  */
-export const SEASON_WEIGHT = 3.5;
+export const SEASON_WEIGHT = 4;
 
 /**
  * The size of a library in film-equivalents.
  *
- * Used by the ladder and by the signature balance, never by the average: your
- * 8.3 has to stay the mean of your ratings or it stops being checkable.
+ * The ladder no longer uses this: it states two real counts per rung instead,
+ * which needs no constant to explain. This is still what decides how many of
+ * the four signature slots a series can hold, and it is never applied to the
+ * average, which has to stay the mean of the ratings to stay checkable.
  */
 export function weightedSize(films: number, seasons: number): number {
   return films + seasons * SEASON_WEIGHT;
@@ -293,7 +328,7 @@ export function computeTier(rated: number, signals?: TasteSignals): RarityTier {
     }
     return tier;
   }
-  return tierStanding(rated, signals).tier;
+  return tierStanding(rated, 0, signals).tier;
 }
 
 // ---------------------------------------------------------------------------
