@@ -32,6 +32,16 @@ export default function ImportWizard() {
   const [matches, setMatches] = useState<Record<string, Match | null>>({});
   const [corrections, setCorrections] = useState<Record<string, Match>>({});
   const [skips, setSkips] = useState<Set<string>>(new Set());
+  /**
+   * Bring the watching, leave the scores.
+   *
+   * Somebody arriving from another site often wants to rate things here rather
+   * than inherit a decade of numbers from a different scale, and a shelf of
+   * imported scores is a shelf they will never revisit. Offered at the review
+   * step, not the upload, so the choice is made while looking at what the file
+   * actually said.
+   */
+  const [dropRatings, setDropRatings] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{
@@ -123,7 +133,7 @@ export default function ImportWizard() {
       const res = await fetch("/api/import/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ importId, corrections, skips: [...skips] }),
+        body: JSON.stringify({ importId, corrections, skips: [...skips], dropRatings }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -156,20 +166,23 @@ export default function ImportWizard() {
     return (
       <div className="max-w-xl">
         <p className="text-ash">
-          Export your data from Letterboxd (Settings → Import &amp; Export → Export your data),
-          unzip it, and upload <code className="text-paper">ratings.csv</code>.
+          From Letterboxd: Settings → Import &amp; Export → Export your data, unzip it, and
+          upload <code className="text-paper">ratings.csv</code>. From MyAnimeList: Profile →
+          Export, then unzip and upload the <code className="text-paper">.xml</code>.
         </p>
         <p className="mt-3 text-sm text-ash">
-          Stars carry over doubled: 4★ becomes 8.0, 3½★ becomes 7.0. Your history stays intact:
-          you can undo an import, and importing the same file twice never duplicates entries.
+          Letterboxd stars carry over doubled: 4★ becomes 8.0, 3½★ becomes 7.0. MyAnimeList
+          scores carry over exactly, a 9 becoming 9.0, and each anime season arrives as its own
+          season here, which is how it was scored. Your history stays intact: you can undo an
+          import, and importing the same file twice never duplicates entries.
         </p>
         <div className="mt-5 flex items-center gap-3">
           <input
             ref={fileRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.xml,text/csv,text/xml,application/xml"
             multiple
-            aria-label="Diary CSV files"
+            aria-label="Diary export files"
             className="text-sm text-ash file:mr-3 file:rounded-card file:border file:border-seam file:bg-tray file:px-3 file:py-1.5 file:text-paper hover:file:bg-tray-2"
           />
           <button
@@ -297,7 +310,23 @@ export default function ImportWizard() {
 
       <PreviewList rows={rows} matches={matches} corrections={corrections} skips={skips} />
 
-      <div className="mt-6 flex items-center gap-4">
+      <label className="mt-6 flex max-w-prose cursor-pointer items-start gap-3 rounded-card border border-seam bg-tray p-3.5">
+        <input
+          type="checkbox"
+          checked={dropRatings}
+          onChange={(e) => setDropRatings(e.target.checked)}
+          className="mt-0.5 size-4 shrink-0 accent-beam"
+        />
+        <span className="min-w-0">
+          <span className="block text-[14px] text-paper">Import without the ratings</span>
+          <span className="mt-0.5 block text-[12.5px] text-ash">
+            Everything still lands in your diary and counts as watched. The scores are left
+            behind, so you can rate it all again here from scratch.
+          </span>
+        </span>
+      </label>
+
+      <div className="mt-5 flex items-center gap-4">
         <button
           type="button"
           onClick={handleCommit}

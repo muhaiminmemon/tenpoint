@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { diaryEntries, imports, watchlist } from "@/db/schema";
+import { diaryEntries, films, imports, watchlist } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { ensureFilm } from "@/lib/films";
+import { ensureShow } from "@/lib/shows";
 import { filmKey, userFilmSets, type ImportPayload, type Match } from "@/lib/importer";
 import { sourceKey } from "@/lib/letterboxd";
 
@@ -22,6 +23,15 @@ const schema = z.object({
     )
     .default({}),
   skips: z.array(z.string()).default([]),
+  /**
+   * Bring the watching, leave the scores.
+   *
+   * Somebody moving here often wants to rate things again rather than inherit
+   * a decade of numbers from a different scale and a younger version of
+   * themselves. Applied at the commit rather than the parse so the review
+   * screen can still show what the file said before they decide.
+   */
+  dropRatings: z.boolean().default(false),
 });
 
 export async function POST(req: Request) {
@@ -30,7 +40,7 @@ export async function POST(req: Request) {
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bad request." }, { status: 400 });
-  const { importId, corrections, skips } = parsed.data;
+  const { importId, corrections, skips, dropRatings } = parsed.data;
 
   const row = (
     await db
@@ -58,6 +68,37 @@ export async function POST(req: Request) {
 
   const filmIdByKey = new Map<string, string>();
   for (const [k, match] of resolved) {
+    /**
+     * A season resolves through its series.
+     *
+     * An anime list names a season, so the id in hand is the *show* and the
+     * row wanted is one of its seasons. `ensureShow` brings the whole series
+     * in, seasons and all, which is also what makes the rest of the site work
+     * for it afterwards: the show page, the shelf, the completion states.
+     */
+    if (match.season != null) {
+      const show = await ensureShow(match.tmdbId);
+      if (!show) continue;
+      const season = (
+        await db
+          .select({ id: films.id })
+          .from(films)
+          .where(
+            and(
+              eq(films.showId, show.id),
+              eq(films.kind, "season"),
+              eq(films.seasonNumber, match.season),
+            ),
+          )
+          .limit(1)
+      )[0];
+      // A season the mapping believes in but TMDB does not list is dropped
+      // rather than guessed at: better one missing row than a score filed
+      // against the wrong season.
+      if (season) filmIdByKey.set(k, season.id);
+      continue;
+    }
+
     const film = await ensureFilm({
       id: match.tmdbId,
       title: match.title,
@@ -76,7 +117,15 @@ export async function POST(req: Request) {
   let unmatched = 0;
 
   const order = { diary: 0, ratings: 1, watched: 2, watchlist: 3 };
-  const rows = [...payload.rows].sort((a, b) => order[a.kind] - order[b.kind]);
+  const rows = [...payload.rows]
+    // A ratings-only row carries nothing but the score, so with the scores
+    // dropped it becomes a record that they watched it.
+    .map((r) =>
+      dropRatings
+        ? { ...r, rating: null, kind: r.kind === "ratings" ? ("watched" as const) : r.kind }
+        : r,
+    )
+    .sort((a, b) => order[a.kind] - order[b.kind]);
 
   for (const r of rows) {
     const k = filmKey(r);

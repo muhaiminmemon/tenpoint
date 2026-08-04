@@ -9,6 +9,14 @@ export type Match = {
   title: string;
   year: number | null;
   posterPath: string | null;
+  /**
+   * The TMDB season this row is, when it is one.
+   *
+   * An anime export names a season of a series, not the series, so `tmdbId`
+   * is the *show* and this says which season of it the score belongs to. Null
+   * or absent means the row is a film and `tmdbId` is the film.
+   */
+  season?: number | null;
 };
 
 export type ImportPayload = {

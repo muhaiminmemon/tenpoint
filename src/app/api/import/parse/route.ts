@@ -4,7 +4,8 @@ import { imports } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 import { parseLetterboxdCsv } from "@/lib/letterboxd";
-import type { ImportPayload } from "@/lib/importer";
+import { parseMalXml } from "@/lib/myanimelist";
+import { filmKey, type ImportPayload } from "@/lib/importer";
 
 /**
  * A Letterboxd export is a handful of small CSVs; a decade of daily logging is
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   const form = await req.formData();
   const files = form.getAll("files").filter((f): f is File => f instanceof File);
   if (!files.length) {
-    return NextResponse.json({ error: "Choose at least one CSV from your diary export." }, { status: 400 });
+    return NextResponse.json({ error: "Choose at least one file: a Letterboxd CSV or a MyAnimeList XML." }, { status: 400 });
   }
   if (files.length > MAX_FILES) {
     return NextResponse.json(
@@ -51,6 +52,37 @@ export async function POST(req: Request) {
 
   for (const file of files) {
     const text = await file.text();
+
+    /**
+     * An anime export, which arrives already resolved.
+     *
+     * MyAnimeList files each season of a series separately with its own score,
+     * and the shipped mapping turns its ids straight into a TMDB show and a
+     * season number. That is a better answer than the title search could ever
+     * give, so those rows are matched here rather than left to the match step:
+     * "Shingeki no Kyojin" searched as a title finds a film, four seasons, or
+     * nothing, and never reliably the third season somebody scored.
+     */
+    const anime = parseMalXml(text);
+    if (anime) {
+      const offset = payload.rows.length;
+      for (const [i, r] of anime.rows.entries()) {
+        const row = { ...r, key: `${r.kind}:${offset + i}` };
+        payload.rows.push(row);
+        if (r.tmdbId !== null) {
+          payload.matches[filmKey(row)] = {
+            tmdbId: r.tmdbId,
+            title: r.name,
+            year: r.year,
+            posterPath: null,
+            season: r.season,
+          };
+        }
+      }
+      filenames.push(file.name);
+      continue;
+    }
+
     const parsed = parseLetterboxdCsv(text, file.name);
     if (!parsed) {
       unrecognized.push(file.name);
@@ -75,7 +107,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error: unrecognized.length
-          ? `Couldn't read ${unrecognized.join(", ")}. Upload ratings.csv from your export.`
+          ? `Couldn't read ${unrecognized.join(", ")}. Upload ratings.csv from Letterboxd, or the XML from MyAnimeList.`
           : "Those files contained no film rows.",
       },
       { status: 400 },
