@@ -325,9 +325,19 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {data.traits.map((t) => {
           const target = t.rungs[Math.min(2, t.level)];
-          const floor = t.level === 0 ? 0 : t.rungs[t.level - 1];
-          const span = Math.max(1, target - floor);
-          const pct = t.level >= 3 ? 100 : Math.min(100, ((t.count - floor) / span) * 100);
+          /**
+           * Filled against the number the line underneath names, from zero.
+           *
+           * It used to measure across the current rung's band, which made the
+           * bar disagree with its own caption twice over. Reaching a rung
+           * exactly emptied it: nine films by one director read "5 more for
+           * 14" above a bar at nothing, so earning a mark looked like losing
+           * one. And two traits both saying "2 more for 10" drew at seventy
+           * percent and twenty-eight, because they sat in bands of different
+           * widths. Measuring from zero to the target makes the bar say what
+           * the words say, and it only ever moves forward.
+           */
+          const pct = t.level >= 3 ? 100 : Math.min(100, (t.count / Math.max(1, target)) * 100);
           return (
             <div
               key={t.key}
