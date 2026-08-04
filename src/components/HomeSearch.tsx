@@ -11,6 +11,10 @@ type FilmHit = {
   title: string;
   year: number | null;
   director?: string | null;
+  /** "show" on a series; its seasons are what get rated, so it opens elsewhere */
+  kind?: "show";
+  /** series carry their own slug space, so the link is built from this */
+  showSlug?: string | null;
 };
 
 /** The hero search bar: type a title, press enter, land on its page to rate it. */
@@ -64,7 +68,14 @@ export default function HomeSearch() {
   }, []);
 
   function go(f: FilmHit) {
-    router.push(f.slug ? `/film/${f.slug}` : `/film/t/${f.tmdbId}`);
+    // A series is not rated here, its seasons are, so it opens the show page.
+    // This bar sent everything to /film/, which for a series meant a film
+    // page built from a television id: a different work, or nothing at all.
+    if (f.kind === "show") {
+      router.push(f.showSlug ? `/show/${f.showSlug}` : `/show/t/${f.tmdbId}`);
+    } else {
+      router.push(f.slug ? `/film/${f.slug}` : `/film/t/${f.tmdbId}`);
+    }
     setOpen(false);
   }
 
@@ -113,7 +124,7 @@ export default function HomeSearch() {
           )}
           <ul className="max-h-72 overflow-y-auto p-1.5">
             {films.map((f, i) => (
-              <li key={f.slug ?? f.tmdbId}>
+              <li key={`${f.kind ?? "film"}-${f.slug ?? f.showSlug ?? f.tmdbId}`}>
                 <button
                   type="button"
                   onClick={() => go(f)}
@@ -130,7 +141,12 @@ export default function HomeSearch() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-paper">{f.title}</span>
                     <span className="num block truncate text-[11px] text-ash">
-                      {[f.year, f.director].filter(Boolean).join(" · ")}
+                      {/* Series say so. Both kinds are in this list now, and a
+                          title alone does not tell you which you are about to
+                          open, or why one of them will not ask for a rating. */}
+                      {[f.kind === "show" ? "Series" : null, f.year, f.director]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </span>
                   </span>
                 </button>
