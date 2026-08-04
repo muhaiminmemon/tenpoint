@@ -8,6 +8,11 @@
   --color-tray: #1c1c21;
   --color-tray-2: #232329;
   --color-seam: #2a2a31;
+  /* One step up from `seam`, for the edge of a panel rather than the hairline
+     between rows. Seam is nearly invisible against carbon, which is right for
+     a divider inside a list and wrong for the outline of a box that is meant
+     to read as its own surface. */
+  --color-edge: #3a3a45;
   --color-paper: #eceae6;
   --color-ash: #9a9aa3;
   --color-dim: #6a6a72;

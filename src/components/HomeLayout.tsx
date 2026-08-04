@@ -83,7 +83,7 @@ export default function HomeLayout({
         </>
       ) : (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-seam bg-carbon p-5">
+          <div className="rounded-xl border border-edge bg-carbon p-5">
             <h2 className="display text-xl text-paper">Bring your existing diary</h2>
             <p className="mt-2 text-sm leading-relaxed text-ash">
               Upload the CSV, preview every row, undo anytime. Nothing is written until you confirm.

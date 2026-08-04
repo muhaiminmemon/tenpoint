@@ -232,7 +232,7 @@ function Poster({
         style={{
           width: cardW,
           display: "flex",
-          padding: px(3),
+          padding: px(10),
           background: tier.borderFlat ?? tier.border,
           position: "relative",
         }}

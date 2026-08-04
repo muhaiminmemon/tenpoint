@@ -23,7 +23,7 @@ export default function RecentViewings({
   className?: string;
 }) {
   return (
-    <div className={`rounded-xl border border-seam bg-lift p-5 ${className}`}>
+    <div className={`rounded-xl border border-edge bg-lift p-5 ${className}`}>
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-[11px] uppercase tracking-[0.12em] text-ash">Recent viewings</span>
         {viewings.length > 0 && (

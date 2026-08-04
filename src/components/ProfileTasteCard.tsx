@@ -52,7 +52,7 @@ export default function ProfileTasteCard({
           type="button"
           onClick={() => setOpen(true)}
           aria-label={`Open ${displayName}'s taste card`}
-          className="block w-full p-px text-left"
+          className="block w-full p-[4px] text-left"
           style={{
             background: data.tier.border,
             boxShadow: data.tier.glow === "none" ? undefined : data.tier.glow,

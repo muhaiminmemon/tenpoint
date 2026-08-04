@@ -27,7 +27,7 @@ export default function TasteCardDeveloping({
 }) {
   return (
     <div>
-      <div className="rounded-xl border border-seam bg-carbon p-5">
+      <div className="rounded-xl border border-edge bg-carbon p-5">
         <div className="flex items-baseline justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-[0.14em] text-ash">

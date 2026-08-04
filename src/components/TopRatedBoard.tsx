@@ -13,7 +13,7 @@ import type { TopRatedFilm } from "@/lib/leaderboard";
  */
 export default function TopRatedBoard({ films }: { films: TopRatedFilm[] }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-seam bg-carbon">
+    <div className="overflow-hidden rounded-xl border border-edge bg-carbon">
       <div className="border-b border-seam p-4">
         <h2 className="display text-[19px] text-paper">Top rated on Tenpoint</h2>
         <p className="mt-0.5 text-sm text-ash">

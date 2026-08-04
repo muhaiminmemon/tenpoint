@@ -5,7 +5,7 @@
  */
 export default function TasteCardBlank() {
   return (
-    <div className="rounded-xl border border-seam bg-carbon p-5">
+    <div className="rounded-xl border border-edge bg-carbon p-5">
       <p className="text-[11px] uppercase tracking-[0.14em] text-ash">Your taste card</p>
       <div
         aria-hidden
