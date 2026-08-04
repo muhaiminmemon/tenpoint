@@ -11,12 +11,26 @@ import { GENRES_BY_ID } from "./tmdb";
 
 export type SortKey = "popular" | "rated" | "new" | "grossing" | "voted";
 
-export const SORTS: { key: SortKey; label: string; tmdb: string }[] = [
+export const SORTS: {
+  key: SortKey;
+  label: string;
+  tmdb: string;
+  /**
+   * Hidden when browsing series.
+   *
+   * TMDB's television index has no revenue field, so ordering by it does not
+   * fail loudly, it is simply ignored: the chip stayed selected and the grid
+   * came back in some other order entirely. Box office has no television
+   * meaning to translate to either, and mapping it onto vote count would only
+   * duplicate Most rated under a word that means something else.
+   */
+  filmsOnly?: boolean;
+}[] = [
   { key: "popular", label: "Popular now", tmdb: "popularity.desc" },
   { key: "rated", label: "Highest rated", tmdb: "vote_average.desc" },
   { key: "new", label: "Newest", tmdb: "primary_release_date.desc" },
   { key: "voted", label: "Most rated", tmdb: "vote_count.desc" },
-  { key: "grossing", label: "Biggest", tmdb: "revenue.desc" },
+  { key: "grossing", label: "Biggest", tmdb: "revenue.desc", filmsOnly: true },
 ];
 
 /**

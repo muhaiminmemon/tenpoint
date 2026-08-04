@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaretDown, CaretRight } from "@phosphor-icons/react/ssr";
 import LogSheet, { type LogPayload } from "./LogSheet";
+import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { errorFrom, readJson } from "@/lib/http";
@@ -19,6 +20,8 @@ export type SeasonItem = {
   audience: number | null;
   /** the viewer's own rating, in tenths */
   rating: number | null;
+  /** the entry behind that rating, so it can be removed */
+  entryId: string | null;
   unaired: boolean;
 };
 
@@ -46,10 +49,20 @@ export default function SeasonRater({
 }) {
   const [open, setOpen] = useState(initiallyOpen);
   const [active, setActive] = useState<SeasonItem | null>(null);
+  /**
+   * Whether the open sheet is a rewatch rather than a first viewing or an edit.
+   *
+   * Seasons could only ever be logged once: this component posted rewatch
+   * false unconditionally, so watching a season again either overwrote what
+   * you thought the first time or was refused. A film has had rewatches since
+   * the beginning, and a season is the same unit of watching.
+   */
+  const [again, setAgain] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
+  const confirm = useConfirm();
 
   const rated = seasons.filter((s) => s.rating !== null).length;
 
@@ -61,7 +74,7 @@ export default function SeasonRater({
       const res = await fetch("/api/entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filmId: active.id, ...payload, rewatch: false }),
+        body: JSON.stringify({ filmId: active.id, ...payload, rewatch: again }),
       });
       if (!res.ok) {
         setError(await errorFrom(res, "That didn't save. Try again."));
@@ -75,6 +88,7 @@ export default function SeasonRater({
             : `${active.label} logged`,
       });
       setActive(null);
+      setAgain(false);
       // The row's own rating, the seasons average and the show's ladder all
       // read the same entry, so the page is refetched rather than patched.
       router.refresh();
@@ -83,6 +97,23 @@ export default function SeasonRater({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function removeRating(s: SeasonItem) {
+    if (!s.entryId) return;
+    const ok = await confirm({
+      title: `Remove your rating of ${s.label}?`,
+      body: "The rating and anything written with it go too. This can't be undone.",
+      action: "Remove",
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/entries/${s.entryId}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast({ message: "That didn't delete. Try again." });
+      return;
+    }
+    toast({ message: `${s.label} rating removed` });
+    router.refresh();
   }
 
   return (
@@ -106,12 +137,15 @@ export default function SeasonRater({
       {open && (
         <ul className="fade-up mt-3 border-t border-seam">
           {seasons.map((s) => (
-            <li key={s.id}>
+            <li key={s.id} className="flex items-center border-b border-seam last:border-0">
               <button
                 type="button"
-                onClick={() => setActive(s)}
+                onClick={() => {
+                  setAgain(false);
+                  setActive(s);
+                }}
                 disabled={s.unaired}
-                className="group flex w-full items-center gap-4 border-b border-seam px-1 py-3.5 text-left transition-colors last:border-0 hover:bg-tray focus-visible:bg-tray focus-visible:outline-none disabled:pointer-events-none disabled:opacity-45"
+                className="group flex min-w-0 flex-1 items-center gap-4 px-1 py-3.5 text-left transition-colors hover:bg-tray focus-visible:bg-tray focus-visible:outline-none disabled:pointer-events-none disabled:opacity-45"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] text-paper">{s.label}</span>
@@ -144,6 +178,31 @@ export default function SeasonRater({
                 )}
                 <CaretRight aria-hidden className="size-3.5 shrink-0 text-dim" />
               </button>
+
+              {/* Watching it again and changing your mind are different acts,
+                  so they get different controls. Shown only once a rating
+                  exists, because neither means anything before one. */}
+              {s.rating !== null && (
+                <span className="flex shrink-0 items-center gap-1 pl-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAgain(true);
+                      setActive(s);
+                    }}
+                    className="rounded-card px-2 py-1 text-[12px] text-dim transition-colors hover:text-paper focus-visible:text-paper focus-visible:outline-none"
+                  >
+                    Again
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeRating(s)}
+                    className="rounded-card px-2 py-1 text-[12px] text-dim transition-colors hover:text-paper focus-visible:text-paper focus-visible:outline-none"
+                  >
+                    Remove
+                  </button>
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -152,23 +211,29 @@ export default function SeasonRater({
       {active && (
         <LogSheet
           open
-          onClose={() => setActive(null)}
+          onClose={() => {
+            setActive(null);
+            setAgain(false);
+          }}
           film={{
             title: `${showName}: ${active.label}`,
             year: active.year,
             director: null,
             posterPath: active.posterPath,
           }}
-          isRewatch={false}
+          isRewatch={again}
           busy={busy}
           error={error}
           onSubmit={submit}
           initial={
-            active.rating !== null
+            // A rewatch opens empty. It is a new viewing rather than a
+            // correction of the old one, and prefilling the previous score is
+            // how a rewatch quietly turns back into an edit.
+            active.rating !== null && !again
               ? { watchedOn: null, rating: active.rating, review: null, spoiler: false, private: false }
               : undefined
           }
-          mode={active.rating !== null ? "edit" : "log"}
+          mode={active.rating !== null && !again ? "edit" : "log"}
         />
       )}
     </div>

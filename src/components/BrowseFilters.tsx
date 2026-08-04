@@ -243,7 +243,7 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
           Tomatometer already names the order. */}
       {!leaderboard && (
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
-          {SORTS.map((s) => (
+          {SORTS.filter((s) => !(s.filmsOnly && filters.media === "show")).map((s) => (
             <Chip
               key={s.key}
               active={filters.sort === s.key}

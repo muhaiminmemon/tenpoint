@@ -92,7 +92,7 @@ export default async function ShowPage(ctx: { params: Promise<{ slug: string }> 
 
   const mine = user && seasons.length
     ? await db
-        .select({ filmId: diaryEntries.filmId, rating: diaryEntries.rating })
+        .select({ id: diaryEntries.id, filmId: diaryEntries.filmId, rating: diaryEntries.rating })
         .from(diaryEntries)
         .where(
           and(
@@ -106,11 +106,14 @@ export default async function ShowPage(ctx: { params: Promise<{ slug: string }> 
 
   // The most recent rating per season, matching how a rating is read everywhere
   // else: a rewatch that was not rated never erases what somebody last thought.
-  const rated = new Map<string, number>();
+  const rated = new Map<string, { rating: number; entryId: string }>();
   for (const row of mine) {
-    if (row.rating !== null && !rated.has(row.filmId)) rated.set(row.filmId, row.rating);
+    // The id travels with it so the row can offer to remove the rating. Films
+    // have had that since the beginning; seasons had no way to undo one.
+    if (row.rating !== null && !rated.has(row.filmId))
+      rated.set(row.filmId, { rating: row.rating, entryId: row.id });
   }
-  const score = derivedScore([...rated.values()]);
+  const score = derivedScore([...rated.values()].map((r) => r.rating));
   const today = new Date().toISOString().slice(0, 10);
 
   const run = [show.firstAirYear, show.lastAirYear && show.lastAirYear !== show.firstAirYear ? show.lastAirYear : null]
@@ -198,7 +201,8 @@ export default async function ShowPage(ctx: { params: Promise<{ slug: string }> 
                   year: s.year,
                   posterPath: s.posterPath,
                   audience: s.audienceRating,
-                  rating: rated.get(s.id) ?? null,
+                  rating: rated.get(s.id)?.rating ?? null,
+                  entryId: rated.get(s.id)?.entryId ?? null,
                   unaired: Boolean(s.releaseDate && s.releaseDate > today),
                 }))}
               />

@@ -293,11 +293,15 @@ async function runTmdb(
   f: BrowseFilters,
   extra: Record<string, string> = {},
 ): Promise<DiscoverPage> {
-  const sort = SORTS.find((s) => s.key === f.sort) ?? SORTS[0];
-
   // Television is a different index with different field names, so the sort
   // key and the date window are translated rather than reused.
   const tv = f.media === "show";
+
+  // A film-only sort can still arrive on a series query from a shared link or
+  // from switching media with the chip selected, so it falls back rather than
+  // being passed to an index that will quietly ignore it.
+  const asked = SORTS.find((s) => s.key === f.sort) ?? SORTS[0];
+  const sort = tv && asked.filmsOnly ? SORTS[0] : asked;
   const sortBy = tv ? sort.tmdb.replace("primary_release_date", "first_air_date") : sort.tmdb;
 
   const params: Record<string, string> = {
