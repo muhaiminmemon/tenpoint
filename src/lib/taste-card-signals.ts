@@ -423,8 +423,12 @@ export async function getTasteSignals(
       (select coalesce(max(rated_seasons), 0) from per_show)::int as longest_run,
       -- Every season of something, which is the only trait here that requires
       -- finishing rather than sampling.
-      (select count(*) from per_show p join show_totals t on t.show_id = p.show_id
-        where p.rated_seasons >= t.total_seasons and t.total_seasons >= 2)::int as completed_shows,
+      -- Reading show_credit, not per_show, so rating a series whole finishes
+      -- it. per_show sees only per-season rows, which meant somebody who
+      -- rated Breaking Bad once had five seasons credited by the line above
+      -- and had completed nothing according to this one.
+      (select count(*) from show_credit c join show_totals t on t.show_id = c.show_id
+        where c.seasons_credited >= t.total_seasons and t.total_seasons >= 2)::int as completed_shows,
       -- A show that lost you: an opener rated well and a later season three
       -- points below it.
       (select count(*) from per_show where rated_seasons >= 2 and opener - closer >= 30)::int as fell_off_count,
