@@ -259,10 +259,26 @@ export async function getTasteSignals(
       from cur_f cross join lateral jsonb_array_elements_text(coalesce(cur_f.genres, '[]'::jsonb)) as g(value)
       group by g.value
     ),
+    /**
+     * One row per work, with a series collapsed to a single entry.
+     *
+     * Following a face or a director means reaching for their next thing, and
+     * a season is not a next thing: the creator and the top ten cast are
+     * copied onto every season a series has, so thirty-eight seasons of The
+     * Simpsons read as thirty-eight films by Matt Groening. That put the
+     * one-director reading ten standard deviations past ordinary for somebody
+     * who watched one show, and handed the same word to six of the fifteen
+     * television accounts. Counting the series once says what was meant.
+     */
+    cur_work as (
+      select * from cur_f where show_id is null
+      union all
+      select distinct on (show_id) * from cur_f where show_id is not null order by show_id
+    ),
     cast_counts as (
       select c.value as actor, count(*)::int as count
-      from cur_f cross join lateral jsonb_array_elements_text(
-        case when jsonb_typeof(cur_f.cast_names) = 'array' then cur_f.cast_names else '[]'::jsonb end
+      from cur_work cross join lateral jsonb_array_elements_text(
+        case when jsonb_typeof(cur_work.cast_names) = 'array' then cur_work.cast_names else '[]'::jsonb end
       ) as c(value)
       group by c.value
     ),
@@ -271,29 +287,35 @@ export async function getTasteSignals(
       from cur_f where year is not null group by 1
     ),
     director_counts as (
-      select director, count(*)::int as count from cur_f where director is not null group by director
+      select director, count(*)::int as count from cur_work where director is not null group by director
     ),
     -- how much of the whole catalogue each name appears in, so a count in one
     -- library can be compared against what chance would give it
-    catalogue as (select count(*)::float as n from films where jsonb_typeof(cast_names) = 'array'),
+    catalogue as (
+      select count(*)::float as n from films
+      where jsonb_typeof(cast_names) = 'array' and kind <> 'season'
+    ),
     cat_cast as (
       select c.value as actor, count(*)::float as n
       from films cross join lateral jsonb_array_elements_text(
         case when jsonb_typeof(films.cast_names) = 'array' then films.cast_names else '[]'::jsonb end
       ) as c(value)
+      where films.kind <> 'season'
       group by c.value
     ),
     cat_dir as (
-      select director, count(*)::float as n from films where director is not null group by director
+      select director, count(*)::float as n from films
+      where director is not null and kind <> 'season'
+      group by director
     ),
     cast_lift as (
       -- five pseudo-films on both sides, the same shrinkage the themes use
-      select (cc.count + 5) / ((select count(*) from cur_f) * (cat.n / (select n from catalogue)) + 5) as lift
+      select (cc.count + 5) / ((select count(*) from cur_work) * (cat.n / (select n from catalogue)) + 5) as lift
       from cast_counts cc join cat_cast cat on cat.actor = cc.actor
       where cc.count >= 4
     ),
     director_lift as (
-      select (dc.count + 5) / ((select count(*) from cur_f) * (cat.n / (select n from catalogue)) + 5) as lift
+      select (dc.count + 5) / ((select count(*) from cur_work) * (cat.n / (select n from catalogue)) + 5) as lift
       from director_counts dc join cat_dir cat on cat.director = dc.director
       where dc.count >= 3
     ),

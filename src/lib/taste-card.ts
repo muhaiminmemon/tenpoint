@@ -169,8 +169,20 @@ export function milestonesAt(stepIndex: number, s: TasteSignals): Milestone[] {
   const t = MILESTONE_TARGETS[stepIndex];
   if (!t) return [];
 
+  /**
+   * Titles, counted the way the ladder counts them.
+   *
+   * `rated` is rows, and a series rated whole and by season puts both on the
+   * shelf, so somebody who rated Breaking Bad and three of its seasons was
+   * four films closer to a tier for one show. The ladder already resolves this
+   * with `seasonsCredited`, which takes the greater of the two readings rather
+   * than their sum, and this milestone now reads the same number instead of
+   * disagreeing with the gate standing next to it.
+   */
+  const titles = s.rated - s.seasonCount - s.wholeShowCount + s.seasonsCredited;
+
   return [
-    { label: `${t.films} films logged`, detail: `${s.rated} / ${t.films}`, met: s.rated >= t.films },
+    { label: `${t.films} titles logged`, detail: `${titles} / ${t.films}`, met: titles >= t.films },
     {
       label: `${t.genres} genres watched`,
       detail: `${s.distinctGenres} genres`,
@@ -616,6 +628,10 @@ const ANCHOR = {
   foreignLift: { typical: 0, spread: 6 },
   oneFace: { typical: 1.72, spread: 1.1 },
   languages: { typical: 5, spread: 2.5 },
+  // Bimodal in the crowd and probably in life: people are largely film people
+  // or largely television people, and the middle is thinly populated. The
+  // spread is wide because of it, so only a decisive lean earns the word.
+  tvShare: { typical: 0.2, spread: 0.33 },
   crowdBias: { typical: 2.3, spread: 9.2 },
   perfectShare: { typical: 0.03, spread: 0.08 },
   decimalShare: { typical: 0.6, spread: 0.35 },
@@ -658,8 +674,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       old,
       ANCHOR.oldShare,
-      ["Archival", `${pct(old)}% of your films were made before 1990.`],
-      ["Recent", `${pct(1 - old)}% of your films were made after 1990.`],
+      ["Backlot", `${pct(old)}% of your films were made before 1990.`],
+      ["Firstlight", `${pct(1 - old)}% of your films were made after 1990.`],
     );
   }
 
@@ -668,8 +684,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       wide,
       ANCHOR.wideShare,
-      ["Populist", `${pct(wide)}% of your films have been rated by thousands of people.`],
-      ["Underground", `${pct(1 - wide)}% of your films have fewer than 2,000 ratings anywhere.`],
+      ["Fullhouse", `${pct(wide)}% of your films have been rated by thousands of people.`],
+      ["Deepcut", `${pct(1 - wide)}% of your films have fewer than 2,000 ratings anywhere.`],
     );
   }
 
@@ -678,8 +694,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.mean,
       ANCHOR.mean,
-      ["Generous", `Your average rating is ${avg}.`],
-      ["Exacting", `Your average rating is ${avg}.`],
+      ["Openhand", `Your average rating is ${avg}.`],
+      ["Coldwater", `Your average rating is ${avg}.`],
     );
   }
 
@@ -687,8 +703,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.ratingStdDev,
       ANCHOR.spreadOfRatings,
-      ["Polarised", "Your ratings swing hard in both directions."],
-      ["Measured", "Your ratings cluster close together."],
+      ["Faultline", "Your ratings swing hard in both directions."],
+      ["Evenkeel", "Your ratings cluster close together."],
     );
   }
 
@@ -697,8 +713,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       share,
       ANCHOR.topGenreShare,
-      ["Devoted", `${pct(share)}% of your rated films carry ${topGenre}.`],
-      ["Omnivorous", `You spread across ${s.distinctGenres} genres with no single one dominating.`],
+      ["Onetrack", `${pct(share)}% of your rated films carry ${topGenre}.`],
+      ["Wideangle", `You spread across ${s.distinctGenres} genres with no single one dominating.`],
     );
   }
 
@@ -707,7 +723,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       sub,
       ANCHOR.subtitleShare,
-      ["Cosmopolitan", `${pct(sub)}% of your films were not made in English.`],
+      ["Farshore", `${pct(sub)}% of your films were not made in English.`],
       null,
     );
   }
@@ -717,8 +733,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       again,
       ANCHOR.rewatchShare,
-      ["Returning", `${pct(again)}% of your viewings are rewatches.`],
-      ["Onward", "You almost never watch the same film twice."],
+      ["Secondrun", `${pct(again)}% of your viewings are rewatches.`],
+      ["Shortfuse", "You almost never watch the same film twice."],
     );
   }
 
@@ -727,7 +743,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       s.topDirectorLift,
       ANCHOR.oneDirector,
       [
-        "Faithful",
+        "Housename",
         s.topDirectorName
           ? `You have rated ${s.maxDirectorCount} films directed by ${s.topDirectorName}, well past what chance would give you.`
           : `You keep returning to one director.`,
@@ -744,7 +760,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       s.topCastLift,
       ANCHOR.oneFace,
       [
-        "Starstruck",
+        "Marquee",
         s.topCastName
           ? `${s.topCastName} turns up in ${s.maxCastCount} of your films, more than chance would give you.`
           : `You keep returning to the same faces.`,
@@ -757,8 +773,27 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.distinctLanguages,
       ANCHOR.languages,
-      ["Multilingual", `You have rated films in ${s.distinctLanguages} different languages.`],
+      ["Borderless", `You have rated films in ${s.distinctLanguages} different languages.`],
       null,
+    );
+  }
+
+  /**
+   * Which half of the catalogue somebody actually lives in.
+   *
+   * Every other shelf reading counts a season as one more title, which is
+   * right for counting and hides the thing people most visibly differ on. A
+   * library four fifths television and one four fifths film are two different
+   * habits wearing the same numbers, and until seasons existed there was no
+   * way for a title to say which one you are.
+   */
+  if (s.rated >= 20) {
+    const tv = (s.seasonCount + s.wholeShowCount) / s.rated;
+    axis(
+      tv,
+      ANCHOR.tvShare,
+      ["Boxset", `${pct(tv)}% of what you rate is television.`],
+      ["Singlereel", `${pct(1 - tv)}% of what you rate is film.`],
     );
   }
 
@@ -767,7 +802,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       gap,
       ANCHOR.criticGap,
-      ["Contrarian", `${pct(gap)}% of your ratings sit far from the IMDb crowd.`],
+      ["Crosswise", `${pct(gap)}% of your ratings sit far from the IMDb crowd.`],
       // No word for the other side. Landing near the IMDb crowd is what almost
       // everybody does, because that average is itself a crowd: it described
       // three quarters of the service and named a third of it, which is a
@@ -794,11 +829,11 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
       lift,
       ANCHOR.obscureLift,
       [
-        "Fringe",
+        "Offbook",
         `You rate the least-known films in your library ${tenths(lift)} higher than the famous ones.`,
       ],
       [
-        "Mainstream",
+        "Mainline",
         `You rate the famous films in your library ${tenths(lift)} higher than the obscure ones.`,
       ],
     );
@@ -809,8 +844,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       lift,
       ANCHOR.oldLift,
-      ["Nostalgic", `You rate films made before 1990 ${tenths(lift)} higher than newer ones.`],
-      ["Modern", `You rate films made since 1990 ${tenths(lift)} higher than older ones.`],
+      ["Rearview", `You rate films made before 1990 ${tenths(lift)} higher than newer ones.`],
+      ["Freshprint", `You rate films made since 1990 ${tenths(lift)} higher than older ones.`],
     );
   }
 
@@ -819,7 +854,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       lift,
       ANCHOR.foreignLift,
-      ["Worldly", `You rate films made outside English ${tenths(lift)} higher than English ones.`],
+      ["Worldwise", `You rate films made outside English ${tenths(lift)} higher than English ones.`],
       null,
     );
   }
@@ -828,8 +863,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       s.imdbBias,
       ANCHOR.crowdBias,
-      ["Trusting", `You rate ${tenths(s.imdbBias)} above the IMDb score on average.`],
-      ["Sceptical", `You rate ${tenths(s.imdbBias)} below the IMDb score on average.`],
+      ["Sameside", `You rate ${tenths(s.imdbBias)} above the IMDb score on average.`],
+      ["Hardline", `You rate ${tenths(s.imdbBias)} below the IMDb score on average.`],
     );
   }
 
@@ -838,7 +873,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       tens,
       ANCHOR.perfectShare,
-      ["Wholehearted", `${pct(tens)}% of your ratings are a flat 10.0.`],
+      ["Fullmark", `${pct(tens)}% of your ratings are a flat 10.0.`],
       null,
     );
 
@@ -846,8 +881,8 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
     axis(
       decimals,
       ANCHOR.decimalShare,
-      ["Precise", `${pct(decimals)}% of your ratings use the decimal.`],
-      ["Blunt", `${pct(1 - decimals)}% of your ratings are round numbers.`],
+      ["Hairline", `${pct(decimals)}% of your ratings use the decimal.`],
+      ["Hardstop", `${pct(1 - decimals)}% of your ratings are round numbers.`],
     );
   }
 
@@ -965,7 +1000,7 @@ export function themeReadings(s: TasteSignals, take = 5): ThemeReading[] {
     .slice(0, take)
     .map((r) => ({
       key: r.cluster.key,
-      name: r.cluster.name.replace(/^The /, ""),
+      name: r.cluster.name,
       note: r.cluster.note,
       count: r.count,
       pct: Math.round((r.count / total) * 100),
@@ -986,8 +1021,30 @@ export function readArchetype(
   s: TasteSignals,
 ): ArchetypeRead {
   const themes = signatureClusters(s);
-  const best = readings(s, topGenre).sort((a, b) => b.score - a.score)[0];
-  const modifier = best?.word ?? "Unwritten";
+  const ranked = readings(s, topGenre).sort((a, b) => b.score - a.score);
+
+  /**
+   * Pairs where the two words say the same thing twice.
+   *
+   * The slots are measured independently and neither knows what the other
+   * chose, so nothing stopped "Secondrun Repeat Offender" or the sitcom
+   * watcher who came out "Fullhouse Roommate". Both halves are individually
+   * correct, which is what makes it hard to see coming: the fault is only in
+   * the pairing. The runner-up word is used instead, which costs nothing,
+   * because these are near-ties by definition.
+   */
+  const RESTATES: Record<string, string[]> = {
+    loop: ["Secondrun"],
+    period: ["Backlot", "Rearview"],
+    sitcom: ["Fullhouse"],
+    comingofage: ["Firstlight"],
+    outsider: ["Farshore", "Borderless"],
+    stage: ["Marquee"],
+  };
+  const blocked = new Set(themes[0] ? RESTATES[themes[0].cluster.key] ?? [] : []);
+  const best = ranked.find((r) => !blocked.has(r.word)) ?? ranked[0];
+
+  const modifier = best?.word ?? "Unexposed";
   const modifierMeaning =
     best?.meaning ?? "Not enough on file yet to say what stands out about how you watch.";
 
@@ -1023,10 +1080,10 @@ export function readArchetype(
 
     return {
       themeKey: top.cluster.key,
-      title: `${top.cluster.name.replace(/^The /, `The ${modifier} `)}`,
+      title: `${modifier} ${top.cluster.name}`,
       modifier,
       modifierMeaning,
-      noun: top.cluster.name.replace(/^The /, ""),
+      noun: top.cluster.name,
       nounMeaning,
       nearMiss,
       meaning: `${nounMeaning} ${modifierMeaning}`,
@@ -1048,7 +1105,7 @@ export function readArchetype(
 
   return {
     themeKey: null,
-    title: `The ${modifier} ${noun}`,
+    title: `${modifier} ${noun}`,
     modifier,
     modifierMeaning,
     noun,
