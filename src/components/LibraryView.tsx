@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useMemo, useState } from "react";
 import { useUrlState } from "@/lib/useUrlState";
+import SeriesShelf from "./SeriesShelf";
+import type { SeriesProgress } from "@/lib/series-progress";
 import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -30,6 +32,15 @@ type Props = {
   films: LibraryFilm[];
   /** drag-to-reorder ties and edit links; false on public profiles */
   editable: boolean;
+  /**
+   * Series with where the viewer stands on each.
+   *
+   * The Shows view used to list season rows, which is the wrong grain for the
+   * only thing anybody asks of a television shelf. Given these, it lists
+   * programmes instead. Optional so callers that have no series data, or do
+   * not want the view, simply keep the old behaviour.
+   */
+  series?: SeriesProgress[];
 };
 
 type SortMode =
@@ -92,7 +103,7 @@ const SAVED_KEYS = SAVED_VIEWS.map((v) => v.key);
  */
 const MatchQuery = createContext("");
 
-export default function LibraryView({ films, editable }: Props) {
+export default function LibraryView({ films, editable, series }: Props) {
   const pathname = usePathname();
   const params = useSearchParams();
   const [view, setView] = useUrlState<"ledger" | "shelf">("view", "shelf", VIEWS);
@@ -244,7 +255,9 @@ export default function LibraryView({ films, editable }: Props) {
         </div>
       </div>
 
-      {visible.length === 0 ? (
+      {saved === "shows" && series ? (
+        <SeriesShelf series={series} />
+      ) : visible.length === 0 ? (
         <p className="py-8 text-sm text-ash">Nothing matches those filters.</p>
       ) : (
         // Keyed so switching between the shelf and the ledger plays an
@@ -266,7 +279,7 @@ export default function LibraryView({ films, editable }: Props) {
         </div>
       )}
 
-      {visible.length > 0 && (
+      {visible.length > 0 && !(saved === "shows" && series) && (
         <>
           <p className="num mt-4 text-center text-[11px] text-dim">
             Showing {shown.length} of {total}

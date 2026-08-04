@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { getRankedLibrary } from "@/lib/library";
+import { getSeriesProgress } from "@/lib/series-progress";
 import LibraryView from "@/components/LibraryView";
 import RatingHistogram from "@/components/RatingHistogram";
 
@@ -11,7 +12,11 @@ export default async function LibraryPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const films = await getRankedLibrary(user.id);
+  const [films, series] = await Promise.all([
+    getRankedLibrary(user.id),
+    // Their own shelf, so private entries count toward finishing something.
+    getSeriesProgress(user.id, { includePrivate: true }),
+  ]);
   const rated = films.filter((f) => f.rating !== null);
 
   return (
@@ -47,7 +52,7 @@ export default async function LibraryPage() {
           </div>
         </div>
       ) : (
-        <LibraryView films={films} editable />
+        <LibraryView films={films} editable series={series} />
       )}
     </div>
   );
