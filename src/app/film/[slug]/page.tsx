@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { diaryEntries, films, listItems, listMembers, lists, watchlist } from "@/db/schema";
@@ -33,6 +33,23 @@ export default async function FilmPage(ctx: {
   const reviewsTab = reviewsParam === "recent" ? ("recent" as const) : ("friends" as const);
   let film = (await db.select().from(films).where(eq(films.slug, slug)).limit(1))[0];
   if (!film) notFound();
+
+  /**
+   * A whole series belongs on the show page, not here.
+   *
+   * The row standing for a series lives in `films` so that the diary, lists,
+   * the watchlist and the recommender need know nothing about shows, and it
+   * carries the show's own slug. That means every link built the ordinary way,
+   * `/film/${'${slug}'}`, from the watchlist queue, a list, the feed, a profile,
+   * quietly landed on a film page describing a series: no seasons, no way to
+   * rate one, and a second page competing with /show for the same thing.
+   *
+   * Redirecting here fixes all of those at once, and any future caller too,
+   * which is the point: fifteen link sites cannot each be trusted to remember
+   * what kind of row they are holding.
+   */
+  if (film.kind === "show") redirect(`/show/${film.slug}`);
+
   film = await hydrateFilm(film);
   // Cached on the film row and only fetched from a film's own page: the free
   // tier is 1,000 requests a day, which a grid would spend in an afternoon.

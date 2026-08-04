@@ -106,6 +106,25 @@ export default async function ShowPage(ctx: { params: Promise<{ slug: string }> 
 
   // The most recent rating per season, matching how a rating is read everywhere
   // else: a rewatch that was not rated never erases what somebody last thought.
+  // Which seasons are already on the watchlist, so a row can offer to add or
+  // remove one. Seasons are ordinary film rows, so the endpoint already
+  // accepted them; there was simply no control anywhere that sent one.
+  const queued = user && seasons.length
+    ? new Set(
+        (
+          await db
+            .select({ filmId: watchlist.filmId })
+            .from(watchlist)
+            .where(
+              and(
+                eq(watchlist.userId, user.id),
+                inArray(watchlist.filmId, seasons.map((s) => s.id)),
+              ),
+            )
+        ).map((r) => r.filmId),
+      )
+    : new Set<string>();
+
   const rated = new Map<string, { rating: number; entryId: string }>();
   for (const row of mine) {
     // The id travels with it so the row can offer to remove the rating. Films
@@ -203,6 +222,7 @@ export default async function ShowPage(ctx: { params: Promise<{ slug: string }> 
                   audience: s.audienceRating,
                   rating: rated.get(s.id)?.rating ?? null,
                   entryId: rated.get(s.id)?.entryId ?? null,
+                  inWatchlist: queued.has(s.id),
                   unaired: Boolean(s.releaseDate && s.releaseDate > today),
                 }))}
               />

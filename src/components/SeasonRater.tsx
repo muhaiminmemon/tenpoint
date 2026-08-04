@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CaretDown, CaretRight } from "@phosphor-icons/react/ssr";
+import { BookmarkSimple, CaretDown, CaretRight } from "@phosphor-icons/react/ssr";
 import LogSheet, { type LogPayload } from "./LogSheet";
 import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
@@ -22,6 +22,8 @@ export type SeasonItem = {
   rating: number | null;
   /** the entry behind that rating, so it can be removed */
   entryId: string | null;
+  /** already queued, so the row offers to remove rather than add */
+  inWatchlist: boolean;
   unaired: boolean;
 };
 
@@ -97,6 +99,28 @@ export default function SeasonRater({
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * Queueing a single season.
+   *
+   * Watchlisting the whole series says you mean to start it; this says you
+   * mean to get to season four, which is a different sentence and the one a
+   * part-way viewer actually needs. Seasons are ordinary film rows so the
+   * endpoint always accepted them, but nothing on the site could send one.
+   */
+  async function toggleQueue(s: SeasonItem) {
+    const res = await fetch("/api/watchlist", {
+      method: s.inWatchlist ? "DELETE" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filmId: s.id }),
+    });
+    if (!res.ok) {
+      toast({ message: "That didn't save. Try again." });
+      return;
+    }
+    toast({ message: s.inWatchlist ? `${s.label} removed from watchlist` : `${s.label} on your watchlist` });
+    router.refresh();
   }
 
   async function removeRating(s: SeasonItem) {
@@ -182,6 +206,30 @@ export default function SeasonRater({
               {/* Watching it again and changing your mind are different acts,
                   so they get different controls. Shown only once a rating
                   exists, because neither means anything before one. */}
+              {/* Queueing works whether or not it has been rated: the point of
+                  it is the season you have not got to yet. */}
+              {!s.unaired && (
+                <button
+                  type="button"
+                  onClick={() => toggleQueue(s)}
+                  aria-pressed={s.inWatchlist}
+                  aria-label={
+                    s.inWatchlist
+                      ? `Remove ${s.label} from your watchlist`
+                      : `Add ${s.label} to your watchlist`
+                  }
+                  className={`shrink-0 rounded-card px-2 py-1 transition-colors focus-visible:outline-none ${
+                    s.inWatchlist ? "text-beam" : "text-dim hover:text-paper focus-visible:text-paper"
+                  }`}
+                >
+                  <BookmarkSimple
+                    aria-hidden
+                    weight={s.inWatchlist ? "fill" : "regular"}
+                    className="size-4"
+                  />
+                </button>
+              )}
+
               {s.rating !== null && (
                 <span className="flex shrink-0 items-center gap-1 pl-2">
                   <button

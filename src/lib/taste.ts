@@ -64,22 +64,45 @@ export async function getTasteProfile(
     return { rated: 0, mean: null, topGenres: [], topDecade: null, topDirector: null };
   }
 
+  /**
+   * One row per work, with a series collapsed to a single entry.
+   *
+   * A series carries its genres, its year and its creator on every season it
+   * has, so thirty-eight seasons of The Simpsons counted as thirty-eight
+   * comedies from 1989 by Matt Groening. Every stat built on those three ran
+   * hot for anybody who watched a long-running programme, and the card's
+   * director trait was already fixed the same way: leaving these on raw rows
+   * would put two numbers about the same thing on one card, disagreeing.
+   */
+  const work = sql`
+    work as (
+      select f.id, f.genres, f.year, f.director, cur.rating
+      from cur join films f on f.id = cur.film_id
+      where f.show_id is null
+      union all
+      select * from (
+        select distinct on (f.show_id) f.id, f.genres, f.year, f.director, cur.rating
+        from cur join films f on f.id = cur.film_id
+        where f.show_id is not null
+        order by f.show_id
+      ) one_per_series
+    )
+  `;
+
   const genres = await db.execute(sql`
-    with cur as (${current})
+    with cur as (${current}), ${work}
     select g.value as name, count(*)::int as count
-    from cur
-    join films f on f.id = cur.film_id
-    cross join lateral jsonb_array_elements_text(coalesce(f.genres, '[]'::jsonb)) as g(value)
+    from work
+    cross join lateral jsonb_array_elements_text(coalesce(work.genres, '[]'::jsonb)) as g(value)
     group by g.value
     order by count desc, name asc
   `);
 
   const decades = await db.execute(sql`
-    with cur as (${current})
-    select (f.year / 10) * 10 as decade, count(*)::int as count
-    from cur
-    join films f on f.id = cur.film_id
-    where f.year is not null
+    with cur as (${current}), ${work}
+    select (work.year / 10) * 10 as decade, count(*)::int as count
+    from work
+    where work.year is not null
     group by 1
     order by count desc, decade desc
     limit 1
@@ -87,12 +110,11 @@ export async function getTasteProfile(
 
   // only films they rated above their own mean count as "returns to"
   const directors = await db.execute(sql`
-    with cur as (${current})
-    select f.director as name, count(*)::int as count
-    from cur
-    join films f on f.id = cur.film_id
-    where f.director is not null and cur.rating >= ${mean}
-    group by f.director
+    with cur as (${current}), ${work}
+    select work.director as name, count(*)::int as count
+    from work
+    where work.director is not null and work.rating >= ${mean}
+    group by work.director
     having count(*) > 1
     order by count desc, name asc
     limit 1

@@ -254,11 +254,6 @@ export async function getTasteSignals(
       ) w on w.show_id = t.show_id
       where coalesce(rs.rated_seasons, 0) > 0 or coalesce(w.whole, 0) > 0
     ),
-    genre_counts as (
-      select g.value as genre, count(*)::int as count
-      from cur_f cross join lateral jsonb_array_elements_text(coalesce(cur_f.genres, '[]'::jsonb)) as g(value)
-      group by g.value
-    ),
     /**
      * One row per work, with a series collapsed to a single entry.
      *
@@ -274,6 +269,15 @@ export async function getTasteSignals(
       select * from cur_f where show_id is null
       union all
       select distinct on (show_id) * from cur_f where show_id is not null order by show_id
+    ),
+    genre_counts as (
+      -- Per work, for the same reason the cast is. A series carries its genres
+      -- on every season, so thirty-eight seasons of The Simpsons read as
+      -- thirty-eight comedies and the concentration reading called somebody
+      -- devoted to a genre for watching one programme.
+      select g.value as genre, count(*)::int as count
+      from cur_work cross join lateral jsonb_array_elements_text(coalesce(cur_work.genres, '[]'::jsonb)) as g(value)
+      group by g.value
     ),
     cast_counts as (
       select c.value as actor, count(*)::int as count
@@ -359,7 +363,7 @@ export async function getTasteSignals(
       (select count(*) from cur_f where reach >= 50000)::int as mainstream_count,
       (select count(*) from cur_f where reach is not null)::int as vote_known_count,
       coalesce((select sum(runtime)::int from cur_f where runtime is not null), 0) as total_runtime_minutes,
-      (select count(*) from cur_f where genres is not null and jsonb_array_length(genres) > 0)::int as genre_tagged_count,
+      (select count(*) from cur_work where genres is not null and jsonb_array_length(genres) > 0)::int as genre_tagged_count,
 
       -- rating bands: every rated film lands in exactly one
       (select count(*) from cur where rating >= 85)::int as rate_loved,

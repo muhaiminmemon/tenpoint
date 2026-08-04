@@ -610,7 +610,7 @@ const ANCHOR = {
   wideShare: { typical: 0.91, spread: 0.07 },
   mean: { typical: 70, spread: 12 },
   spreadOfRatings: { typical: 13, spread: 5.5 },
-  topGenreShare: { typical: 0.49, spread: 0.15 },
+  topGenreShare: { typical: 0.487, spread: 0.11 },
   subtitleShare: { typical: 0.06, spread: 0.05 },
   rewatchShare: { typical: 0.1, spread: 0.1 },
   oneDirector: { typical: 1.55, spread: 0.42 },
