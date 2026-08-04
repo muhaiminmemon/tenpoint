@@ -1,6 +1,7 @@
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { CLUSTERS, CLUSTER_PREVALENCE } from "./archetype-clusters";
+import { SEASON_WEIGHT } from "./taste-card";
 import type { TasteSignals } from "./taste-card-signals";
 
 /**
@@ -584,7 +585,11 @@ function balance(picks: SignatureFilm[], candidates: Candidate[]): SignatureFilm
   const movies = candidates.filter((c) => c.kind === "movie");
   if (seasons.length === 0 || movies.length === 0) return picks;
 
-  const share = seasons.length / candidates.length;
+  // The same weight the ladder uses. On raw rows a shelf that is a third
+  // television by viewing time reads as a sixth, and the card puts up four
+  // films for somebody who mostly watches series.
+  const share =
+    (seasons.length * SEASON_WEIGHT) / (seasons.length * SEASON_WEIGHT + movies.length);
   // Below three rated seasons a television habit is not established enough to
   // spend a quarter of somebody's card on.
   const floor = seasons.length >= 3 ? 1 : 0;

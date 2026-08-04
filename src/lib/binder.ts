@@ -16,6 +16,7 @@ import {
   ACCENT_DEFS,
   AURA_DEFS,
   computeTier,
+  weightedSize,
   computeVariant,
   readArchetype,
   themeReadings,
@@ -119,7 +120,12 @@ export async function loadBinder(
   const signals = await getTasteSignals(user.id, { includePrivate });
 
   const hasCard = taste.rated > 0;
-  const tier = hasCard ? computeTier(taste.rated, signals) : null;
+  const tier = hasCard
+    ? computeTier(
+        Math.round(weightedSize(taste.rated - signals.seasonCount, signals.seasonCount)),
+        signals,
+      )
+    : null;
   const variant = computeVariant(
     signals,
     taste.topGenres[0]?.name,

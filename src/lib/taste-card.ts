@@ -6,7 +6,7 @@ import { CLUSTERS, CLUSTER_PREVALENCE, STOCK_BY_CLUSTER } from "./archetype-clus
 // in taste.ts (buildHomeTasteCard) since it's a trivial function of `rated`.
 
 // ---------------------------------------------------------------------------
-// LAYER 2 — RARITY: a six-tier ladder purely on films rated. Never grinded by
+// LAYER 2 — RARITY: a six-tier ladder on what has been watched. Never grinded by
 // one path alone — see `nextTierMilestones` below for the "any three of five"
 // progress shown toward the next tier.
 
@@ -40,7 +40,7 @@ export const RARITY_TIERS: RarityTier[] = [
     name: "Common",
     index: 0,
     floor: 1,
-    range: "1–24 films",
+    range: "1–39",
     effect: "Matte. Just the essentials.",
     border: "#2a2a31",
     glow: "none",
@@ -52,8 +52,8 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Uncommon",
     index: 1,
-    floor: 25,
-    range: "25–74",
+    floor: 40,
+    range: "40–119",
     effect: "A cleaner edge, faint sheen.",
     border: "#34343d",
     glow: "none",
@@ -65,8 +65,8 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Rare",
     index: 2,
-    floor: 75,
-    range: "75–149",
+    floor: 120,
+    range: "120–299",
     effect: "Beam-blue border.",
     border: "linear-gradient(160deg,#34506a,#8faecc)",
     glow: "none",
@@ -78,8 +78,8 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Epic",
     index: 3,
-    floor: 150,
-    range: "150–299",
+    floor: 300,
+    range: "300–649",
     effect: "Silver foil, quiet shimmer.",
     border: "linear-gradient(160deg,#5a5570,#b3a3d6)",
     glow: "none",
@@ -91,8 +91,8 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Legendary",
     index: 4,
-    floor: 300,
-    range: "300–499",
+    floor: 650,
+    range: "650–1,299",
     effect: "Gold foil, warm glow.",
     border: "conic-gradient(from 210deg,#4a3f24,#d9b25f,#3a3a44,#d9b25f,#4a3f24)",
     borderFlat: "linear-gradient(130deg,#4a3f24,#d9b25f 28%,#3a3a44 52%,#d9b25f 76%,#4a3f24)",
@@ -105,8 +105,8 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Mythic",
     index: 5,
-    floor: 500,
-    range: "500+ films",
+    floor: 1300,
+    range: "1,300+",
     effect: "Full foil, drifting light, particles.",
     border: "conic-gradient(from 0deg,#8faecc,#d9b25f,#c4756a,#8faecc)",
     borderFlat: "linear-gradient(130deg,#8faecc,#d9b25f 34%,#c4756a 66%,#8faecc)",
@@ -253,6 +253,35 @@ export function tierStanding(rated: number, signals: TasteSignals): TierStanding
         { kind: "films", filmsToNext: Math.max(0, tier.floor - rated) }
       : { kind: "milestones", milestones: step, met, needed: MILESTONES_TO_PROMOTE },
   };
+}
+
+/**
+ * What one season is worth, measured against a film.
+ *
+ * Counting rows says this catalogue is 16% television. Counting hours says
+ * 51%, because a season here runs fourteen episodes, which is 5.3 films of
+ * watching. Neither is right for a card: rows under-count a habit that takes
+ * most of somebody's viewing time, and hours would turn a film diary into a
+ * television one.
+ *
+ * 3.5 is the number that puts the typical library at 40% television, sitting
+ * deliberately between the two. It is stated here and in the binder rather
+ * than buried, because every other constant on this card is.
+ *
+ * It is a weight and not a quota on purpose. A quota would give shows to
+ * somebody who watches none and cap somebody who watches almost nothing else;
+ * a weight is true for both of them and happens to land on 40/60 in the middle.
+ */
+export const SEASON_WEIGHT = 3.5;
+
+/**
+ * The size of a library in film-equivalents.
+ *
+ * Used by the ladder and by the signature balance, never by the average: your
+ * 8.3 has to stay the mean of your ratings or it stops being checkable.
+ */
+export function weightedSize(films: number, seasons: number): number {
+  return films + seasons * SEASON_WEIGHT;
 }
 
 /** The tier in force. A thin read on `tierStanding` for callers that want only that. */
@@ -1046,8 +1075,13 @@ export function computeVariant(
 export type TraitDef = {
   key: string;
   name: string;
-  cond: string;
-  check: (s: TasteSignals) => boolean;
+  /** what the number counts, in the product's own words */
+  unit: string;
+  /** three thresholds; the first is where the trait starts existing at all */
+  rungs: readonly [number, number, number];
+  count: (s: TasteSignals) => number;
+  /** which half of the catalogue can earn it */
+  side: "film" | "show" | "both";
 };
 
 /**
@@ -1066,148 +1100,313 @@ export type TraitDef = {
  * mostly land close together" is something a reader can check against their
  * own library.
  */
+/**
+ * The catalogue.
+ *
+ * Every rung is a real count somebody can check against their own diary, and
+ * the first rung of each is deliberately low: a trait nobody can start is a
+ * trait that does not exist. Six of the previous twenty were held by nobody at
+ * all, because their only threshold was also their hardest.
+ *
+ * Roughly two in five are television, which is the same weighting the ladder
+ * uses. A season is five films of watching, so a catalogue that offered one
+ * show trait out of twenty would be describing a different product.
+ */
 export const TRAIT_DEFS: TraitDef[] = [
-  // Two eras that do not contain each other. Read as "before 1970" and
-  // "before 1950" they were one bracket inside the other, so holding the
-  // harder one and not the easier one looked like a bug.
+  // ---- when things were made ------------------------------------------
   {
     key: "silent",
     name: "Early Cinema",
-    cond: "Three films made before 1950",
-    check: (s) => s.preFiftyCount >= 3,
+    unit: "made before 1950",
+    rungs: [1, 5, 15],
+    count: (s) => s.preFiftyCount,
+    side: "film",
   },
   {
     key: "oldguard",
     name: "Old Guard",
-    cond: "Ten films from the 1950s and 60s",
-    check: (s) => s.midCenturyCount >= 10,
+    unit: "from the 1950s and 60s",
+    rungs: [3, 12, 30],
+    count: (s) => s.midCenturyCount,
+    side: "film",
   },
   {
     key: "sameyear",
     name: "Opening Week",
-    cond: "Five films watched the same year they came out",
-    check: (s) => s.sameYearWatchCount >= 5,
+    unit: "watched the year they came out",
+    rungs: [5, 20, 50],
+    count: (s) => s.sameYearWatchCount,
+    side: "both",
   },
+
+  // ---- who you follow ---------------------------------------------------
   {
-    key: "director",
+    key: "onedirector",
     name: "One Director",
-    cond: "Five films by the same director",
-    check: (s) => s.maxDirectorCount >= 5,
-  },
-  {
-    key: "marathon",
-    name: "Marathon Runner",
-    cond: "Ten films over two and a half hours",
-    check: (s) => s.longFilmCount >= 10,
-  },
-  {
-    key: "quickcuts",
-    name: "Quick Cuts",
-    cond: "Fifteen films under 85 minutes",
-    check: (s) => s.shortFilmCount >= 15,
-  },
-  {
-    key: "comfort",
-    name: "Comfort Rewatcher",
-    cond: "One film watched five times",
-    check: (s) => s.maxSameFilmEntries >= 5,
-  },
-  {
-    key: "perfect",
-    name: "Perfect Ten",
-    cond: "Five films rated 10.0",
-    check: (s) => s.perfectTenCount >= 5,
-  },
-  {
-    key: "toughcritic",
-    name: "Tough Critic",
-    cond: "Five films rated 3.0 or lower",
-    check: (s) => s.toughCriticCount >= 5,
-  },
-  {
-    key: "steady",
-    name: "Steady Hand",
-    cond: "Twenty ratings that mostly land close together",
-    check: (s) => s.rated >= 20 && s.ratingStdDev !== null && s.ratingStdDev < 10,
-  },
-  {
-    key: "wide",
-    name: "Wide Spectrum",
-    cond: "Twenty ratings that run the full scale",
-    check: (s) => s.rated >= 20 && s.ratingStdDev !== null && s.ratingStdDev > 22,
-  },
-  {
-    key: "arthouse",
-    name: "Off the Beaten Path",
-    cond: "Twenty films that never found a wide audience",
-    // Counted against films whose vote data is on file, not every rated film.
-    // The old form subtracted from `rated`, so a library with no metadata
-    // hydrated yet held this trait automatically.
-    check: (s) => s.voteKnownCount - s.mainstreamCount >= 20,
-  },
-  {
-    key: "precise",
-    name: "Precisionist",
-    cond: "Fifty ratings that use the decimal, not a round number",
-    check: (s) => s.decimalRatingCount >= 50,
-  },
-  {
-    key: "subtitles",
-    name: "Reads the Subtitles",
-    cond: "Twenty films not made in English",
-    check: (s) => s.nonEnglishCount >= 20,
-  },
-  {
-    key: "worldtour",
-    name: "World Tour",
-    cond: "Films in five different languages",
-    check: (s) => s.distinctLanguages >= 5,
+    unit: "by a single director",
+    rungs: [5, 12, 25],
+    count: (s) => s.maxDirectorCount,
+    side: "film",
   },
   {
     key: "regularface",
     name: "Regular Face",
-    cond: "Five films with the same actor in them",
-    check: (s) => s.maxCastCount >= 5,
+    unit: "with the same actor",
+    rungs: [5, 15, 35],
+    count: (s) => s.maxCastCount,
+    side: "both",
+  },
+
+  // ---- shape of a watch -------------------------------------------------
+  {
+    key: "marathon",
+    name: "Marathon Runner",
+    unit: "over two and a half hours",
+    rungs: [10, 30, 75],
+    count: (s) => s.longFilmCount,
+    side: "film",
+  },
+  {
+    key: "quickcuts",
+    name: "Quick Cuts",
+    // Was fifteen under 85 minutes, which nobody reached. Short films are a
+    // deliberate habit, so the first rung is where the habit becomes visible.
+    unit: "under 85 minutes",
+    rungs: [3, 10, 25],
+    count: (s) => s.shortFilmCount,
+    side: "film",
+  },
+  {
+    key: "rewatcher",
+    name: "Comfort Rewatcher",
+    // Was one film watched five times. Almost nobody logs a fifth rewatch, so
+    // this now counts the habit rather than a single extreme case.
+    unit: "watched more than once",
+    rungs: [3, 12, 30],
+    count: (s) => s.repeatTitleCount,
+    side: "both",
+  },
+
+  // ---- how you rate -----------------------------------------------------
+  {
+    key: "perfectten",
+    name: "Perfect Ten",
+    unit: "rated a flat 10.0",
+    rungs: [3, 12, 30],
+    count: (s) => s.perfectTenCount,
+    side: "both",
+  },
+  {
+    key: "toughcritic",
+    name: "Tough Critic",
+    unit: "rated 3.0 or lower",
+    rungs: [3, 10, 25],
+    count: (s) => s.harshCount,
+    side: "both",
+  },
+  {
+    key: "precisionist",
+    name: "Precisionist",
+    unit: "rated on the decimal",
+    rungs: [25, 100, 300],
+    count: (s) => s.decimalRatingCount,
+    side: "both",
+  },
+  {
+    key: "spectrum",
+    name: "Wide Spectrum",
+    unit: "distinct ratings used",
+    rungs: [10, 25, 45],
+    count: (s) => s.distinctRatings,
+    side: "both",
+  },
+
+  // ---- where you look ---------------------------------------------------
+  {
+    key: "subtitles",
+    name: "Reads the Subtitles",
+    unit: "not in English",
+    rungs: [10, 40, 100],
+    count: (s) => s.nonEnglishCount,
+    side: "both",
+  },
+  {
+    key: "worldtour",
+    name: "World Tour",
+    unit: "languages on the shelf",
+    rungs: [3, 6, 10],
+    count: (s) => s.distinctLanguages,
+    side: "both",
+  },
+  {
+    key: "offbeaten",
+    name: "Off the Beaten Path",
+    unit: "that never found an audience",
+    rungs: [10, 40, 100],
+    count: (s) => s.obscureCount,
+    side: "both",
   },
   {
     key: "deepcut",
     name: "Deep Cut",
-    cond: "Fifty films in a single genre",
-    check: (s) => s.topGenreCount >= 50,
+    unit: "in one genre",
+    rungs: [25, 75, 150],
+    count: (s) => s.topGenreCount,
+    side: "both",
   },
+
+  // ---- you against the room ---------------------------------------------
   {
     key: "criticsagree",
     name: "Critics Agree",
-    cond: "Ten films you rated 8.0 or higher that critics scored 90 or higher",
-    check: (s) => s.criticsAgreeCount >= 10,
+    unit: "you and the critics both loved",
+    rungs: [5, 20, 50],
+    count: (s) => s.criticsAgreeCount,
+    side: "film",
   },
   {
     key: "againstgrain",
     name: "Against the Grain",
-    cond: "Five films you rated 8.0 or higher that critics scored under 50",
-    check: (s) => s.againstGrainCount >= 5,
+    unit: "you loved and critics did not",
+    rungs: [3, 10, 25],
+    count: (s) => s.againstGrainCount,
+    side: "film",
   },
   {
     key: "secondopinion",
     name: "Second Opinion",
-    cond: "Ten films you rated three points away from the IMDb crowd",
-    check: (s) => s.imdbGapCount >= 10,
+    unit: "far from the IMDb crowd",
+    rungs: [5, 20, 50],
+    count: (s) => s.imdbGapCount,
+    side: "both",
+  },
+
+  // ---- television -------------------------------------------------------
+  // Two in five of the catalogue, and none of these is a film trait with the
+  // word changed: every one of them needs a season to be a rated thing.
+  {
+    key: "seasons",
+    name: "Season Ticket",
+    unit: "seasons rated",
+    rungs: [5, 25, 75],
+    count: (s) => s.seasonCount,
+    side: "show",
+  },
+  {
+    key: "shows",
+    name: "Channel Surfer",
+    unit: "different series",
+    rungs: [3, 10, 25],
+    count: (s) => s.showsTouched,
+    side: "show",
+  },
+  {
+    key: "distance",
+    name: "Went the Distance",
+    unit: "series rated end to end",
+    rungs: [1, 5, 15],
+    count: (s) => s.completedShows,
+    side: "show",
+  },
+  {
+    key: "longrun",
+    name: "Long Haul",
+    unit: "seasons of one series",
+    rungs: [3, 6, 10],
+    count: (s) => s.longestRun,
+    side: "show",
+  },
+  {
+    key: "felloff",
+    name: "Fell Off",
+    // Only a diary that rates seasons separately can know this, which is the
+    // whole argument for rating them separately.
+    unit: "series that lost you along the way",
+    rungs: [1, 3, 8],
+    count: (s) => s.fellOffCount,
+    side: "show",
+  },
+  {
+    key: "grewinto",
+    name: "Grew Into It",
+    unit: "series that got better",
+    rungs: [1, 3, 8],
+    count: (s) => s.grewCount,
+    side: "show",
+  },
+  {
+    key: "anime",
+    name: "Subbed and Dubbed",
+    unit: "anime seasons",
+    rungs: [3, 15, 40],
+    count: (s) => s.animeSeasonCount,
+    side: "show",
+  },
+  {
+    key: "closedbook",
+    name: "Closed Book",
+    unit: "seasons of series that have ended",
+    rungs: [5, 25, 60],
+    count: (s) => s.endedSeasonCount,
+    side: "show",
   },
 ];
 
-export type Trait = { key: string; name: string; cond: string; held: boolean };
+export type Trait = {
+  key: string;
+  name: string;
+  unit: string;
+  side: "film" | "show" | "both";
+  count: number;
+  rungs: readonly [number, number, number];
+  /** 0 before the first rung, then 1, 2 or 3 */
+  level: number;
+  held: boolean;
+  /** what has been reached, or what is next */
+  cond: string;
+  /** how many more for the next rung; null once all three are past */
+  toNext: number | null;
+};
 
 // No "X% of filmgoers hold this" here — with a young, small user base that
 // number is either a meaningless 25%/50% or missing outright, not a genuine
 // rarity signal. The condition text is the reward; whether you've met it is
 // the only other thing worth showing.
 export function evaluateTraits(s: TasteSignals): Trait[] {
-  return TRAIT_DEFS.map((t) => ({
-    key: t.key,
-    name: t.name,
-    cond: t.cond,
-    held: t.check(s),
-  }));
+  return TRAIT_DEFS.map((t) => {
+    const count = Math.max(0, Math.round(t.count(s)));
+    const level = t.rungs.filter((r) => count >= r).length;
+    const next = t.rungs.find((r) => count < r) ?? null;
+    return {
+      key: t.key,
+      name: t.name,
+      unit: t.unit,
+      side: t.side,
+      count,
+      rungs: t.rungs,
+      level,
+      held: level > 0,
+      // Reads as a fact once earned and as a target before that, which is the
+      // difference between a badge and something worth chasing.
+      cond:
+        level > 0
+          ? `${count} ${t.unit}`
+          : `${t.rungs[0]} ${t.unit}`,
+      toNext: next === null ? null : next - count,
+    };
+  });
+}
+
+/** Held traits, strongest first: level, then how far past its last rung. */
+export function rankTraits(traits: Trait[]): Trait[] {
+  return traits
+    .filter((t) => t.held)
+    .sort((a, b) => {
+      if (b.level !== a.level) return b.level - a.level;
+      const aPast = a.count / a.rungs[Math.max(0, a.level - 1)];
+      const bPast = b.count / b.rungs[Math.max(0, b.level - 1)];
+      return bPast - aPast;
+    });
 }
 
 // ---------------------------------------------------------------------------

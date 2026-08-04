@@ -1,3 +1,4 @@
+import { rankTraits } from "@/lib/taste-card";
 import Link from "next/link";
 import { accentFor, formatTenths } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
@@ -199,7 +200,9 @@ export function TasteCardBackBig({
   username: string;
   displayName: string;
 }) {
-  const heldTraits = data.traits.filter((t) => t.held);
+  // Strongest first, so the eight that fit are the eight worth showing rather
+  // than whichever happen to sit at the top of the catalogue.
+  const heldTraits = rankTraits(data.traits).slice(0, 10);
 
   return (
     // `relative` is load-bearing: the foil behind this face is absolutely
@@ -321,9 +324,21 @@ export function TasteCardBackBig({
             {heldTraits.map((t) => (
               <span
                 key={t.key}
-                className="rounded-full border border-[#3a3320] bg-[rgba(217,178,95,.05)] px-1.5 py-0.5 text-[8.5px] text-[#c9b48a]"
+                className="flex items-center gap-1 rounded-full border border-[#3a3320] bg-[rgba(217,178,95,.05)] px-1.5 py-0.5 text-[8.5px] text-[#c9b48a]"
               >
                 {t.name}
+                {/* The level, as pips. At this size a number would be
+                    unreadable and the word "gold" would mean nothing. */}
+                <span aria-hidden className="flex gap-[2px]">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className={`block size-[3px] rounded-full ${
+                        i < t.level ? "bg-[#d9b25f]" : "bg-[#3a3320]"
+                      }`}
+                    />
+                  ))}
+                </span>
               </span>
             ))}
           </div>

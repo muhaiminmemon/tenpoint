@@ -19,6 +19,11 @@ export type TasteSignals = {
   positiveCount: number;
   /** rated films whose rating is not a round point, i.e. actually uses the tenths */
   decimalRatingCount: number;
+  harshCount: number;
+  distinctRatings: number;
+  obscureCount: number;
+  /** titles with more than one viewing logged, however they were rated */
+  repeatTitleCount: number;
   /** every diary entry, rated or not — the denominator for anything about viewings */
   totalEntryCount: number;
   /** rated films released in 2010 or later */
@@ -110,6 +115,24 @@ export type TasteSignals = {
   imdbKnownCount: number;
 
   /**
+   * Television, counted the same way films are.
+   *
+   * A season is a rated row, so none of this needed a second query: the same
+   * diary, filtered by kind. What it does need is its own counters, because
+   * the things worth naming about a series, finishing one, watching it fall
+   * apart, are not things a film can do.
+   */
+  seasonCount: number;
+  wholeShowCount: number;
+  showsTouched: number;
+  longestRun: number;
+  completedShows: number;
+  fellOffCount: number;
+  grewCount: number;
+  animeSeasonCount: number;
+  endedSeasonCount: number;
+
+  /**
    * How somebody rates one kind of film against another.
    *
    * Everything else here reads what a person watched, and popular films are
@@ -170,7 +193,7 @@ export async function getTasteSignals(
     ),
     cur_f as (
       select cur.*, f.genres, f.year, f.director, f.runtime, f.vote_count, f.original_language,
-             f.cast_names, f.rt_score, f.imdb_rating,
+             f.cast_names, f.rt_score, f.imdb_rating, f.kind, f.show_id, f.season_number,
              -- How many people have rated it anywhere, rather than on TMDB.
              -- TMDB's audience is Western enough that its counts measure where
              -- a film was released more than how many saw it: English films
@@ -180,6 +203,25 @@ export async function getTasteSignals(
              -- make every non-Hollywood film look unseen.
              coalesce(f.imdb_votes, f.vote_count * 50) as reach
       from cur join films f on f.id = cur.film_id
+    ),
+    -- Television, which is the same rows filtered rather than a second query.
+    seasons as (
+      select show_id, season_number, rating from cur_f where kind = 'season' and show_id is not null
+    ),
+    per_show as (
+      select s.show_id,
+             count(*)::int as rated_seasons,
+             min(s.rating) as worst,
+             max(s.rating) as best,
+             -- The first season somebody rated, which is what a fall from
+             -- grace is measured against.
+             (array_agg(s.rating order by s.season_number))[1] as opener,
+             (array_agg(s.rating order by s.season_number desc))[1] as closer
+      from seasons s group by s.show_id
+    ),
+    show_totals as (
+      select f.show_id, count(*)::int as total_seasons
+      from films f where f.kind = 'season' and f.show_id is not null group by f.show_id
     ),
     genre_counts as (
       select g.value as genre, count(*)::int as count
@@ -271,6 +313,15 @@ export async function getTasteSignals(
       (select count(*) from cur where rating >= 70 and rating < 85)::int as rate_liked,
       (select count(*) from cur where rating >= 55 and rating < 70)::int as rate_fair,
       (select count(*) from cur where rating < 55)::int as rate_harsh,
+      -- Counts the traits read directly rather than inferring from a band.
+      (select count(*) from cur where rating <= 30)::int as harsh_count,
+      (select count(distinct rating) from cur)::int as distinct_ratings,
+      (select count(*) from cur_f where reach < 50000)::int as obscure_count,
+      (select count(*) from (
+        select film_id from diary_entries
+        where user_id = ${userId} and ${privacy}
+        group by film_id having count(*) > 1
+      ) z)::int as repeat_title_count,
 
       -- era bands, over films with a year on file
       (select count(*) from cur_f where year is not null and year < 1970)::int as era_classic,
@@ -308,6 +359,25 @@ export async function getTasteSignals(
       (select count(*) from cur_f where rating >= 80 and rt_score < 50)::int as against_grain_count,
       (select count(*) from cur_f where imdb_rating is not null and abs(rating - imdb_rating) >= 30)::int as imdb_gap_count,
       (select count(*) from cur_f where imdb_rating is not null)::int as imdb_known_count,
+
+      -- television
+      (select count(*) from cur_f where kind = 'season')::int as season_count,
+      (select count(*) from cur_f where kind = 'show')::int as whole_show_count,
+      (select count(distinct show_id) from seasons)::int as shows_touched,
+      (select coalesce(max(rated_seasons), 0) from per_show)::int as longest_run,
+      -- Every season of something, which is the only trait here that requires
+      -- finishing rather than sampling.
+      (select count(*) from per_show p join show_totals t on t.show_id = p.show_id
+        where p.rated_seasons >= t.total_seasons and t.total_seasons >= 2)::int as completed_shows,
+      -- A show that lost you: an opener rated well and a later season three
+      -- points below it.
+      (select count(*) from per_show where rated_seasons >= 2 and opener - closer >= 30)::int as fell_off_count,
+      -- And the opposite, which is rarer and worth its own name.
+      (select count(*) from per_show where rated_seasons >= 2 and closer - opener >= 30)::int as grew_count,
+      (select count(*) from cur_f c join shows sh on sh.id = c.show_id
+        where c.kind = 'season' and sh.form = 'anime')::int as anime_season_count,
+      (select count(*) from cur_f c join shows sh on sh.id = c.show_id
+        where c.kind = 'season' and sh.status = 'Ended')::int as ended_season_count,
 
       -- opinion axes: each side needs 10 films or the comparison is noise
       (select case when count(*) >= 10 then avg(rating) end from cur_f where reach < 50000) as mean_obscure,
@@ -354,6 +424,10 @@ export async function getTasteSignals(
     totalRuntimeMinutes: (r.total_runtime_minutes as number) ?? 0,
     genreTaggedCount: (r.genre_tagged_count as number) ?? 0,
     ratingBands: band(r, "rate_loved", "rate_liked", "rate_fair", "rate_harsh"),
+    harshCount: num(r, "harsh_count"),
+    distinctRatings: num(r, "distinct_ratings"),
+    obscureCount: num(r, "obscure_count"),
+    repeatTitleCount: num(r, "repeat_title_count"),
     eraBands: band(r, "era_classic", "era_seventies", "era_nineties", "era_recent"),
     runtimeBands: band(r, "run_short", "run_standard", "run_long", "run_epic"),
     reachBands: band(r, "reach_everyone", "reach_wide", "reach_some", "reach_few"),
@@ -368,6 +442,15 @@ export async function getTasteSignals(
     againstGrainCount: num(r, "against_grain_count"),
     imdbGapCount: num(r, "imdb_gap_count"),
     imdbKnownCount: num(r, "imdb_known_count"),
+    seasonCount: num(r, "season_count"),
+    wholeShowCount: num(r, "whole_show_count"),
+    showsTouched: num(r, "shows_touched"),
+    longestRun: num(r, "longest_run"),
+    completedShows: num(r, "completed_shows"),
+    fellOffCount: num(r, "fell_off_count"),
+    grewCount: num(r, "grew_count"),
+    animeSeasonCount: num(r, "anime_season_count"),
+    endedSeasonCount: num(r, "ended_season_count"),
     meanObscure: maybe(r, "mean_obscure"),
     meanFamous: maybe(r, "mean_famous"),
     meanOld: maybe(r, "mean_old"),

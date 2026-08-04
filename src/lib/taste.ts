@@ -14,6 +14,7 @@ import {
   ERA_BY_DECADE,
   evaluateTraits,
   tierStanding,
+  weightedSize,
   RARITY_TIERS,
   type RarityTier,
   type TierStanding,
@@ -647,7 +648,17 @@ export async function buildHomeTasteCard(
   // answer and they need the signals.
   // One call decides both the tier and what the card says about reaching the
   // next one, so the two can never disagree.
-  const standing = tierStanding(taste.rated, signals);
+  /**
+   * The ladder counts what was watched, not how many rows it took.
+   *
+   * A season is one row and five films of viewing, so counting rows made a
+   * television watcher climb five times slower per hour spent. `SEASON_WEIGHT`
+   * is the correction and the binder states it.
+   */
+  const ladderSize = Math.round(
+    weightedSize(taste.rated - signals.seasonCount, signals.seasonCount),
+  );
+  const standing = tierStanding(ladderSize, signals);
   const tier = standing.tier;
 
   const variant = computeVariant(
@@ -746,7 +757,13 @@ export async function syncUserTier(userId: string): Promise<void> {
     getTasteProfile(userId, { includePrivate: true }),
     getTasteSignals(userId, { includePrivate: true }),
   ]);
-  const tier = taste.rated > 0 ? tierStanding(taste.rated, signals).tier.name : null;
+  const tier =
+    taste.rated > 0
+      ? tierStanding(
+          Math.round(weightedSize(taste.rated - signals.seasonCount, signals.seasonCount)),
+          signals,
+        ).tier.name
+      : null;
   await db.update(users).set({ tier }).where(eq(users.id, userId));
 }
 

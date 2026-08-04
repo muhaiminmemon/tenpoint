@@ -304,21 +304,65 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
           Traits · {data.traitsHeldCount} held of {data.traitsTotal}
         </span>
       </div>
+      {/* Every trait carries its own number and the rung it is on. A badge that
+          is only held or not stops moving the moment it is earned; a count
+          keeps going, and the bar underneath is the distance to the next one. */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {data.traits.map((t) => (
-          <div
-            key={t.key}
-            className={`rounded-card border px-3 py-2.5 ${
-              t.held ? "border-[#3a3320] bg-[rgba(217,178,95,.05)]" : "border-[#232329] bg-transparent"
-            }`}
-          >
-            <div className="flex items-baseline justify-between gap-2">
-              <span className={`display text-[13.5px] ${t.held ? "text-paper" : "text-dim"}`}>{t.name}</span>
-              {t.held && <span className="text-[10px] uppercase tracking-[.08em] text-gold">Held</span>}
+        {data.traits.map((t) => {
+          const target = t.rungs[Math.min(2, t.level)];
+          const floor = t.level === 0 ? 0 : t.rungs[t.level - 1];
+          const span = Math.max(1, target - floor);
+          const pct = t.level >= 3 ? 100 : Math.min(100, ((t.count - floor) / span) * 100);
+          return (
+            <div
+              key={t.key}
+              className={`rounded-card border px-3 py-2.5 ${
+                t.held
+                  ? "border-[#3a3320] bg-[rgba(217,178,95,.05)]"
+                  : "border-[#232329] bg-transparent"
+              }`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className={`display text-[13.5px] ${t.held ? "text-paper" : "text-dim"}`}>
+                  {t.name}
+                </span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {t.side === "show" && (
+                    <span className="text-[9px] uppercase tracking-[.1em] text-dim">Series</span>
+                  )}
+                  {t.level > 0 && (
+                    // Three pips rather than a word: the level is a quantity,
+                    // and "Held" said the same thing at every stage.
+                    <span aria-label={`Level ${t.level} of 3`} className="flex gap-[3px]">
+                      {[0, 1, 2].map((i) => (
+                        <span
+                          key={i}
+                          className={`block size-[5px] rounded-full ${
+                            i < t.level ? "bg-gold" : "bg-[#2a2a31]"
+                          }`}
+                        />
+                      ))}
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="mt-0.5 text-[11.5px] leading-snug text-dim">
+                <span className={t.held ? "num text-ash" : "num"}>{t.count}</span> {t.unit}
+              </div>
+              <div className="mt-2 h-[3px] overflow-hidden rounded-full bg-[#1c1c21]">
+                <span
+                  className="block h-full rounded-full bg-gold transition-[width] duration-500"
+                  style={{ width: `${pct}%`, opacity: t.held ? 1 : 0.45 }}
+                />
+              </div>
+              <div className="mt-1.5 text-[10.5px] text-dim">
+                {t.toNext === null
+                  ? "Every rung passed."
+                  : `${t.toNext} more for ${target}.`}
+              </div>
             </div>
-            <div className="mt-0.5 text-[11.5px] leading-snug text-dim">{t.cond}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
