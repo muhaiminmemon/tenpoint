@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { films, type Film } from "@/db/schema";
 import { directorOf, GENRES_BY_ID, movieDetails, releaseYear, type TmdbMovie } from "./tmdb";
@@ -16,7 +16,11 @@ export function slugify(title: string, year: number | null): string {
 
 /** Insert or return the cached film row for a TMDB search result. */
 export async function ensureFilm(movie: TmdbMovie): Promise<Film> {
-  const existing = await db.select().from(films).where(eq(films.tmdbId, movie.id)).limit(1);
+  const existing = await db
+    .select()
+    .from(films)
+    .where(and(eq(films.tmdbId, movie.id), eq(films.kind, "movie")))
+    .limit(1);
   if (existing[0]) return existing[0];
 
   const year = releaseYear(movie);
@@ -37,11 +41,15 @@ export async function ensureFilm(movie: TmdbMovie): Promise<Film> {
       backdropPath: movie.backdrop_path ?? null,
       overview: movie.overview ?? null,
     })
-    .onConflictDoNothing({ target: films.tmdbId })
+    .onConflictDoNothing({ target: [films.kind, films.tmdbId] })
     .returning();
   if (inserted[0]) return inserted[0];
   // lost a race, so the row exists now
-  const won = await db.select().from(films).where(eq(films.tmdbId, movie.id)).limit(1);
+  const won = await db
+    .select()
+    .from(films)
+    .where(and(eq(films.tmdbId, movie.id), eq(films.kind, "movie")))
+    .limit(1);
   return won[0];
 }
 
@@ -53,7 +61,10 @@ export async function bulkEnsureFilms(movies: TmdbMovie[]): Promise<Map<number, 
   if (!ids.length) return new Map();
 
   const existing = ids.length
-    ? await db.select().from(films).where(inArray(films.tmdbId, ids))
+    ? await db
+        .select()
+        .from(films)
+        .where(and(inArray(films.tmdbId, ids), eq(films.kind, "movie")))
     : [];
   const byTmdb = new Map(existing.filter((f) => f.tmdbId).map((f) => [f.tmdbId!, f]));
 

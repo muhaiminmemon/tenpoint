@@ -104,7 +104,26 @@ export const emailTokens = pgTable(
 
 export const films = pgTable("films", {
   id: uuid("id").primaryKey().defaultRandom(),
-  tmdbId: integer("tmdb_id").unique(),
+  /**
+   * TMDB's id for whichever kind of thing this is.
+   *
+   * No longer unique on its own: TMDB numbers movies and seasons in separate
+   * spaces, so movie 550 and season 550 are different objects and a single
+   * unique index would have collided them. The uniqueness is now on the pair.
+   */
+  tmdbId: integer("tmdb_id"),
+  /**
+   * movie | season.
+   *
+   * A season is a row here rather than in a table of its own because a season
+   * is the same kind of thing a film is: something watched on a date, rated
+   * once, and argued about. Everything downstream, the diary, the watchlist,
+   * lists, the recommender and the embeddings, works on it unchanged.
+   */
+  kind: text("kind").notNull().default("movie"),
+  showId: uuid("show_id").references(() => shows.id),
+  seasonNumber: integer("season_number"),
+  episodeCount: integer("episode_count"),
   slug: text("slug").notNull().unique(),
   title: text("title").notNull(),
   year: integer("year"),
@@ -187,7 +206,53 @@ export const films = pgTable("films", {
   // index every page is a full scan of the whole catalogue.
   index("films_rt_score_idx").on(t.rtScore),
   index("films_imdb_rating_idx").on(t.imdbRating),
+  uniqueIndex("films_kind_tmdb_uq").on(t.kind, t.tmdbId),
+  index("films_show_idx").on(t.showId),
 ]);
+
+
+/**
+ * A series. Seasons live in `films`, and this is what groups them.
+ *
+ * Deliberately not a new "titles" table with movies folded into it. Six tables
+ * carry a foreign key into `films` and every slug, every embedding and every
+ * diary row points at it; renaming that would be a large migration for no
+ * user-visible gain. A season is a thing you watched on a date and formed an
+ * opinion about, which is exactly what a row in `films` already is, so a season
+ * is one of those and this table is only the thing they hang off.
+ */
+export const shows = pgTable("shows", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tmdbId: integer("tmdb_id").unique(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  firstAirYear: integer("first_air_year"),
+  lastAirYear: integer("last_air_year"),
+  /** TMDB's own word: Returning Series, Ended, Canceled, In Production */
+  status: text("status"),
+  posterPath: text("poster_path"),
+  backdropPath: text("backdrop_path"),
+  overview: text("overview"),
+  originalLanguage: text("original_language"),
+  genres: jsonb("genres").$type<string[]>(),
+  keywords: jsonb("keywords").$type<string[]>(),
+  castNames: jsonb("cast_names").$type<string[]>(),
+  creators: jsonb("creators").$type<string[]>(),
+  seasonCount: integer("season_count"),
+  episodeCount: integer("episode_count"),
+  /**
+   * anime | animation | live_action.
+   *
+   * A classification rather than a media type, which is the whole reason anime
+   * needs no separate product: publicly it is a kind of show, and this is the
+   * only column that knows the difference.
+   */
+  form: text("form"),
+  popularity: doublePrecision("popularity"),
+  voteCount: integer("vote_count"),
+  refreshedAt: timestamp("refreshed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /**
  * One row per viewing. Historical ratings never change; a film's current
@@ -502,4 +567,5 @@ export type User = typeof users.$inferSelect;
  */
 export type SessionUser = Omit<User, "passwordHash">;
 export type Film = typeof films.$inferSelect;
+export type Show = typeof shows.$inferSelect;
 export type DiaryEntry = typeof diaryEntries.$inferSelect;

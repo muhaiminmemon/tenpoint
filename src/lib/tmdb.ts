@@ -191,3 +191,92 @@ export async function trendingThisWeek(): Promise<TmdbMovie[]> {
   const data = await tmdb<{ results: TmdbMovie[] }>("/trending/movie/week", {});
   return data.results ?? [];
 }
+
+/* ------------------------------------------------------------------ *
+ * Shows
+ * ------------------------------------------------------------------ */
+
+export type TmdbShow = {
+  id: number;
+  name: string;
+  first_air_date?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  overview?: string;
+  popularity?: number;
+  vote_count?: number;
+  original_language?: string;
+  genre_ids?: number[];
+};
+
+export type TmdbSeason = {
+  id: number;
+  season_number: number;
+  name: string;
+  air_date?: string | null;
+  episode_count?: number;
+  overview?: string | null;
+  poster_path?: string | null;
+};
+
+export type TmdbShowDetails = TmdbShow & {
+  last_air_date?: string | null;
+  status?: string;
+  number_of_seasons?: number;
+  number_of_episodes?: number;
+  genres?: { id: number; name: string }[];
+  seasons?: TmdbSeason[];
+  created_by?: { name: string }[];
+  external_ids?: { imdb_id?: string | null };
+  credits?: { cast?: { name: string; order?: number }[] };
+  keywords?: { results?: { name: string }[] };
+};
+
+/**
+ * TMDB's television genres, which are not the film list.
+ *
+ * Overlapping ids mean different things across the two endpoints, so a single
+ * shared table would silently mislabel half the catalogue.
+ */
+export const TV_GENRES_BY_ID: Record<number, string> = {
+  10759: "Action & Adventure", 16: "Animation", 35: "Comedy", 80: "Crime",
+  99: "Documentary", 18: "Drama", 10751: "Family", 10762: "Kids", 9648: "Mystery",
+  10763: "News", 10764: "Reality", 10765: "Sci-Fi & Fantasy", 10766: "Soap",
+  10767: "Talk", 10768: "War & Politics", 37: "Western",
+};
+
+export async function searchShows(query: string): Promise<TmdbShow[]> {
+  const data = await tmdb<{ results: TmdbShow[] }>("/search/tv", {
+    query,
+    include_adult: "false",
+  });
+  return data.results ?? [];
+}
+
+export async function showDetails(tmdbId: number): Promise<TmdbShowDetails> {
+  return tmdb<TmdbShowDetails>(`/tv/${tmdbId}`, {
+    append_to_response: "credits,keywords,external_ids",
+  });
+}
+
+export async function popularShows(page = 1): Promise<TmdbShow[]> {
+  const data = await tmdb<{ results: TmdbShow[] }>("/tv/popular", { page: String(page) });
+  return data.results ?? [];
+}
+
+/**
+ * anime | animation | live_action, decided from what TMDB already knows.
+ *
+ * Animation plus a Japanese original language is the working definition of
+ * anime everywhere that has to draw this line automatically, and it is right
+ * far more often than a keyword search for "anime" is. It stays a
+ * classification: an anime series is a show, and an anime film is a film.
+ */
+export function formOf(
+  genreNames: string[],
+  originalLanguage: string | null | undefined,
+): "anime" | "animation" | "live_action" {
+  const animated = genreNames.some((g) => g === "Animation");
+  if (!animated) return "live_action";
+  return originalLanguage === "ja" ? "anime" : "animation";
+}

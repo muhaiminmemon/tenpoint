@@ -17,6 +17,9 @@ type FilmHit = {
   director?: string | null;
   posterPath: string | null;
   rating?: number | null;
+  /** set on a series; its seasons are what get rated, so this opens the show */
+  kind?: "show";
+  showSlug?: string | null;
 };
 
 /**
@@ -113,7 +116,14 @@ export default function CommandPalette() {
   const rows = useMemo(() => {
     if (!active) return [];
     return films.map((f) => {
-      const href = f.slug ? `/film/${f.slug}` : `/film/t/${f.tmdbId}`;
+      const href =
+        f.kind === "show"
+          ? f.showSlug
+            ? `/show/${f.showSlug}`
+            : `/show/t/${f.tmdbId}`
+          : f.slug
+            ? `/film/${f.slug}`
+            : `/film/t/${f.tmdbId}`;
       const poster = posterUrl(f.posterPath, "w154");
       return {
         key: `f:${f.slug ?? f.tmdbId}`,

@@ -48,6 +48,8 @@ export const SLOT_LABELS: Record<SignatureSlot, string> = {
 type Candidate = {
   slug: string;
   title: string;
+  /** a season is rated exactly like a film, and can be signature exactly like one */
+  kind: "movie" | "season";
   posterPath: string | null;
   rating: number;
   director: string | null;
@@ -90,7 +92,7 @@ export async function pickSignatureFilms(
       from diary_entries
       where user_id = ${userId} and ${privacy} group by film_id
     )
-    select f.slug, f.title, f.poster_path, f.director, f.imdb_rating, f.vote_count,
+    select f.slug, f.title, f.kind, f.poster_path, f.director, f.imdb_rating, f.vote_count,
            f.imdb_votes, f.keywords, f.year, f.original_language, f.embedding,
            c.rating, coalesce(v.n, 1) as viewings, coalesce(v.reviews, 0) as reviews
     from cur c
@@ -116,6 +118,7 @@ export async function pickSignatureFilms(
     return {
       slug: r.slug as string,
       title: r.title as string,
+      kind: (r.kind as string) === "season" ? ("season" as const) : ("movie" as const),
       posterPath: (r.poster_path as string) ?? null,
       rating: r.rating as number,
       director: (r.director as string) ?? null,
@@ -557,5 +560,75 @@ export async function pickSignatureFilms(
     }
   }
 
-  return picks.slice(0, 4);
+  return balance(picks.slice(0, 4), candidates);
+}
+
+/**
+ * Four picks that reflect what somebody actually watches.
+ *
+ * The portrait objective knows nothing about films against series, so a shelf
+ * that is a quarter television would still put up four films: there are simply
+ * more of them, so they win more slots. That is arithmetic, not a reading, and
+ * it makes the card quietly wrong about a person.
+ *
+ * So the mix is enforced afterwards rather than built into the objective. The
+ * share of the shelf that is series decides how many of the four are series,
+ * rounded, and one of each is guaranteed once the smaller half is real rather
+ * than incidental. A swap takes the weakest pick of the over-represented kind
+ * and the strongest unused candidate of the other, which keeps the objective's
+ * ordering intact inside each half.
+ */
+function balance(picks: SignatureFilm[], candidates: Candidate[]): SignatureFilm[] {
+  const bySlug = new Map(candidates.map((c) => [c.slug, c]));
+  const seasons = candidates.filter((c) => c.kind === "season");
+  const movies = candidates.filter((c) => c.kind === "movie");
+  if (seasons.length === 0 || movies.length === 0) return picks;
+
+  const share = seasons.length / candidates.length;
+  // Below three rated seasons a television habit is not established enough to
+  // spend a quarter of somebody's card on.
+  const floor = seasons.length >= 3 ? 1 : 0;
+  const ceiling = movies.length >= 3 ? 3 : 4;
+  const want = Math.min(ceiling, Math.max(floor, Math.round(share * picks.length)));
+
+  const out = [...picks];
+  const isSeason = (p: SignatureFilm) => bySlug.get(p.slug)?.kind === "season";
+  const chosen = new Set(out.map((p) => p.slug));
+
+  const swapOne = (from: "movie" | "season") => {
+    // Weakest of the over-represented kind, by the rating that put it there.
+    let worst = -1;
+    for (let i = out.length - 1; i >= 0; i--) {
+      const c = bySlug.get(out[i].slug);
+      if (c && c.kind === from) { worst = i; break; }
+    }
+    const pool = (from === "movie" ? seasons : movies)
+      .filter((c) => !chosen.has(c.slug))
+      .sort((a, b) => b.rating - a.rating);
+    if (worst < 0 || !pool[0]) return false;
+    const c = pool[0];
+    chosen.delete(out[worst].slug);
+    chosen.add(c.slug);
+    out[worst] = {
+      ...out[worst],
+      slug: c.slug,
+      title: c.title,
+      posterPath: c.posterPath,
+      rating: c.rating,
+      label: c.kind === "season" ? "The series you keep" : "The film you keep",
+      reason:
+        c.kind === "season"
+          ? "Your shelf is part television, so one of these four is."
+          : "Your shelf is mostly film, so this one holds a slot for it.",
+    };
+    return true;
+  };
+
+  let guard = 0;
+  while (guard++ < 4) {
+    const have = out.filter(isSeason).length;
+    if (have === want) break;
+    if (!swapOne(have > want ? "season" : "movie")) break;
+  }
+  return out;
 }

@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { films } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
-import { releaseYear, searchMovies, TmdbError } from "@/lib/tmdb";
+import { releaseYear, searchMovies, searchShows, TmdbError } from "@/lib/tmdb";
+import { shows } from "@/db/schema";
 
 export type SearchResult = {
   tmdbId: number;
@@ -16,6 +17,16 @@ export type SearchResult = {
   director?: string | null;
   /** the viewer's current rating, when they've rated it */
   rating?: number | null;
+  /**
+   * "show" on a series, absent on a film.
+   *
+   * A show is not rated here, its seasons are, so a hit opens the show page
+   * rather than a rating panel. The palette needs to know that before the
+   * click, which is the only reason this leaks into the result shape.
+   */
+  kind?: "show";
+  /** shows carry their own slug space, so the link is built from this */
+  showSlug?: string | null;
 };
 
 /** TMDB search merged with the local catalogue (pg_trgm handles typos). */
@@ -46,6 +57,29 @@ export async function GET(req: Request) {
     // fall back to the local catalogue only
   }
 
+  /**
+   * Series, searched separately because TMDB keeps them in another index.
+   *
+   * Fewer of them than films, and after them in the list, because somebody
+   * typing into a film diary usually means a film. A show that is genuinely
+   * the better match still surfaces: the local pass below promotes anything
+   * already in the catalogue.
+   */
+  const showHits: SearchResult[] = [];
+  try {
+    for (const t of (await searchShows(q)).slice(0, 6)) {
+      showHits.push({
+        tmdbId: t.id,
+        title: t.name,
+        year: Number.parseInt((t.first_air_date ?? "").slice(0, 4), 10) || null,
+        posterPath: t.poster_path ?? null,
+        kind: "show",
+      });
+    }
+  } catch (e) {
+    if (!(e instanceof TmdbError)) throw e;
+  }
+
   try {
     const local = await db
       .select({
@@ -69,9 +103,19 @@ export async function GET(req: Request) {
     // pg_trgm not installed yet, so TMDB results alone are fine
   }
 
+  if (showHits.length) {
+    const known = await db
+      .select({ tmdbId: shows.tmdbId, slug: shows.slug })
+      .from(shows)
+      .where(inArray(shows.tmdbId, showHits.map((h) => h.tmdbId)));
+    const bySlug = new Map(known.map((k) => [k.tmdbId, k.slug]));
+    for (const h of showHits) h.showSlug = bySlug.get(h.tmdbId) ?? null;
+    results.push(...showHits);
+  }
+
   // Fill in slug/director for TMDB hits we already hold, and the viewer's own
   // rating, so the palette can show what they thought without a second trip.
-  const tmdbIds = results.map((r) => r.tmdbId);
+  const tmdbIds = results.filter((r) => r.kind !== "show").map((r) => r.tmdbId);
   if (tmdbIds.length) {
     const user = await getSessionUser();
     const known = await db

@@ -16,6 +16,7 @@ import SimilarRail from "@/components/SimilarRail";
 import CastList from "@/components/CastList";
 import { personHref } from "@/lib/browse";
 import { similarTo } from "@/lib/similar";
+import { shows } from "@/db/schema";
 
 export async function generateMetadata(ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
@@ -92,6 +93,14 @@ export default async function FilmPage(ctx: {
     }
   }
 
+  // A season belongs to something, and the page it sits on is the same page a
+  // film gets, so the only thing that has to change is that it names its show
+  // and can get back to it.
+  const parent =
+    film.kind === "season" && film.showId
+      ? (await db.select().from(shows).where(eq(shows.id, film.showId)).limit(1))[0]
+      : null;
+
   const meta = [film.runtime ? `${film.runtime} min` : null, film.genres?.[0]]
     .filter(Boolean)
     .join(" · ");
@@ -123,12 +132,20 @@ export default async function FilmPage(ctx: {
 
       <div className="min-w-0 flex-1">
         <h1 className="display text-3xl font-medium leading-tight">
-          {film.title}{" "}
+          {parent ? film.title.replace(`${parent.name}: `, "") : film.title}{" "}
           {film.year && <span className="num text-xl font-normal text-ash">{film.year}</span>}
         </h1>
         {/* The director is the same door as any face in the cast list, so it
             opens the same way rather than sitting here as dead text. */}
         <p className="mt-1 text-sm text-ash">
+          {parent && (
+            <>
+              <Link href={`/show/${parent.slug}`} className="text-paper hover:underline">
+                {parent.name}
+              </Link>
+              {(directors.length > 0 || rest.length > 0) && " · "}
+            </>
+          )}
           {directors.map((name, i) => (
             <span key={name}>
               {i > 0 && ", "}
@@ -140,7 +157,9 @@ export default async function FilmPage(ctx: {
           {rest.map((part, i) => (
             // The separator belongs to the part that follows it, so a film with
             // no director does not open on a floating middot.
-            <span key={part}>{i === 0 && directors.length === 0 ? part : ` · ${part}`}</span>
+            <span key={part}>
+              {i === 0 && directors.length === 0 && !parent ? part : ` · ${part}`}
+            </span>
           ))}
         </p>
         {film.overview && <p className="mt-4 max-w-xl text-sm text-ash">{film.overview}</p>}

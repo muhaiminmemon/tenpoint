@@ -211,7 +211,7 @@ function SignatureSection({ films, person }: { films: Binder["signature"]; perso
       </div>
       <div className="mt-5 max-w-[58ch]">
         <h2 id="signature" className="display text-[26px] leading-none text-paper">
-          Signature films
+          Signature
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
           Every one of these is from {person ? "their" : "your"} top tenth, so nothing is here
