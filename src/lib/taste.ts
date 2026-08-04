@@ -268,8 +268,12 @@ export async function getBestMatchAndRival(
 
     const basis =
       agreement === null
-        ? `Read from what is unusual about each of your libraries. ${common} films in common.`
-        : `${common} films in common, ${((r.avg_diff as number) / 10).toFixed(1)} apart on average.`;
+        // Titles, not films: the overlap counts every rated row you share, and
+        // for two people who watch television most of it is seasons. Between
+        // two of the seeded sitcom watchers it is twenty-one seasons and two
+        // films, described until now as "two films in common".
+        ? `Read from what is unusual about each of your libraries. ${common} titles in common.`
+        : `${common} titles in common, ${((r.avg_diff as number) / 10).toFixed(1)} apart on average.`;
 
     return {
       name: (r.display_name as string | null) ?? (r.username as string),

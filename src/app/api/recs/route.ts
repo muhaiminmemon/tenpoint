@@ -17,7 +17,11 @@ import { areFriends } from "@/lib/social";
  */
 export const maxDuration = 60;
 
-const schema = z.object({ friend: z.string().min(1) });
+const schema = z.object({
+  friend: z.string().min(1),
+  /** which half of the catalogue to draw from; defaults to both */
+  media: z.enum(["all", "movie", "show"]).default("all"),
+});
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -44,6 +48,6 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = await recommendForPair(user, friend);
+  const result = await recommendForPair(user, friend, parsed.data.media);
   return NextResponse.json(result);
 }

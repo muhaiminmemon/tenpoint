@@ -707,6 +707,25 @@ const POOL = 700;
  * excluding those would quietly delete most of pre-war cinema from the pool.
  */
 const OUT_ALREADY = sql`(${films.releaseDate} is null or ${films.releaseDate} <= current_date)`;
+
+/** Which half of the catalogue a pair wants suggestions from. */
+export type RecMedia = "all" | "movie" | "show";
+
+/**
+ * What may be suggested, by kind.
+ *
+ * A bare season is never one of them, whichever way this is set. "Watch
+ * Breaking Bad season three" is not an answer to what should we watch for
+ * anybody who has not seen the first two, and the row standing for the whole
+ * series says the thing a person actually means. Seasons stay rateable and
+ * still feed the taste that drives all of this; they are just not the unit
+ * anybody is told to go and start.
+ */
+function mediaFilter(media: RecMedia) {
+  if (media === "movie") return sql`${films.kind} = 'movie'`;
+  if (media === "show") return sql`${films.kind} = 'show'`;
+  return sql`${films.kind} in ('movie', 'show')`;
+}
 /** How many of each person's favourites are walked outward from. */
 const SEEDS = 30;
 
@@ -727,6 +746,7 @@ async function retrieve(
   neighbourIds: string[],
   watchIds: Set<string>,
   exclude: Set<string>,
+  media: RecMedia,
 ): Promise<FilmRow[]> {
   const seedSlugs = new Set<string>();
   for (const [lib, rated] of [
@@ -774,6 +794,7 @@ async function retrieve(
           inArray(films.id, [...ids].slice(0, POOL * 2)),
           sql`${films.posterPath} is not null`,
           sql`${films.embedding} is not null`,
+          mediaFilter(media),
           OUT_ALREADY,
         ),
       )) as FilmRow[];
@@ -798,7 +819,12 @@ async function retrieve(
       .select(filmCols)
       .from(films)
       .where(
-        and(sql`${films.posterPath} is not null`, sql`${films.embedding} is not null`, OUT_ALREADY),
+        and(
+          sql`${films.posterPath} is not null`,
+          sql`${films.embedding} is not null`,
+          mediaFilter(media),
+          OUT_ALREADY,
+        ),
       )
       .orderBy(sql`${films.popularity} desc nulls last`)
       .limit(FLOOR * 2)) as FilmRow[];
@@ -832,7 +858,11 @@ export async function eligibilityOf(userId: string): Promise<{ rated: number; st
   return { rated: r?.rated ?? 0, strong: r?.strong ?? 0 };
 }
 
-export async function recommendForPair(a: SessionUser, b: SessionUser): Promise<RecResult> {
+export async function recommendForPair(
+  a: SessionUser,
+  b: SessionUser,
+  media: RecMedia = "all",
+): Promise<RecResult> {
   const [ea, eb] = await Promise.all([eligibilityOf(a.id), eligibilityOf(b.id)]);
   const shortfall = [
     { username: a.username, ...ea },
@@ -903,6 +933,7 @@ export async function recommendForPair(a: SessionUser, b: SessionUser): Promise<
     neighbourIds,
     wantedIds,
     exclude,
+    media,
   );
   if (pool.length === 0) return { eligible: true, films: [] };
 

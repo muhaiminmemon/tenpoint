@@ -28,8 +28,17 @@ export default function RecsView({ friend }: { friend: string }) {
   const [error, setError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const requested = useRef(false);
+  /**
+   * Which half of the catalogue to draw from.
+   *
+   * Two people deciding what to watch have usually already decided whether
+   * they want a film or something to start, and that is the one thing the
+   * ranking cannot infer from their libraries. Held here rather than in the
+   * URL because it is a question about tonight, not a page worth linking to.
+   */
+  const [media, setMedia] = useState<"all" | "movie" | "show">("all");
 
-  async function load() {
+  async function load(pick: "all" | "movie" | "show" = media) {
     setState("loading");
     setError(null);
     // without this a first "not eligible yet" answer sticks for the session,
@@ -39,7 +48,7 @@ export default function RecsView({ friend }: { friend: string }) {
       const res = await fetch("/api/recs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ friend }),
+        body: JSON.stringify({ friend, media: pick }),
       });
       const data = (await readJson<Record<string, unknown>>(res)) as RecResponse;
       if ("error" in data) {
@@ -95,7 +104,7 @@ export default function RecsView({ friend }: { friend: string }) {
     return (
       <div>
         <p className="text-warn">{error}</p>
-        <button type="button" onClick={load} className="mt-2 text-sm text-ash underline hover:text-paper">
+        <button type="button" onClick={() => void load()} className="mt-2 text-sm text-ash underline hover:text-paper">
           Try again
         </button>
       </div>
@@ -116,8 +125,39 @@ export default function RecsView({ friend }: { friend: string }) {
     );
   }
 
+  const MEDIA: { key: "all" | "movie" | "show"; label: string }[] = [
+    { key: "all", label: "Anything" },
+    { key: "movie", label: "A film" },
+    { key: "show", label: "A series" },
+  ];
+
   return (
     <div>
+      <div className="mb-4 flex flex-wrap gap-1.5" role="group" aria-label="What to suggest">
+        {MEDIA.map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            aria-pressed={media === m.key}
+            onClick={() => {
+              if (m.key === media) return;
+              setMedia(m.key);
+              // Re-asked rather than filtered on what is already here: the
+              // ranking picks a handful out of hundreds, so filtering the
+              // handful would usually leave nothing.
+              void load(m.key);
+            }}
+            className={`rounded-full border px-3 py-1.5 text-[13px] transition-colors ${
+              media === m.key
+                ? "border-paper bg-paper text-carbon"
+                : "border-seam bg-tray text-ash hover:text-paper"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
       {error && <p className="mb-4 text-sm text-warn">{error}</p>}
       <ul className="space-y-4">
         {films.map((f) => {
@@ -170,7 +210,7 @@ export default function RecsView({ friend }: { friend: string }) {
       <div className="mt-6">
         <button
           type="button"
-          onClick={load}
+          onClick={() => void load()}
           className="rounded-card border border-seam px-4 py-1.5 text-sm text-paper hover:bg-tray"
         >
           Show five more
