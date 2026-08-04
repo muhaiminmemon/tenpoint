@@ -136,11 +136,45 @@ export const CLUSTERS: Cluster[] = [
     note: "loss, grief and mental illness",
     keywords: ["loss of loved one", "dying and death", "grief", "loneliness", "mental illness", "alcoholism", "addiction", "depression", "suicide", "mourning", "terminal illness", "alcoholic"],
   },
+  /**
+   * What used to be one cluster called The Sleuth.
+   *
+   * It was the greediest net in the file and it named eleven of sixty-five
+   * accounts, because "detectives, police work and missing people" is four
+   * different tastes wearing one word: the person who watches procedurals and
+   * the person who watches locked-room mysteries have almost nothing in common
+   * and were being handed the same name. Split, they get four.
+   *
+   * The generic "investigation" keyword is gone rather than reassigned. Of the
+   * thirty-seven titles carrying it, thirty-two already carry a specific tag,
+   * and the five it alone caught were Attack of the Clones, Source Code,
+   * Ghost in the Shell, 21 Jump Street and a cartoon about sheep. It describes
+   * a story shape, not a subject, which is the same reason "based on manga"
+   * came out of the shounen list.
+   */
   {
-    key: "investigation",
-    name: "The Sleuth",
-    note: "detectives, police work and missing people",
-    keywords: ["investigation", "whodunit", "detective", "fbi", "central intelligence agency (cia)", "missing person", "police", "private detective", "cold case", "mystery", "clue", "interrogation"],
+    key: "procedural",
+    name: "The Badge",
+    note: "police work, federal agents and interrogations",
+    keywords: ["police", "fbi", "central intelligence agency (cia)", "interrogation", "police detective", "police officer", "forensic", "crime scene", "autopsy", "police procedural"],
+  },
+  {
+    key: "gumshoe",
+    name: "The Gumshoe",
+    note: "detectives working cases of their own",
+    keywords: ["detective", "private detective", "private investigator", "hardboiled", "amateur detective"],
+  },
+  {
+    key: "whodunit",
+    name: "The Puzzler",
+    note: "murder mysteries and puzzles with a solution",
+    keywords: ["whodunit", "mystery", "clue", "cold case", "locked room mystery", "murder mystery", "riddle"],
+  },
+  {
+    key: "missing",
+    name: "The Searcher",
+    note: "disappearances, manhunts and people who are gone",
+    keywords: ["missing person", "disappearance", "manhunt", "kidnapping", "hostage", "search party", "abducted child"],
   },
   {
     key: "identity",
@@ -385,13 +419,14 @@ export const CLUSTERS: Cluster[] = [
  */
 export const CLUSTER_PREVALENCE: Record<string, number> = {
   hearth: 0.189, caped: 0.146, deadpan: 0.135, comingofage: 0.123,
-  dissident: 0.122, sitcom: 0.116, investigation: 0.103, satire: 0.103,
+  dissident: 0.122, sitcom: 0.116, satire: 0.103, procedural: 0.067,
   grief: 0.101, myth: 0.101, blade: 0.095, noir: 0.095, shounen: 0.092,
   road: 0.093, machine: 0.091, revenge: 0.087, void: 0.086, period: 0.085,
   slasher: 0.083, adultanimation: 0.08, ghost: 0.077, identity: 0.073,
   apocalypse: 0.072, ink: 0.07, alien: 0.07, creature: 0.069, war: 0.067,
   romance: 0.066, sea: 0.061, occult: 0.06, spy: 0.059, loop: 0.057,
   stage: 0.054, prison: 0.05, body: 0.045, sport: 0.042, heist: 0.039,
+  missing: 0.034, whodunit: 0.028, gumshoe: 0.022,
   undead: 0.035, winterholiday: 0.035, truestory: 0.03, faith: 0.027,
   town: 0.026, flight: 0.025, outsider: 0.024, speed: 0.02, court: 0.015,
 };
@@ -414,7 +449,8 @@ export const STOCK_BY_CLUSTER: Record<string, string> = {
   sport: "Filmstrip", war: "Filmstrip", caped: "Filmstrip", road: "Filmstrip",
   sea: "Filmstrip", flight: "Filmstrip",
   // night, dread, things that follow you
-  noir: "Neon Rain", investigation: "Neon Rain", spy: "Neon Rain", prison: "Neon Rain",
+  noir: "Neon Rain", procedural: "Neon Rain", spy: "Neon Rain", prison: "Neon Rain",
+  gumshoe: "Neon Rain", whodunit: "Neon Rain", missing: "Neon Rain",
   dissident: "Neon Rain", identity: "Neon Rain", slasher: "Neon Rain", occult: "Neon Rain",
   body: "Neon Rain", ghost: "Neon Rain", undead: "Neon Rain",
   // people, rooms, paper
