@@ -581,14 +581,27 @@ type Reading = { word: string; meaning: string; score: number };
 type Anchor = { typical: number; spread: number };
 
 const ANCHOR = {
-  oldShare: { typical: 0.1, spread: 0.12 },
-  wideShare: { typical: 0.8, spread: 0.15 },
+  // The shelf-composition anchors below were re-measured across the seeded
+  // crowd, because the guessed ones were far enough out that a handful of
+  // words won almost every title: only fourteen of the twenty-seven were ever
+  // reachable. `typical` is the median and `spread` is half the 16th-to-84th
+  // percentile range, which is one standard deviation for anything roughly
+  // normal, and matches what spread is documented to mean here.
+  //
+  // Only the axes describing what sits on the shelf are set this way. What
+  // somebody does with their ratings, the average, the swing, the rewatching,
+  // the flat tens, is invented by the seeder rather than observed, so those
+  // anchors are left where they were until there are enough real libraries to
+  // measure. Calibrating them against a script's habits would name people
+  // after the seeder.
+  oldShare: { typical: 0.02, spread: 0.025 },
+  wideShare: { typical: 0.91, spread: 0.07 },
   mean: { typical: 70, spread: 12 },
   spreadOfRatings: { typical: 13, spread: 5.5 },
-  topGenreShare: { typical: 0.45, spread: 0.12 },
-  subtitleShare: { typical: 0.1, spread: 0.14 },
+  topGenreShare: { typical: 0.49, spread: 0.15 },
+  subtitleShare: { typical: 0.06, spread: 0.05 },
   rewatchShare: { typical: 0.1, spread: 0.1 },
-  oneDirector: { typical: 1.25, spread: 0.55 },
+  oneDirector: { typical: 1.55, spread: 0.42 },
   // Measured across every library on the service, not guessed. The old figure
   // said a typical person rates 15% of their films far from the IMDb crowd;
   // the real median is 2.6%, so everybody scored a full standard deviation
@@ -601,8 +614,8 @@ const ANCHOR = {
   obscureLift: { typical: 0, spread: 6 },
   oldLift: { typical: 0, spread: 6 },
   foreignLift: { typical: 0, spread: 6 },
-  oneFace: { typical: 1.25, spread: 0.55 },
-  languages: { typical: 4, spread: 2.5 },
+  oneFace: { typical: 1.72, spread: 1.1 },
+  languages: { typical: 5, spread: 2.5 },
   crowdBias: { typical: 2.3, spread: 9.2 },
   perfectShare: { typical: 0.03, spread: 0.08 },
   decimalShare: { typical: 0.6, spread: 0.35 },
