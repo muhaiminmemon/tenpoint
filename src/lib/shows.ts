@@ -147,13 +147,62 @@ export async function ensureShow(input: TmdbShow | number): Promise<Show | null>
             director: show.creators?.[0] ?? null,
             popularity: show.popularity,
             voteCount: show.voteCount,
+            audienceRating:
+              typeof s.vote_average === "number" && s.vote_average > 0
+                ? Math.round(s.vote_average * 10)
+                : null,
           };
         }),
       )
       .onConflictDoNothing();
   }
 
+  /**
+   * The show itself, as a row.
+   *
+   * Somebody who wants to say "Breaking Bad is a 9.4" should not have to rate
+   * five seasons to say it, and a rating of the whole work is a different
+   * statement from the average of its parts. Making it a row rather than a
+   * column means the diary, the library, lists, the watchlist, the card and
+   * the recommender all handle it without knowing shows exist, which is the
+   * same trade that made seasons cheap.
+   */
+  await db
+    .insert(films)
+    .values({
+      kind: "show",
+      tmdbId,
+      showId: show.id,
+      slug: show.slug,
+      title: show.name,
+      year: first,
+      releaseDate: details.first_air_date || null,
+      originalLanguage: show.originalLanguage,
+      posterPath: show.posterPath,
+      backdropPath: show.backdropPath,
+      overview: show.overview,
+      genres: show.genres,
+      keywords: show.keywords,
+      castNames: show.castNames,
+      director: show.creators?.[0] ?? null,
+      popularity: show.popularity,
+      voteCount: show.voteCount,
+      audienceRating: show.voteAverage,
+      imdbId: show.imdbId,
+    })
+    .onConflictDoNothing();
+
   return show;
+}
+
+/** The row that stands for the whole series, when it exists. */
+export async function showRow(showId: string): Promise<Film | null> {
+  const [row] = await db
+    .select()
+    .from(films)
+    .where(and(eq(films.showId, showId), eq(films.kind, "show")))
+    .limit(1);
+  return row ?? null;
 }
 
 export type ShowWithSeasons = { show: Show; seasons: Film[] };

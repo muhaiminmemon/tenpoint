@@ -14,8 +14,10 @@ import {
   searchMovies,
   searchPeople,
   searchShows,
+  personShowCredits,
   type DiscoverPage,
   type TmdbMovie,
+  type TmdbShow,
 } from "./tmdb";
 import {
   BROWSE_GENRES,
@@ -92,6 +94,30 @@ export async function runBrowse(f: BrowseFilters): Promise<BrowseResult> {
  * function would mean a branch inside every step of it.
  */
 async function runShowQuery(f: BrowseFilters): Promise<BrowseResult> {
+  /**
+   * A person, when the query is one.
+   *
+   * The film side answers this with a discover call; television has no
+   * equivalent, so the person is resolved and their credits are read directly.
+   * Without this a cast link from a show page silently became a title search
+   * and returned nothing, or worse, that actor's films under a Shows heading.
+   */
+  const { kind, person } = await resolveQuery(f.q, f.as);
+  if (kind === "person" && person) {
+    const credits = await personShowCredits(person.id).catch(() => []);
+    const results = credits
+      .filter((t) => (f.genre ? (t.genre_ids ?? []).includes(f.genre) : true))
+      .filter((t) => (f.language ? t.original_language === f.language : true))
+      .map(toBrowseShow);
+    return {
+      results,
+      page: 1,
+      totalPages: 1,
+      totalResults: results.length,
+      match: { kind: "person", heading: `Shows with ${person.name}` },
+    };
+  }
+
   const found = await searchShows(f.q);
   const results = found
     .filter((t) => {
@@ -103,22 +129,7 @@ async function runShowQuery(f: BrowseFilters): Promise<BrowseResult> {
       }
       return true;
     })
-    .map((t) => ({
-      id: t.id,
-      title: t.name,
-      release_date: t.first_air_date,
-      poster_path: t.poster_path,
-      overview: t.overview,
-      popularity: t.popularity,
-      vote_count: t.vote_count,
-      vote_average: t.vote_average,
-      original_language: t.original_language,
-      genre_ids: t.genre_ids,
-      score:
-        typeof t.vote_average === "number" && t.vote_average > 0
-          ? t.vote_average.toFixed(1)
-          : undefined,
-    }));
+    .map(toBrowseShow);
 
   return {
     results,
@@ -328,6 +339,26 @@ async function runTmdb(
         ? m.vote_average.toFixed(1)
         : undefined,
     })),
+  };
+}
+
+/** One series in the shape the grid already speaks. */
+function toBrowseShow(t: TmdbShow): BrowseFilm {
+  return {
+    id: t.id,
+    title: t.name,
+    release_date: t.first_air_date,
+    poster_path: t.poster_path,
+    overview: t.overview,
+    popularity: t.popularity,
+    vote_count: t.vote_count,
+    vote_average: t.vote_average,
+    original_language: t.original_language,
+    genre_ids: t.genre_ids,
+    score:
+      typeof t.vote_average === "number" && t.vote_average > 0
+        ? t.vote_average.toFixed(1)
+        : undefined,
   };
 }
 

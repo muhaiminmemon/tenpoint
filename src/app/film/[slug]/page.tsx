@@ -149,7 +149,7 @@ export default async function FilmPage(ctx: {
           {directors.map((name, i) => (
             <span key={name}>
               {i > 0 && ", "}
-              <Link href={personHref(name)} className="hover:text-paper hover:underline">
+              <Link href={personHref(name, parent ? "show" : "movie")} className="hover:text-paper hover:underline">
                 {name}
               </Link>
             </span>
@@ -163,7 +163,7 @@ export default async function FilmPage(ctx: {
           ))}
         </p>
         {film.overview && <p className="mt-4 max-w-xl text-sm text-ash">{film.overview}</p>}
-        <CastList names={film.castNames ?? []} />
+        <CastList names={film.castNames ?? []} media={parent ? "show" : "movie"} />
 
         <div className="mt-8 space-y-8">
           <CriticScores scores={scores} />

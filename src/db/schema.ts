@@ -187,6 +187,15 @@ export const films = pgTable("films", {
    */
   imdbId: text("imdb_id"),
 
+  /**
+   * The crowd's own average, in tenths, as the metadata provider reports it.
+   *
+   * Held per row rather than per show because a season is the thing people
+   * actually have an opinion about: TMDB scores Breaking Bad season one and
+   * season five separately, and printing one number for both would flatten
+   * exactly the difference this product exists to show.
+   */
+  audienceRating: smallint("audience_rating"),
   /** 0–100, the Tomatometer as OMDb reports it */
   rtScore: smallint("rt_score"),
   /** 0–100 */

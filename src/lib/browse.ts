@@ -144,8 +144,11 @@ export const MAX_QUERY = 80;
  * and a cast link that lands on a title search for somebody named Rose is the
  * kind of failure nobody reports and everybody notices.
  */
-export function personHref(name: string): string {
-  return `/browse?q=${encodeURIComponent(name.slice(0, MAX_QUERY))}&as=person`;
+export function personHref(name: string, media: Media = "movie"): string {
+  const q = `q=${encodeURIComponent(name.slice(0, MAX_QUERY))}&as=person`;
+  // Somebody clicking a face on a show page wants that person's shows. The
+  // switcher on the results page is one tap away for the other half.
+  return media === "show" ? `/browse?media=show&${q}` : `/browse?${q}`;
 }
 
 export const DEFAULT_SORT: SortKey = "popular";

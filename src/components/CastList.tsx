@@ -19,7 +19,14 @@ import { personHref } from "@/lib/browse";
  * throw away the one piece of information the order carries, which is who the
  * film is actually about.
  */
-export default function CastList({ names }: { names: string[] }) {
+export default function CastList({
+  names,
+  media = "movie",
+}: {
+  names: string[];
+  /** which side of the catalogue the reader came from, so the link stays there */
+  media?: "movie" | "show";
+}) {
   const cast = names.filter(Boolean);
   if (cast.length === 0) return null;
 
@@ -32,7 +39,7 @@ export default function CastList({ names }: { names: string[] }) {
         {cast.map((name) => (
           <li key={name}>
             <Link
-              href={personHref(name)}
+              href={personHref(name, media)}
               className="block rounded-full border border-seam px-3 py-1.5 text-[13px] text-ash transition-colors hover:border-dim hover:text-paper focus-visible:border-beam focus-visible:outline-none"
             >
               {name}

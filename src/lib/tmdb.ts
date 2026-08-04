@@ -212,6 +212,7 @@ export type TmdbShow = {
 
 export type TmdbSeason = {
   id: number;
+  vote_average?: number;
   season_number: number;
   name: string;
   air_date?: string | null;
@@ -312,4 +313,28 @@ export async function discoverShows(params: Record<string, string>): Promise<Dis
     totalPages: Math.min(data.total_pages ?? 1, 500),
     totalResults: data.total_results ?? 0,
   };
+}
+
+/**
+ * The series a person has been in.
+ *
+ * TMDB's television discover has no `with_people`, which the film side relies
+ * on entirely, so a cast link from a show page had nothing to search and came
+ * back with that person's films instead. Credits are the only route to it.
+ *
+ * Ordered by popularity because credits arrive unordered and a working actor
+ * has sixty of them, most of which are one guest episode.
+ */
+export async function personShowCredits(personId: number): Promise<TmdbShow[]> {
+  const data = await tmdb<{ cast?: TmdbShow[]; crew?: TmdbShow[] }>(
+    `/person/${personId}/tv_credits`,
+  );
+  const seen = new Set<number>();
+  return [...(data.cast ?? []), ...(data.crew ?? [])]
+    .filter((t) => {
+      if (!t.id || seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    })
+    .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
 }

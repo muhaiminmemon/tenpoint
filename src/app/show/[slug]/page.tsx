@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { diaryEntries } from "@/db/schema";
+import { diaryEntries, listItems, listMembers, lists, watchlist } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
-import { loadShow, derivedScore } from "@/lib/shows";
+import { loadShow, derivedScore, showRow } from "@/lib/shows";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { personHref } from "@/lib/browse";
 import PosterImg from "@/components/PosterImg";
-import SeasonRow from "@/components/SeasonRow";
+import SeasonRater from "@/components/SeasonRater";
+import FilmPanel from "@/components/FilmPanel";
 import CastList from "@/components/CastList";
 
 export async function generateMetadata(ctx: { params: Promise<{ slug: string }> }) {
@@ -42,7 +43,53 @@ export default async function ShowPage(ctx: { params: Promise<{ slug: string }> 
   if (!found) notFound();
   const { show, seasons } = found;
 
+  // The row that stands for the whole series. Rating it is rating a row, so
+  // the ordinary panel works on it untouched: log, rate, review, watchlist,
+  // lists, rewatches, all of it.
+  const whole = await showRow(show.id);
+
   const user = await getSessionUser();
+
+  const entries = user && whole
+    ? await db
+        .select()
+        .from(diaryEntries)
+        .where(and(eq(diaryEntries.userId, user.id), eq(diaryEntries.filmId, whole.id)))
+        .orderBy(sql`${diaryEntries.watchedOn} desc nulls last`, desc(diaryEntries.createdAt))
+    : [];
+
+  const wlRow = user && whole
+    ? (
+        await db
+          .select()
+          .from(watchlist)
+          .where(and(eq(watchlist.userId, user.id), eq(watchlist.filmId, whole.id)))
+          .limit(1)
+      )[0]
+    : undefined;
+
+  let editableLists: { id: string; title: string; hasFilm: boolean }[] = [];
+  if (user && whole) {
+    const memberships = await db
+      .select({ listId: listMembers.listId })
+      .from(listMembers)
+      .where(and(eq(listMembers.userId, user.id), inArray(listMembers.role, ["owner", "editor"])));
+    if (memberships.length) {
+      const listIds = memberships.map((m) => m.listId);
+      const rows = await db
+        .select({ id: lists.id, title: lists.title })
+        .from(lists)
+        .where(inArray(lists.id, listIds))
+        .orderBy(asc(lists.title));
+      const containing = await db
+        .select({ listId: listItems.listId })
+        .from(listItems)
+        .where(and(inArray(listItems.listId, listIds), eq(listItems.filmId, whole.id)));
+      const has = new Set(containing.map((c) => c.listId));
+      editableLists = rows.map((r) => ({ ...r, hasFilm: has.has(r.id) }));
+    }
+  }
+
   const mine = user && seasons.length
     ? await db
         .select({ filmId: diaryEntries.filmId, rating: diaryEntries.rating })
@@ -98,7 +145,7 @@ export default async function ShowPage(ctx: { params: Promise<{ slug: string }> 
               {show.creators.slice(0, 2).map((name, i) => (
                 <span key={name}>
                   {i > 0 && ", "}
-                  <Link href={personHref(name)} className="hover:text-paper hover:underline">
+                  <Link href={personHref(name, "show")} className="hover:text-paper hover:underline">
                     {name}
                   </Link>
                 </span>
@@ -109,60 +156,109 @@ export default async function ShowPage(ctx: { params: Promise<{ slug: string }> 
           {meta.join(" · ")}
         </p>
         {show.overview && <p className="mt-4 max-w-xl text-sm text-ash">{show.overview}</p>}
-        <CastList names={show.castNames ?? []} />
+        <CastList names={show.castNames ?? []} media="show" />
 
-        <section aria-labelledby="seasons" className="mt-8">
-          <div className="flex items-baseline justify-between gap-4 border-b border-edge pb-2.5">
-            <h2 id="seasons" className="display text-[19px] text-paper">
-              Seasons
-            </h2>
-            <span className="flex items-baseline gap-4 text-[12.5px] text-ash">
-              {score !== null && (
-                // Never "your rating". It is the average of what has been
-                // rated, and saying so is what stops it becoming a second
-                // opinion somebody has to reconcile with the seasons.
-                <span>
-                  Your seasons average{" "}
-                  <span className={`num text-[15px] ${ratingColor(score)}`}>
-                    {formatTenths(score)}
+        {user && whole ? (
+          <div className="mt-8">
+            {/* One rating for the whole thing, which is what most people have.
+                The panel is the same one a film gets, so logging, reviewing,
+                the watchlist, lists and rewatches all behave identically. */}
+            <FilmPanel
+              film={{
+                id: whole.id,
+                title: show.name,
+                year: show.firstAirYear,
+                director: show.creators?.[0] ?? null,
+                posterPath: show.posterPath,
+              }}
+              entries={entries.map((e) => ({
+                id: e.id,
+                watchedOn: e.watchedOn,
+                rating: e.rating,
+                rewatch: e.rewatch,
+                review: e.review,
+                spoiler: e.spoiler,
+                private: e.private,
+                createdAt: e.createdAt.toISOString(),
+              }))}
+              inWatchlist={Boolean(wlRow)}
+              watchlistSource={wlRow?.source ?? null}
+              lists={editableLists}
+            />
+
+            {seasons.length > 0 && (
+              <SeasonRater
+                showName={show.name}
+                open={rated.size > 0}
+                seasons={seasons.map((s) => ({
+                  id: s.id,
+                  slug: s.slug,
+                  label: s.title.replace(`${show.name}: `, ""),
+                  episodes: s.episodeCount,
+                  year: s.year,
+                  posterPath: s.posterPath,
+                  audience: s.audienceRating,
+                  rating: rated.get(s.id) ?? null,
+                  unaired: Boolean(s.releaseDate && s.releaseDate > today),
+                }))}
+              />
+            )}
+
+            {score !== null && (
+              <p className="mt-4 text-[12.5px] text-ash">
+                Your seasons average{" "}
+                <span className={`num text-[15px] ${ratingColor(score)}`}>{formatTenths(score)}</span>
+                {show.voteAverage !== null && (
+                  <span className="text-dim">
+                    {"  ·  "}Audience{" "}
+                    <span className="num text-[15px] text-ash">{formatTenths(show.voteAverage)}</span>
                   </span>
-                </span>
-              )}
-              {show.voteAverage !== null && (
-                <span className="text-dim">
-                  Audience <span className="num text-[15px] text-ash">{formatTenths(show.voteAverage)}</span>
-                </span>
-              )}
-            </span>
+                )}
+              </p>
+            )}
           </div>
-
-          {seasons.length === 0 ? (
-            <p className="py-6 text-sm text-ash">No seasons on file for this one yet.</p>
-          ) : (
+        ) : (
+          <section aria-labelledby="seasons" className="mt-8">
+            <div className="flex items-baseline justify-between gap-4 border-b border-edge pb-2.5">
+              <h2 id="seasons" className="display text-[19px] text-paper">
+                Seasons
+              </h2>
+              {show.voteAverage !== null && (
+                <span className="text-[12.5px] text-dim">
+                  Audience{" "}
+                  <span className="num text-[15px] text-ash">{formatTenths(show.voteAverage)}</span>
+                </span>
+              )}
+            </div>
             <ul className="mt-1">
               {seasons.map((s) => (
-                <SeasonRow
-                  key={s.id}
-                  href={`/film/${s.slug}`}
-                  label={s.title.replace(`${show.name}: `, "")}
-                  episodes={s.episodeCount}
-                  year={s.year}
-                  rating={rated.get(s.id) ?? null}
-                  unaired={Boolean(s.releaseDate && s.releaseDate > today)}
-                />
+                <li key={s.id} className="flex items-center gap-4 border-b border-seam py-3.5 last:border-0">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] text-paper">
+                      {s.title.replace(`${show.name}: `, "")}
+                    </span>
+                    <span className="num mt-0.5 block text-[12px] text-ash">
+                      {[s.year, s.episodeCount ? `${s.episodeCount} episodes` : null]
+                        .filter(Boolean)
+                        .join("  ·  ")}
+                    </span>
+                  </span>
+                  {s.audienceRating !== null && (
+                    <span className="num shrink-0 text-[13px] text-dim">
+                      {formatTenths(s.audienceRating)}
+                    </span>
+                  )}
+                </li>
               ))}
             </ul>
-          )}
-
-          {!user && (
             <p className="mt-4 text-sm text-ash">
               <Link href="/login" className="text-paper underline">
                 Sign in
               </Link>{" "}
-              to rate a season.
+              to rate this, or rate it a season at a time.
             </p>
-          )}
-        </section>
+          </section>
+        )}
       </div>
     </div>
   );

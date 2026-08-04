@@ -111,7 +111,13 @@ const isReason = (k) => !NOT_A_REASON.has(k) && !k.includes(",") && !/\bcity\b/.
  */
 function reasonFor(film, other, faces) {
   if (film.director && other.director && film.director === other.director) {
-    return `Also directed by ${film.director}`;
+    // A season stores its show's creator in the same column a film stores its
+    // director, which is right for searching and wrong to print: nobody
+    // directs a series, and "also directed by Vince Gilligan" under Better
+    // Call Saul is a claim the page cannot support.
+    const madeBy =
+      film.kind === "season" || other.kind === "season" ? "Also created by" : "Also directed by";
+    return `${madeBy} ${film.director}`;
   }
   if (faces.length >= 2) return `With ${faces[0]} and ${faces[1]}`;
   if (faces.length === 1) return `With ${faces[0]}`;
@@ -133,11 +139,11 @@ function reasonFor(film, other, faces) {
 
 const targets = ALL
   ? await sql`
-      select id, slug, title, year, genres, keywords, director, cast_names, embedding
+      select id, slug, title, year, kind, genres, keywords, director, cast_names, embedding
       from films where embedding is not null
       order by popularity desc nulls last limit ${LIMIT}`
   : await sql`
-      select id, slug, title, year, genres, keywords, director, cast_names, embedding
+      select id, slug, title, year, kind, genres, keywords, director, cast_names, embedding
       from films where embedding is not null and similar_films is null
       order by popularity desc nulls last limit ${LIMIT}`;
 
@@ -150,7 +156,7 @@ if (targets.length === 0) {
 // Every film with a vector, held once. The whole catalogue is a few thousand
 // rows; re-reading candidates per film would be the same work a thousand times.
 const all = await sql`
-  select id, slug, title, year, genres, keywords, director, cast_names, embedding
+  select id, slug, title, year, kind, genres, keywords, director, cast_names, embedding
   from films where embedding is not null`;
 console.log(`  comparing against ${all.length} embedded films.\n`);
 

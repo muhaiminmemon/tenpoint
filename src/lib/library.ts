@@ -2,6 +2,8 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 
 export type LibraryFilm = {
+  /** movie or season, so the shelf can be split without a second query */
+  kind: "movie" | "season";
   filmId: string;
   slug: string;
   title: string;
@@ -52,6 +54,7 @@ export async function getRankedLibrary(
       f.id as film_id,
       f.slug,
       f.title,
+      f.kind,
       f.year,
       f.poster_path,
       f.director,
@@ -72,6 +75,7 @@ export async function getRankedLibrary(
     filmId: r.film_id as string,
     slug: r.slug as string,
     title: r.title as string,
+    kind: (r.kind as string) === "season" ? ("season" as const) : ("movie" as const),
     year: r.year as number | null,
     posterPath: r.poster_path as string | null,
     director: r.director as string | null,
@@ -141,6 +145,7 @@ export async function getRecentViewings(
     entryId: r.entry_id as string,
     slug: r.slug as string,
     title: r.title as string,
+    kind: (r.kind as string) === "season" ? ("season" as const) : ("movie" as const),
     year: r.year as number | null,
     posterPath: r.poster_path as string | null,
     rating: r.rating as number | null,

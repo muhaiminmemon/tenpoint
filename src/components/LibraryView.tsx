@@ -65,10 +65,12 @@ const SORT_LABELS: Record<SortMode, string> = {
 };
 
 /** One-tap slices of the collection, in place of a stack of dropdowns. */
-type SavedView = "all" | "great" | "thisYear" | "rewatched" | "unrated";
+type SavedView = "all" | "movies" | "shows" | "great" | "thisYear" | "rewatched" | "unrated";
 
 const SAVED_VIEWS: { key: SavedView; label: string }[] = [
   { key: "all", label: "Everything" },
+  { key: "movies", label: "Films" },
+  { key: "shows", label: "Shows" },
   { key: "great", label: "8.0+" },
   { key: "thisYear", label: "This year" },
   { key: "rewatched", label: "Rewatched" },
@@ -117,6 +119,10 @@ export default function LibraryView({ films, editable }: Props) {
       );
     }
     const thisYear = String(new Date().getFullYear());
+    // Films against series, first, because it is the widest cut anybody makes
+    // and every other view reads better inside one of them.
+    if (saved === "movies") out = out.filter((x) => x.kind === "movie");
+    if (saved === "shows") out = out.filter((x) => x.kind === "season");
     if (saved === "great") out = out.filter((x) => x.rating !== null && x.rating >= 80);
     if (saved === "thisYear") out = out.filter((x) => x.lastWatched?.startsWith(thisYear));
     if (saved === "rewatched") out = out.filter((x) => x.rewatched);
@@ -152,6 +158,8 @@ export default function LibraryView({ films, editable }: Props) {
     const thisYear = String(new Date().getFullYear());
     return {
       all: items.length,
+      movies: items.filter((x) => x.kind === "movie").length,
+      shows: items.filter((x) => x.kind === "season").length,
       great: items.filter((x) => x.rating !== null && x.rating >= 80).length,
       thisYear: items.filter((x) => x.lastWatched?.startsWith(thisYear)).length,
       rewatched: items.filter((x) => x.rewatched).length,
