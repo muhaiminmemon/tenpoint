@@ -1,0 +1,260 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-08T22:45:00.000Z",
+  "title": "Design System: Tenpoint",
+  "extensions": {
+    "colorMeta": {
+      "void": {
+        "role": "neutral",
+        "displayName": "Void",
+        "canonical": "#0e0e10",
+        "tonalRamp": ["#0e0e10", "#141417", "#16161a", "#1c1c21", "#232329", "#2a2a31", "#3a3a45", "#6a6a72"]
+      },
+      "carbon": {
+        "role": "neutral",
+        "displayName": "Carbon",
+        "canonical": "#141417",
+        "tonalRamp": ["#0e0e10", "#141417", "#16161a", "#1c1c21", "#232329", "#2a2a31", "#3a3a45", "#6a6a72"]
+      },
+      "lift": {
+        "role": "neutral",
+        "displayName": "Lift",
+        "canonical": "#16161a",
+        "tonalRamp": ["#0e0e10", "#141417", "#16161a", "#1c1c21", "#232329", "#2a2a31", "#3a3a45", "#6a6a72"]
+      },
+      "tray": {
+        "role": "neutral",
+        "displayName": "Tray",
+        "canonical": "#1c1c21",
+        "tonalRamp": ["#0e0e10", "#141417", "#16161a", "#1c1c21", "#232329", "#2a2a31", "#3a3a45", "#6a6a72"]
+      },
+      "tray-2": {
+        "role": "neutral",
+        "displayName": "Tray 2",
+        "canonical": "#232329",
+        "tonalRamp": ["#0e0e10", "#141417", "#16161a", "#1c1c21", "#232329", "#2a2a31", "#3a3a45", "#6a6a72"]
+      },
+      "seam": {
+        "role": "neutral",
+        "displayName": "Seam",
+        "canonical": "#2a2a31",
+        "tonalRamp": ["#0e0e10", "#141417", "#16161a", "#1c1c21", "#232329", "#2a2a31", "#3a3a45", "#6a6a72"]
+      },
+      "edge": {
+        "role": "neutral",
+        "displayName": "Edge",
+        "canonical": "#3a3a45",
+        "tonalRamp": ["#0e0e10", "#141417", "#16161a", "#1c1c21", "#232329", "#2a2a31", "#3a3a45", "#6a6a72"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#eceae6",
+        "tonalRamp": ["#2a2a31", "#3a3a45", "#6a6a72", "#9a9aa3", "#b8b7b3", "#d4d2ce", "#eceae6", "#ffffff"]
+      },
+      "ash": {
+        "role": "neutral",
+        "displayName": "Ash",
+        "canonical": "#9a9aa3",
+        "tonalRamp": ["#2a2a31", "#3a3a45", "#6a6a72", "#9a9aa3", "#b8b7b3", "#d4d2ce", "#eceae6", "#ffffff"]
+      },
+      "dim": {
+        "role": "neutral",
+        "displayName": "Dim",
+        "canonical": "#6a6a72",
+        "tonalRamp": ["#2a2a31", "#3a3a45", "#6a6a72", "#9a9aa3", "#b8b7b3", "#d4d2ce", "#eceae6", "#ffffff"]
+      },
+      "beam": {
+        "role": "primary",
+        "displayName": "Projector Beam",
+        "canonical": "#8faecc",
+        "tonalRamp": ["#141a21", "#1c2732", "#243347", "#34506a", "#4a6d8c", "#6a8fae", "#8faecc", "#c2d6e6"]
+      },
+      "beam-edge": {
+        "role": "primary",
+        "displayName": "Beam Edge",
+        "canonical": "#34506a",
+        "tonalRamp": ["#141a21", "#1c2732", "#243347", "#34506a", "#4a6d8c", "#6a8fae", "#8faecc", "#c2d6e6"]
+      },
+      "gold": {
+        "role": "secondary",
+        "displayName": "Foil Gold (9.0+ ratings, tiers, foil)",
+        "canonical": "#d9b25f",
+        "tonalRamp": ["#231c0e", "#372c16", "#4d3d1f", "#6d572c", "#93763d", "#b8934e", "#d9b25f", "#ecd6a4"]
+      },
+      "good": {
+        "role": "tertiary",
+        "displayName": "Signal Green",
+        "canonical": "#8fbf7f",
+        "tonalRamp": ["#15200f", "#1f3218", "#2b4622", "#3d632f", "#54843f", "#71a45c", "#8fbf7f", "#c3dcb8"]
+      },
+      "warn": {
+        "role": "tertiary",
+        "displayName": "Signal Clay",
+        "canonical": "#c4756a",
+        "tonalRamp": ["#241110", "#361a17", "#4a231f", "#6a332c", "#8d463c", "#a95d51", "#c4756a", "#e0aca4"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page-defining titles: the landing hero and top-level route headings. 32px, rising to 38px from 640px." },
+      "headline": { "displayName": "Headline", "purpose": "Section headings inside a page, and binder plate headings." },
+      "title": { "displayName": "Title", "purpose": "Diary group headings and sticky film headers." },
+      "subhead": { "displayName": "Subhead", "purpose": "Sub-sections within a section." },
+      "item": { "displayName": "Item", "purpose": "The title of a row, card, or list entry." },
+      "body": { "displayName": "Body", "purpose": "Default reading size. Prose, reviews, descriptions." },
+      "label": { "displayName": "Label", "purpose": "Buttons, form labels, metadata lines." },
+      "meta": { "displayName": "Meta", "purpose": "Row metadata in a dense list: the year beside a title, a date, a panel's uppercase section label. The step between Label and Caption, and the one that lets a list row fit on a single line." },
+      "caption": { "displayName": "Caption", "purpose": "Timestamps, counts, smallest legible supporting text." },
+      "pill": { "displayName": "Pill", "purpose": "Tag pills and micro-labels — 'Rewatch', 'Review', a state chip on a row. The floor of the page ramp; nothing in page chrome goes below it." },
+      "numeric": { "displayName": "Numeric", "purpose": "The .num class. Every comparable figure: ratings, counts, years. Tabular figures so decimals column up." },
+      "card-name": { "displayName": "Card name (Instrument Serif italic)", "purpose": "The taste card's archetype name at 38px. The product's only serif and its only third face, scoped to this one role because the archetype is a name rather than a field. Italic cut only." },
+      "card-micro": { "displayName": "Card micro scale", "purpose": "The separate ramp used by taste cards and binder plates, which are small printed objects (~216x342): 26px rating figure, 20px archetype name, 13px handle, 11px chips, 10px micro-labels and the star row, 9px tier/variant/since, 8px poster text fallback. Micro-labels at 10px and below are uppercase and tracked 0.1em-0.18em. Never mix this ramp with the page ramp." }
+    },
+    "shadows": [
+      {
+        "name": "marquee-object-drop",
+        "value": "drop-shadow(0 24px 38px rgba(0, 0, 0, 0.55))",
+        "purpose": "The system's only shadow, and not a UI shadow: a drop-shadow filter seating the landing marquee's illustrated objects in space. Applied as a resting property, never a keyframe, so depth survives prefers-reduced-motion. Surfaces never use box-shadow."
+      }
+    ],
+    "motion": [
+      { "name": "ease-entrance", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Arrivals that settle into place: the marquee title, binder hairline rules, popovers." },
+      { "name": "ease-sheet", "value": "cubic-bezier(0.32, 0.72, 0, 1)", "purpose": "Sheets, slide-overs, the command palette, and toasts on entry." },
+      { "name": "ease-exit", "value": "cubic-bezier(0.4, 0, 1, 1)", "purpose": "Dismissals. Eases in rather than out so the element picks up speed leaving the frame." },
+      { "name": "duration-enter-sheet", "value": "0.28s", "purpose": "Sheet and palette entrance." },
+      { "name": "duration-exit-sheet", "value": "0.18s", "purpose": "Sheet and palette exit. Exits are always shorter than entrances and travel less." },
+      { "name": "duration-pop", "value": "0.14s", "purpose": "Small anchored things: dropdowns, menus, dial anchors. Close to their trigger, so they move least." },
+      { "name": "foil-sweep", "value": "48s linear infinite", "purpose": "The taste card's holographic travel cycle (--sweep). Stopped entirely on specimens the viewer does not hold." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The inverted main action. The only near-white element on a dark page, so the primary action is never ambiguous.",
+      "html": "<button class=\"ds-btn-primary\">Log this</button>",
+      "css": ".ds-btn-primary { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 500; letter-spacing: -0.02em; background: #eceae6; color: #141417; border: none; border-radius: 6px; padding: 6px 16px; cursor: pointer; transition: background-color 0.15s, opacity 0.15s; } .ds-btn-primary:hover { background: #ffffff; } .ds-btn-primary:focus-visible { outline: 2px solid #8faecc; outline-offset: 2px; border-radius: 4px; } .ds-btn-primary:disabled { opacity: 0.5; cursor: default; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outlined action in the seam hairline. Fills to tray on hover; colour moves, geometry never does.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; font-weight: 400; background: transparent; color: #eceae6; border: 1px solid #2a2a31; border-radius: 6px; padding: 6px 12px; cursor: pointer; transition: background-color 0.15s, color 0.15s; } .ds-btn-secondary:hover { background: #1c1c21; } .ds-btn-secondary:focus-visible { outline: 2px solid #8faecc; outline-offset: 2px; border-radius: 4px; }"
+    },
+    {
+      "name": "Destructive Button (outline)",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "The form that OPENS a destructive flow. Intent is stated in colour before it is committed; the confirming step is the filled warn variant.",
+      "html": "<button class=\"ds-btn-destructive\">Delete account</button>",
+      "css": ".ds-btn-destructive { font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; font-weight: 400; background: transparent; color: #c4756a; border: 1px solid rgba(196, 117, 106, 0.4); border-radius: 6px; padding: 6px 16px; cursor: pointer; transition: background-color 0.15s; } .ds-btn-destructive:hover { background: rgba(196, 117, 106, 0.1); } .ds-btn-destructive:focus-visible { outline: 2px solid #8faecc; outline-offset: 2px; border-radius: 4px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-text",
+      "description": "A recess, not a raised surface: it sits one tonal step BELOW its container. Focus is carried by the border turning beam, the one place in the system where the border does that job instead of the global focus ring.",
+      "html": "<input class=\"ds-input-text\" type=\"text\" placeholder=\"Search your library\" />",
+      "css": ".ds-input-text { font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; background: #141417; color: #eceae6; border: 1px solid #2a2a31; border-radius: 6px; padding: 6px 12px; width: 240px; } .ds-input-text::placeholder { color: #6a6a72; } .ds-input-text:focus { border-color: #8faecc; outline: none; }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "chip",
+      "refersTo": "button-quiet",
+      "description": "One clipped container; segments butt directly against each other and carry no radius of their own. Used for the film/series browse toggle and diary view modes.",
+      "html": "<div class=\"ds-segmented\"><button class=\"ds-segmented-item is-selected\">Films</button><button class=\"ds-segmented-item\">Series</button></div>",
+      "css": ".ds-segmented { display: inline-flex; overflow: hidden; border: 1px solid #2a2a31; border-radius: 6px; } .ds-segmented-item { font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; background: transparent; color: #9a9aa3; border: none; padding: 6px 14px; cursor: pointer; transition: background-color 0.15s, color 0.15s; } .ds-segmented-item:hover { color: #eceae6; } .ds-segmented-item.is-selected { background: #eceae6; color: #141417; font-weight: 500; } .ds-segmented-item:focus-visible { outline: 2px solid #8faecc; outline-offset: -2px; }"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "The default raised surface. Reads as raised because it sits a rung up the graphite ladder with a seam hairline — never because of a shadow.",
+      "html": "<div class=\"ds-panel\"><div class=\"ds-panel-title\">Rewatch history</div><p class=\"ds-panel-body\">Every viewing is kept. An unrated rewatch never erases a real rating.</p></div>",
+      "css": ".ds-panel { background: #1c1c21; border: 1px solid #2a2a31; border-radius: 6px; padding: 16px; max-width: 340px; } .ds-panel-title { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 500; letter-spacing: -0.02em; color: #eceae6; margin: 0 0 6px; } .ds-panel-body { font-family: 'IBM Plex Sans', sans-serif; font-size: 15px; line-height: 1.55; color: #9a9aa3; margin: 0; }"
+    },
+    {
+      "name": "Page Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "The page-level container, distinct from the tray panel: it sits directly on the page ground, takes the 12px radius, and is bounded with edge rather than seam. Rows inside it divide with seam hairlines.",
+      "html": "<div class=\"ds-pagepanel\"><div class=\"ds-pagepanel-head\"><span class=\"ds-pagepanel-label\">Recent viewings</span><a class=\"ds-pagepanel-link\" href=\"#\">Open diary →</a></div><ul class=\"ds-pagepanel-list\"><li class=\"ds-pagepanel-row\"><span class=\"ds-pagepanel-name\">Dune: Part Two</span><span class=\"ds-pagepanel-meta\">2024</span><span class=\"ds-pagepanel-fig\">9.1</span></li><li class=\"ds-pagepanel-row\"><span class=\"ds-pagepanel-name\">In the Grey</span><span class=\"ds-pagepanel-meta\">2026</span><span class=\"ds-pagepanel-fig is-plain\">6.9</span></li></ul></div>",
+      "css": ".ds-pagepanel { background: #16161a; border: 1px solid #3a3a45; border-radius: 12px; padding: 20px; max-width: 360px; } .ds-pagepanel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; } .ds-pagepanel-label { font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: #9a9aa3; } .ds-pagepanel-link { font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; color: #8faecc; text-decoration: none; } .ds-pagepanel-link:hover { text-decoration: underline; } .ds-pagepanel-list { list-style: none; margin: 12px 0 0; padding: 0; } .ds-pagepanel-row { display: flex; align-items: baseline; gap: 8px; padding: 10px 0; border-top: 1px solid #2a2a31; } .ds-pagepanel-list li:first-child { border-top: 0; } .ds-pagepanel-name { font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: #eceae6; flex: 1; } .ds-pagepanel-meta { font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; color: #6a6a72; } .ds-pagepanel-fig { font-family: 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; font-size: 17px; line-height: 1; color: #d9b25f; } .ds-pagepanel-fig.is-plain { color: #9a9aa3; }"
+    },
+    {
+      "name": "Rating Dial Cell",
+      "kind": "custom",
+      "refersTo": "button-quiet",
+      "description": "The product's hot path. Tenths in tabular figures; selection transitions on colour alone because a rating is a decision, not an effect. The '/ 10' states the scale rather than assuming it.",
+      "html": "<div class=\"ds-dial\"><button class=\"ds-dial-cell\">8.5</button><button class=\"ds-dial-cell is-selected\">8.7</button><button class=\"ds-dial-cell\">8.8</button><span class=\"ds-dial-scale\">/ 10</span></div>",
+      "css": ".ds-dial { display: flex; align-items: flex-end; gap: 6px; } .ds-dial-cell { font-family: 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; letter-spacing: -0.01em; font-size: 14px; height: 36px; min-width: 48px; background: #1c1c21; color: #eceae6; border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.15s, color 0.15s; } .ds-dial-cell:hover { background: #232329; } .ds-dial-cell.is-selected { background: #eceae6; color: #141417; font-weight: 500; } .ds-dial-cell:focus-visible { outline: 2px solid #8faecc; outline-offset: 2px; } .ds-dial-scale { font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; color: #9a9aa3; padding-bottom: 4px; }"
+    },
+    {
+      "name": "Bottom Nav Tile",
+      "kind": "nav",
+      "refersTo": "panel",
+      "description": "Below 640px navigation is a fixed bottom bar. State lands on :active rather than :hover, because a phone has no hover. The content column reserves 96px of bottom padding so the bar never covers the last row.",
+      "html": "<nav class=\"ds-bottomnav\"><a class=\"ds-bottomnav-tile is-current\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 19.5A2.5 2.5 0 0 1 6.5 17H20\"/><path d=\"M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z\"/></svg>Diary</a><a class=\"ds-bottomnav-tile\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m21 21-4.3-4.3\"/></svg>Browse</a></nav>",
+      "css": ".ds-bottomnav { display: flex; gap: 8px; } .ds-bottomnav-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; text-decoration: none; color: #9a9aa3; background: #1c1c21; border: 1px solid #2a2a31; border-radius: 6px; padding: 16px 20px; transition: background-color 0.15s, color 0.15s; } .ds-bottomnav-tile:active { background: #232329; } .ds-bottomnav-tile.is-current { color: #8faecc; } .ds-bottomnav-tile:focus-visible { outline: 2px solid #8faecc; outline-offset: 2px; }"
+    },
+    {
+      "name": "Foil Specimen (held vs unheld)",
+      "kind": "custom",
+      "refersTo": "poster",
+      "description": "The one continuously-moving surface in the system and the only place gold appears. The pair shows the withheld-content model: on an unheld specimen the travelling layer stops, but the finish and every label stay fully legible. Never dim a whole slot to say 'not yours'.",
+      "html": "<div class=\"ds-foil-row\"><div class=\"ds-foil-card\"><span class=\"ds-foil-sheen\"></span><span class=\"ds-foil-label\">Held</span></div><div class=\"ds-foil-card ds-foil-still\"><span class=\"ds-foil-sheen\"></span><span class=\"ds-foil-label\">Not in this collection</span></div></div>",
+      "css": "@keyframes ds-foil-aurora { from { background-position: 50% 50%, 50% 50%; } to { background-position: 350% 50%, 350% 50%; } } .ds-foil-row { display: flex; gap: 12px; } .ds-foil-card { position: relative; overflow: hidden; width: 132px; height: 176px; background: #16161a; border: 1px solid #2a2a31; border-radius: 6px; } .ds-foil-sheen { position: absolute; inset: -10px; mix-blend-mode: screen; opacity: 0.5; background-image: repeating-linear-gradient(100deg, #0e0e10 0%, #0e0e10 7%, transparent 10%, transparent 12%, #0e0e10 16%), repeating-linear-gradient(100deg, #8faecc 10%, #a98fd6 15%, #7f9fd6 20%, #d9b25f 25%, #8faecc 30%); background-size: 300%, 200%; background-position: 50% 50%, 50% 50%; filter: blur(10px); -webkit-mask-image: radial-gradient(ellipse at 100% 0%, #000 10%, transparent 70%); mask-image: radial-gradient(ellipse at 100% 0%, #000 10%, transparent 70%); animation: ds-foil-aurora 48s linear infinite; } .ds-foil-still .ds-foil-sheen { animation: none; } .ds-foil-label { position: absolute; left: 10px; bottom: 10px; right: 10px; font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 500; letter-spacing: -0.01em; color: #9a9aa3; } .ds-foil-card:not(.ds-foil-still) .ds-foil-label { color: #eceae6; } @media (prefers-reduced-motion: reduce) { .ds-foil-sheen { animation: none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Projection Room",
+    "overview": "The room is dark so that the screen carries everything. Every surface in Tenpoint is a step on a narrow graphite ladder — six near-blacks separated by a few points of lightness — and none of them are trying to be looked at. The chrome recedes to make room for the two things that actually have colour: the posters, which come from the films and shows themselves, and `beam`, a pale projector blue that appears only where attention is being directed.\n\nThis is a dark-only interface, and not as a theme choice — `color-scheme: dark` is declared once and there is no light counterpart. The consequence is that contrast is built from tone rather than from hue. A panel reads as raised because it sits one step up the ladder from what's behind it and is edged with a hairline, not because it casts a shadow. Nothing in the system glows, shimmers, or pulses to attract a glance; the one continuously-moving element, the holographic foil on a taste card, belongs to an object the viewer earned rather than to the interface.\n\nDensity is the other half of it. This is built for someone with several hundred titles who is logging, rating, and reordering dozens of times in a sitting, so rows are tight, figures are tabular, and controls are small and unremarkable. The interface would rather be legible at a glance than impressive on first sight.",
+    "keyCharacteristics": [
+      "Dark-only, tonal, and flat: depth comes from lightness steps, never from shadow.",
+      "Two accents with strict and different jobs — beam directs attention, gold marks what was earned.",
+      "Posters are the colour. The palette is deliberately desaturated so they stay the loudest thing on any screen.",
+      "Two faces: Space Grotesk sets everything structural and numeric, IBM Plex Sans sets everything read as prose.",
+      "Numbers align. Ratings are tabular figures at one decimal, always.",
+      "Motion is authored and sparse: entrances settle, exits accelerate, and nothing animates from opacity: 0."
+    ],
+    "rules": [
+      { "name": "The Earned Gold Rule", "body": "`beam` directs attention; `gold` says *this one is worth something*. Gold is legitimate in exactly two places: the top of a scale (9.0+ ratings, 'Soon' priority, an unread count) and things derived from what a viewer actually watched (tiers, plates, traits, foil). It is never a surface, a button fill, a link colour, or a decorative highlight. Its scarcity is the point: the moment gold appears on ordinary chrome, a 10.0 stops reading as special.", "section": "colors" },
+      { "name": "The Posters Carry It Rule", "body": "No surface, control, or accent may compete with poster artwork for saturation. When a screen feels flat, the answer is a poster or a tonal step, never a more colourful UI.", "section": "colors" },
+      { "name": "The Two-Step Rule", "body": "Adjacent surfaces differ by at least one rung of the ladder and are separated by `seam` or `edge` when they need a boundary. Never place a `tray` panel directly on a `tray` background and rely on a border alone to explain it.", "section": "colors" },
+      { "name": "The Tabular Rule", "body": "Any figure that appears in a column, or that a reader might compare against another figure — every rating, every count, every year — carries `.num`: Space Grotesk with `font-variant-numeric: tabular-nums` and `tnum`. A rating rendered in the body face is a defect. Ratings display at one decimal without exception (`8.0`, never `8`).", "section": "typography" },
+      { "name": "The Card Scale Rule", "body": "Page type and card type are separate ramps. Never set page-ramp sizes on a card, or card-ramp sizes in page chrome. A card is a printed object at its own scale; the moment its type matches the surrounding page it stops reading as an object and becomes a panel.", "section": "typography" },
+      { "name": "The Third Face Rule", "body": "Instrument Serif italic sets the taste card's archetype name at 38px, and nothing else — not headings, not the binder, not a page title. It earns its place because the archetype is the only string in the product that is a *name* rather than a field, and neither working face can say a name. The qualifier before it ('Deepcut', 'Midnight') stays a tracked 13px label in the body face, so the card reads qualifier-then-thing, which is the order the archetype is actually built in. Only the italic cut is loaded; a roman Instrument Serif anywhere is drift.", "section": "typography" },
+      { "name": "The Two Voices Rule", "body": "Space Grotesk for structure and number, IBM Plex Sans for prose. A heading in Plex or a paragraph in Grotesk breaks the one distinction the type system makes.", "section": "typography" },
+      { "name": "The Proportionate Corner Rule", "body": "Radius tracks the size of the object, not the system's preference for one number. A page panel takes 12px, a control takes 6px, and anything living inside a card or row takes 2-5px. The test: the corner should look like the same cut at every scale, which means the value has to change.", "section": "shapes" },
+      { "name": "The Two Borders Rule", "body": "`seam` is the hairline inside a component — between rows, around a control. `edge` is the outline of a panel that sits on the page as its own surface, and it travels with the 12px radius. Using `seam` on a page panel makes it dissolve into the background; using `edge` inside a list makes every row shout.", "section": "shapes" },
+      { "name": "The Tonal-Only Rule", "body": "Surfaces never lift with shadow. If something needs to read as raised, move it up a rung and give it a hairline. The only permitted shadow in the system is the marquee's `drop-shadow`, on illustration, not chrome.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do build depth from the tonal ladder — void → lift → tray → tray-2, bounded by seam or edge. The Tonal-Only Rule.",
+      "Do set every comparable figure in .num (Space Grotesk, tabular-nums, tnum), and render ratings at one decimal always. The Tabular Rule.",
+      "Do reach for beam when directing attention, and gold only for the top of a scale or something earned. The Earned Gold Rule.",
+      "Do keep every interactive element's :focus-visible ring intact — 2px beam, 2px offset, 4px radius. It is declared globally; removing an outline locally without replacing it is a regression.",
+      "Do pair every entrance animation with an exit. Exits are shorter, ease in rather than out, and travel less than the entrance did.",
+      "Do add any new named animation to the prefers-reduced-motion block in globals.css. That block currently disables every named animation in the system; an unlisted one is a defect.",
+      "Do use transition-colors for hover states. Colour moves; geometry doesn't.",
+      "Do state a scale rather than assume it — the dial prints / 10 beside the figure."
+    ],
+    "donts": [
+      "Don't add box-shadow to any surface. The system has no shadow vocabulary, and on a near-black ground a shadow reads as blur rather than height.",
+      "Don't introduce a light theme or a prefers-color-scheme branch. The interface is dark-only by declaration (color-scheme: dark), and the palette has no light counterpart.",
+      "Don't spend gold on ordinary chrome — no gold buttons, links, surfaces, or decorative highlights. It belongs to the top of a scale and to earned objects.",
+      "Don't animate anything from opacity: 0. Content is legible from the first frame; only position, hairline scale, and shadow move. A slow connection must never show a blank hero.",
+      "Don't restore browser default chrome. Scrollbars are removed system-wide (scrollbar-width: none plus the webkit pseudo-element) while scrolling itself is untouched; outline: none without the global :focus-visible replacement is a regression.",
+      "Don't dim an entire element to indicate withheld or locked content. Stop the motion, veil the finish, keep the text at ash or better.",
+      "Don't use pure #fff except as the primary button's hover state. Body text is paper (#eceae6).",
+      "Don't simulate physical objects. Hint them — corner ticks, plate numbers, tabular figures. No leather, page-turns, or three-ring binder skeuomorphism.",
+      "Don't let a UI surface out-saturate a poster. The Posters Carry It Rule."
+    ]
+  }
+}

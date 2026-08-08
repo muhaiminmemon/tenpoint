@@ -1,3 +1,4 @@
+import { Instrument_Serif } from "next/font/google";
 import FoilLight, { CARD_FOIL } from "./FoilLight";
 import CardGrain, { CARD_GRAIN } from "./CardGrain";
 import { accentFor, formatTenths, ratingColor } from "@/lib/format";
@@ -5,12 +6,46 @@ import { posterUrl } from "@/lib/tmdb-urls";
 import { stockDef } from "@/lib/taste-card";
 import type { HomeTasteCardData } from "@/lib/taste";
 
+/**
+ * The archetype's own face, and the only place in the product that has one.
+ *
+ * Space Grotesk and IBM Plex Sans carry everything else here; this line is the
+ * exception because it is the one thing on the card that is a *name* rather
+ * than a field, and neither of those two faces can say a name. Italic only —
+ * it is the single cut the card uses, so nothing else is fetched.
+ *
+ * Self-hosted by next/font at build time: no third-party request, and `swap`
+ * against the Plex fallback rather than invisible text while it loads.
+ */
+const instrument = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: "italic",
+  display: "swap",
+});
+
+/**
+ * The archetype is two voices only if it has two parts.
+ *
+ * A one-word archetype must not render as a lone tracked label with no name
+ * under it, so when there is no rest the first word takes the serif itself.
+ * A three-word one ("Deepcut Final Girl") keeps everything after the first
+ * word together — the split is first-word versus the rest, never word-by-word.
+ *
+ * Nullable because a library too thin to have an archetype yet has none, and
+ * that case prints nothing rather than an empty serif line.
+ */
+function splitTitle(title: string | null): { first: string; rest: string } {
+  const parts = (title ?? "").trim().split(/\s+/).filter(Boolean);
+  return { first: parts[0] ?? "", rest: parts.slice(1).join(" ") };
+}
+
 function Stars({ mean }: { mean: number }) {
   const filled = Math.max(1, Math.min(5, Math.round(mean / 20)));
   return (
     <span className="num text-[10px] tracking-[0.1em] text-gold">
-      {"\u2605".repeat(filled)}
-      <span className="text-seam">{"\u2605".repeat(5 - filled)}</span>
+      {"★".repeat(filled)}
+      <span className="text-seam">{"★".repeat(5 - filled)}</span>
     </span>
   );
 }
@@ -19,8 +54,8 @@ function Stars({ mean }: { mean: number }) {
  * The card itself: rim, ground, finish and everything printed on the front.
  *
  * Extracted so the homepage and a profile show the same object rather than two
- * near-copies that drift. Only the chrome around it differs \u2014 home wraps it in
- * share and view actions, a profile does not \u2014 and nothing in here knows or
+ * near-copies that drift. Only the chrome around it differs — home wraps it in
+ * share and view actions, a profile does not — and nothing in here knows or
  * cares which page it is on.
  *
  * Presentational and hook-free, so it renders on the server when its parent
@@ -44,6 +79,7 @@ export default function TasteCardFace({
 }) {
   const { tier, variant } = data;
   const stock = stockDef(variant.stock);
+  const title = splitTitle(data.archetype);
   // Genres only until a library is big enough for a theme to emerge.
   /**
    * Chosen by distinctiveness, printed by share.
@@ -61,6 +97,14 @@ export default function TasteCardFace({
   )
     .slice(0, 3)
     .sort((a, b) => b.pct - a.pct);
+
+  const name = (
+    <span
+      className={`block text-[38px] leading-[0.95] tracking-[-0.01em] text-paper ${instrument.className}`}
+    >
+      {title.rest || title.first}
+    </span>
+  );
 
   // Two materials, one per axis the card actually has. The rim is the tier,
   // because rarity should stay the loudest signal; the ground is the stock.
@@ -80,60 +124,71 @@ export default function TasteCardFace({
         <CardGrain intensity={tier.sheenOp} strength={CARD_GRAIN} />
         <FoilLight intensity={tier.sheenOp * CARD_FOIL} sweepSec={tier.sweepSec} />
 
-        <div className="relative p-5">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2">
-              {avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatarUrl} alt="" className="size-7 rounded-full object-cover" />
-              ) : (
-                <span className="display flex size-7 items-center justify-center rounded-full bg-tray text-xs text-paper">
-                  {displayName.slice(0, 1).toUpperCase()}
+        {/* The plate.
+         *
+         * The archetype is the object, not a line inside a stack of fields.
+         * Everything that identifies the holder — handle, date, rating, tier —
+         * demotes to the margins at the card's smallest steps, so the name is
+         * the only thing read from across a room. This is the one card element
+         * that is a name rather than a field, and it is now sized like it. */}
+        <div className="relative flex flex-col px-4 pb-4 pt-[18px]">
+          <div className="flex items-baseline justify-between gap-2 text-[9px] uppercase tracking-[0.14em]">
+            <span className="display tracking-[0.06em] text-beam">@{username}</span>
+            <span className="num text-dim">Since {memberSince}</span>
+          </div>
+
+          {/* Two voices, and which one is which is the point.
+           *
+           * The first word is the classification — "Deepcut", "Midnight" — so
+           * it prints as a tracked uppercase label; what follows is the name,
+           * and it gets the serif. Reading top to bottom you get the qualifier
+           * before the thing, which is the order the archetype is built in.
+           *
+           * Both halves are `paper`. The label sat at `ash` when it was one
+           * more field on the card, but the archetype is a single title read as
+           * a unit, and two tones split it into a caption and a headline. Face,
+           * size and tracking already separate the halves; colour would only be
+           * saying it a fourth time, and dimmer. */}
+          {title.first && (
+            <div className="mt-3.5 text-center">
+              {title.rest && (
+                <span className="block text-[13px] uppercase leading-[1.1] tracking-[0.2em] text-paper">
+                  {title.first}
                 </span>
               )}
-              <div>
-                <div className="display text-[13px] text-beam">@{username}</div>
-                <div className="num text-[9px] uppercase tracking-[0.14em] text-dim">Since {memberSince}</div>
-              </div>
+              <span className={title.rest ? "mt-[5px] block" : "block"}>{name}</span>
             </div>
-            {data.mean !== null && (
-              <div className="text-right">
-                <div className={`num text-[26px] leading-none ${ratingColor(data.mean)}`}>
-                  {formatTenths(data.mean)}
-                </div>
-                <div className="mt-1">
-                  <Stars mean={data.mean} />
-                  <span
-                    className="ml-1.5 text-[9px] uppercase tracking-[0.1em]"
-                    style={{ color: tier.labelColor }}
-                  >
-                    {tier.name}
-                  </span>
-                </div>
-              </div>
+          )}
+
+          <div className="mt-[9px] flex items-baseline justify-center gap-[7px] text-[9px] uppercase tracking-[0.16em] text-ash">
+            <span>Taste class</span>
+            {variant.name && (
+              <span className="display" style={{ color: variant.accentColor }}>
+                {variant.name}
+              </span>
             )}
           </div>
 
-          <div className="mt-4">
-            <div className="flex items-baseline justify-between">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-ash">Taste class</div>
-              {variant.name && (
-                <div className="display text-[9px] uppercase tracking-[.08em]" style={{ color: variant.accentColor }}>
-                  {variant.name}
-                </div>
-              )}
+          {/* The rating keeps its hairline, which is what stops the demoted
+              figure from reading as an afterthought: it is below a rule
+              because it is a separate statement, not because it matters less. */}
+          {data.mean !== null && (
+            <div className="mt-3.5 flex items-baseline justify-center gap-[9px] border-t border-seam pt-[11px]">
+              <span className={`num text-[20px] leading-none ${ratingColor(data.mean)}`}>
+                {formatTenths(data.mean)}
+              </span>
+              <Stars mean={data.mean} />
+              <span
+                className="text-[9px] uppercase tracking-[0.1em]"
+                style={{ color: tier.labelColor }}
+              >
+                {tier.name}
+              </span>
             </div>
-            {/* Centred, because the title is the one line on the card that is
-                a name rather than a field. Left-aligned it wrapped ragged
-                under a row already split to both edges; centred it reads as
-                the plate the rest of the card is pretending to be. */}
-            <div className="display mt-1 text-center text-[20px] leading-[1.05] text-paper">
-              {data.archetype}
-            </div>
-          </div>
+          )}
 
           {chips.length > 0 && (
-            <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+            <div className="mt-3 flex flex-wrap justify-center gap-[5px]">
               {/* Themes, with their share. Genre tags put Adventure and Action
                   on almost every card; a theme is what the library keeps
                   returning to, and it is the same reading the title, the stock
@@ -142,7 +197,7 @@ export default function TasteCardFace({
               {chips.map((g) => (
                 <span
                   key={g.name}
-                  className="inline-flex items-center gap-2 rounded-full border border-seam bg-[rgba(255,255,255,.04)] px-2.5 py-1 text-[11px] text-paper"
+                  className="inline-flex items-baseline gap-1.5 rounded-full border border-seam bg-[rgba(255,255,255,.04)] px-[9px] py-[3px] text-[11px] text-paper"
                 >
                   {g.name}
                   <span className="num text-[10px] text-ash">{g.pct}%</span>
@@ -152,13 +207,13 @@ export default function TasteCardFace({
           )}
 
           {data.signatureFilms.length > 0 && (
-            <div className="mt-4 grid grid-cols-4 gap-1.5">
+            <div className="mt-3.5 grid grid-cols-4 gap-1">
               {data.signatureFilms.map((f) => {
                 const poster = posterUrl(f.posterPath, "w154");
                 return (
                   <div
                     key={f.slug}
-                    className="relative overflow-hidden rounded-[5px] border border-seam bg-tray"
+                    className="relative overflow-hidden rounded-[4px] border border-seam bg-tray"
                     style={{ aspectRatio: "2/3" }}
                   >
                     {poster ? (
@@ -170,7 +225,7 @@ export default function TasteCardFace({
                       </span>
                     )}
                     <span
-                      className="absolute left-1 top-1 h-3.5 w-[3px] rounded-[2px]"
+                      className="absolute left-[3px] top-[3px] h-3 w-[3px] rounded-[2px]"
                       style={{ background: accentFor(f.slug) }}
                       aria-hidden
                     />
@@ -181,13 +236,13 @@ export default function TasteCardFace({
           )}
 
           {data.traitsHeldCount > 0 && (
-            <div className="mt-4 flex items-center justify-center gap-2.5 border-t border-seam pt-3">
-              <span className="num text-[10px] text-gold">{data.traitsHeldCount} traits</span>
+            <div className="mt-3 flex items-center justify-center gap-2.5 text-[10px]">
+              <span className="num text-gold">{data.traitsHeldCount} traits</span>
               {/* The split, once there is one. A shelf that is a third series
                   is a fact about somebody, and it is the reading the tier and
                   the signature quartet were both decided on. */}
               {data.mix.seasons > 0 && (
-                <span className="num text-[10px] text-dim">{data.mix.showShare}% series</span>
+                <span className="num text-dim">{data.mix.showShare}% series</span>
               )}
             </div>
           )}
