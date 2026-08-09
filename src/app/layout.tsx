@@ -56,7 +56,10 @@ export default function RootLayout({
           <Footer />
           </ConfirmProvider>
         </ToastProvider>
-      </body>
+      {/* impeccable-live-start */}
+<script src="http://localhost:8400/live.js?token=296dc639-0a45-4135-873a-986d7c7fe285"></script>
+{/* impeccable-live-end */}
+</body>
     </html>
   );
 }

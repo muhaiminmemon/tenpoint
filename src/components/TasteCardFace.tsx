@@ -169,40 +169,64 @@ export default function TasteCardFace({
             )}
           </div>
 
-          {/* The rating keeps its hairline, which is what stops the demoted
-              figure from reading as an afterthought: it is below a rule
-              because it is a separate statement, not because it matters less. */}
+          {/* The score leads, and the rule that used to sit above it is gone.
+           *
+           * That hairline was doing a job: it made the figure read as its own
+           * statement rather than as a footnote to the archetype. Structure
+           * does the same job better here, so nothing is lost by dropping it.
+           * The number takes the card's lead step and the stars and tier
+           * demote beneath it, which separates the statement by hierarchy
+           * instead of by drawing a line across the card to say so. */}
           {data.mean !== null && (
-            <div className="mt-3.5 flex items-baseline justify-center gap-[9px] border-t border-seam pt-[11px]">
-              <span className={`num text-[20px] leading-none ${ratingColor(data.mean)}`}>
+            <div className="mt-4 flex flex-col items-center gap-1.5">
+              <span className={`num text-[30px] leading-none ${ratingColor(data.mean)}`}>
                 {formatTenths(data.mean)}
               </span>
-              <Stars mean={data.mean} />
-              <span
-                className="text-[9px] uppercase tracking-[0.1em]"
-                style={{ color: tier.labelColor }}
-              >
-                {tier.name}
+              <span className="flex items-baseline gap-2">
+                <Stars mean={data.mean} />
+                <span
+                  className="text-[9px] uppercase tracking-[0.1em]"
+                  style={{ color: tier.labelColor }}
+                >
+                  {tier.name}
+                </span>
               </span>
             </div>
           )}
 
           {chips.length > 0 && (
-            <div className="mt-3 flex flex-wrap justify-center gap-[5px]">
-              {/* Themes, with their share. Genre tags put Adventure and Action
-                  on almost every card; a theme is what the library keeps
-                  returning to, and it is the same reading the title, the stock
-                  and the DNA strip all run on. The number is the true share of
-                  the shelf, the same figure the binder prints. */}
-              {chips.map((g) => (
-                <span
-                  key={g.name}
-                  className="inline-flex items-baseline gap-1.5 rounded-full border border-seam bg-[rgba(255,255,255,.04)] px-[9px] py-[3px] text-[11px] text-paper"
-                >
-                  {g.name}
-                  <span className="num text-[10px] text-card-2">{g.pct}%</span>
-                </span>
-              ))}
+            <div className="mt-3.5 flex flex-col gap-2">
+              {/* Themes, as proportion rather than as text.
+               *
+               * These were pills, which put the share inside a bubble and made
+               * 24% and 18% the same size on the card: the one thing the figure
+               * is for, comparison, was the one thing the shape refused to do.
+               * The band spends its width the way the shelf is spent, so the
+               * lead theme is visibly the lead theme before a number is read.
+               *
+               * `flexGrow` carries the share directly, so the segments stay
+               * proportional without normalising three percentages that do not
+               * add to a hundred. Three steps of `paper` and no hue: the stock
+               * underneath is the only colour on this card. */}
+              <span aria-hidden className="flex h-[3px] w-full overflow-hidden rounded-[2px]">
+                {chips.map((g, i) => (
+                  <i
+                    key={g.name}
+                    className={["bg-paper/55", "bg-paper/35", "bg-paper/20"][i] ?? "bg-paper/20"}
+                    style={{ flexGrow: g.pct }}
+                  />
+                ))}
+              </span>
+              <span className="flex justify-between gap-2">
+                {chips.map((g) => (
+                  <span
+                    key={g.name}
+                    className="text-[9px] uppercase tracking-[0.1em] text-card-2"
+                  >
+                    {g.name} <b className="num font-normal text-card-3">{g.pct}%</b>
+                  </span>
+                ))}
+              </span>
             </div>
           )}
 
