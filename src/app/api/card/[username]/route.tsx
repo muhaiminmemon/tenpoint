@@ -80,7 +80,12 @@ export async function GET(
   const taste = await getTasteProfile(profile.id, { includePrivate: isOwner });
   if (taste.rated === 0) return new Response("No card yet", { status: 404 });
 
-  const library = await getRankedLibrary(profile.id, { includePrivate: isOwner });
+  // Seasons, not series: the card weighs a season as a season, and the shared
+  // image has to be the same card the owner sees at home.
+  const library = await getRankedLibrary(profile.id, {
+    includePrivate: isOwner,
+    collapseSeries: false,
+  });
   const data = await buildHomeTasteCard(
     profile.id,
     taste,

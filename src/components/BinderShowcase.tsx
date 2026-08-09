@@ -220,9 +220,9 @@ function SignatureSection({ films, person }: { films: Binder["signature"]; perso
           Signature
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
-          Not the four highest ratings &mdash; on most shelves those are four versions of the
-          same film. Each of these is here for a different reason, and the reason is written
-          under it. A series counts as one work, with its seasons as the evidence.
+          Not the four highest ratings. On most shelves those are four versions of the same
+          film. Each of these is here for a different reason, and the reason is written under
+          it. A series counts as one work, with its seasons as the evidence.
         </p>
         {/* The pairing is the point, and it is invisible without saying so: two
             of the four are chosen to disagree with each other.
@@ -235,7 +235,7 @@ function SignatureSection({ films, person }: { films: Binder["signature"]; perso
           {[
             "Two of them are usually opposites.",
             `One is the clearest example of what ${person ? "they" : "you"} keep returning to.`,
-            `Another is the exception — the work that looks nothing like the rest, and ${person ? "they" : "you"} rate it at the top anyway.`,
+            `Another is the exception: the work that looks nothing like the rest, and ${person ? "they" : "you"} rate it at the top anyway.`,
             "A shelf explains the first one on its own; the second is the part of a taste that nothing else here would tell anyone.",
           ].join(" ")}
         </p>
@@ -294,8 +294,8 @@ function SignatureSection({ films, person }: { films: Binder["signature"]; perso
                     let the sentence above sound equally certain either way. */}
                 {f.confidence < 0.6 && (
                   <p className="mt-2 text-[11px] leading-snug text-dim">
-                    Chosen on limited information &mdash; some of this title&rsquo;s details
-                    have not been filled in yet.
+                    Chosen on limited information. Some of this title&rsquo;s details have
+                    not been filled in yet.
                   </p>
                 )}
               </div>

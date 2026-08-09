@@ -276,8 +276,8 @@ function CardTab({ data, binderHref }: { data: HomeTasteCardData; binderHref?: s
 
           <p className="mt-3 text-[12px] leading-relaxed text-dim">
             <span className="num text-ash">{standing.gate.toNext.toLocaleString()}</span> more
-            points reaches {standing.next?.name}. Rank is how deep the library is and nothing else
-            &mdash; it never changes your archetype, traits or signature titles.
+            points reaches {standing.next?.name}. Rank is how deep the library is and nothing
+            else. It never changes your archetype, traits or signature titles.
           </p>
         </div>
       )}

@@ -60,8 +60,10 @@ export default async function ListPage(ctx: { params: Promise<{ id: string }> })
     avatarUrl: avatarSrc(m.userId, avatarUpdatedAt),
   }));
 
-  // the viewer's own library is the source for bulk-add
-  const library = await getRankedLibrary(user.id);
+  // The viewer's own library is the source for bulk-add, at the season grain.
+  // A list of the best seasons of television is a real thing to want to make,
+  // and collapsing here would leave only the series to choose from.
+  const library = await getRankedLibrary(user.id, { collapseSeries: false });
 
   return (
     <ListDetail

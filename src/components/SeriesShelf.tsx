@@ -100,9 +100,10 @@ export default function SeriesShelf({ series }: { series: SeriesProgress[] }) {
       ) : (
         <ul className="border-t border-seam">
           {shown.map((s) => {
-            // The whole-series rating stands in when no season was rated
-            // individually, because it is the only opinion on file.
-            const score = s.meanRating ?? s.wholeRating;
+            // A rating they put on the series as a whole is a verdict somebody
+            // typed; the mean is arithmetic over the seasons they happened to
+            // rate. When both exist the typed one wins, here and on the shelf.
+            const score = s.wholeRating ?? s.meanRating;
             const pct = s.totalSeasons > 0 ? Math.min(100, (s.credited / s.totalSeasons) * 100) : 0;
 
             return (

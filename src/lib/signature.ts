@@ -262,7 +262,12 @@ async function loadCandidates(userId: string, privacy: SQL): Promise<Candidate[]
       c.themes = themesFor(showKeywords);
       c.primaryTheme = primaryThemeFor(showKeywords);
     }
-    c.viewings = seasons.reduce((n, r) => n + (r.viewings as number), 0) || c.viewings;
+    c.viewings = seriesViewings(rowsForShow.map((r) => Number(r.viewings ?? 1)));
+    c.ratingSpread = seriesRatingSpread(
+      rowsForShow.map((r) =>
+        r.rating_spread === null || r.rating_spread === undefined ? null : Number(r.rating_spread),
+      ),
+    );
     c.reviews = rowsForShow.reduce((n, r) => n + (r.reviews as number), 0);
     c.ageDays = Math.max(...rowsForShow.map((r) => Number(r.age_days ?? 0)));
     c.ranked = rowsForShow.some((r) => r.ranked === true);
@@ -284,6 +289,40 @@ async function loadCandidates(userId: string, privacy: SQL): Promise<Candidate[]
 
 function firstOf(v: unknown): string | null {
   return Array.isArray(v) && v.length > 0 ? String(v[0]) : null;
+}
+
+/**
+ * How many times somebody has been through a series, from the entry count on
+ * each of its rows.
+ *
+ * Watching six seasons once each is watching the series once. This used to sum
+ * the entry counts, so rating a show season by season — which is how television
+ * is meant to be rated here — was read as having gone back to it six times. It
+ * inflated affection, handed every multi-season show a maxed-out attachment
+ * score it had not earned, and printed "You have been back to it 6 times" at
+ * somebody who had been back to it never: the season count and the rewatch
+ * count were literally the same number on the card.
+ *
+ * The honest reading is the deepest single pass. Every season once is one time
+ * through; every season twice is two; going back to the one season that was
+ * worth it is still a return, and counts as one.
+ */
+export function seriesViewings(entriesPerRow: number[]): number {
+  if (entriesPerRow.length === 0) return 1;
+  return Math.max(1, ...entriesPerRow);
+}
+
+/**
+ * Whether the verdict moved, across the parts that were genuinely re-rated.
+ *
+ * A series was taking this off whichever single row happened to speak for it,
+ * which attributed season one's rewatch history to the whole programme. Only
+ * rows somebody actually rated twice have an opinion here, and the answer is
+ * null when none did: no second reading is not the same as a reading that held.
+ */
+export function seriesRatingSpread(spreads: (number | null)[]): number | null {
+  const real = spreads.filter((s): s is number => s !== null);
+  return real.length > 0 ? Math.max(...real) : null;
 }
 
 function toCandidate(r: Record<string, unknown>, unit: SignatureUnit): Candidate {
@@ -422,7 +461,17 @@ function attachment(c: Candidate): number {
   if (c.viewings >= 3) score += 0.15;
   if (c.reviews > 0) score += 0.2;
   if (c.ranked) score += 0.15;
-  if (c.finished) score += 0.15;
+  /**
+   * Carrying a series to the end is the television-shaped version of a rewatch,
+   * and priced like one.
+   *
+   * It used to be worth a fifth of that, which only looked survivable because
+   * finishing a six-season show was also, wrongly, being counted as six
+   * viewings. With that gone, a whole series watched through would have scored
+   * below a film somebody happened to put on twice, and `SEASON_WEIGHT` says
+   * elsewhere on this card that a season is four films of watching.
+   */
+  if (c.finished) score += 0.35;
   return Math.max(0, Math.min(1, score));
 }
 
@@ -670,8 +719,16 @@ function explain(
    */
   const supporting: string[] = [];
   if (lead !== "attachment") {
-    if (c.viewings >= 3) supporting.push(`You have been back to it ${c.viewings} times.`);
-    else if (c.viewings === 2) supporting.push("You have watched it twice.");
+    // A series is counted by its deepest pass, so the honest sentence is about
+    // part of it rather than all of it: somebody who went back for season three
+    // has not watched the whole programme twice.
+    if (c.unit === "show") {
+      if (c.viewings >= 3) supporting.push(`Some of it you have watched ${c.viewings} times.`);
+      else if (c.viewings === 2) supporting.push("Some of it you have watched twice.");
+    } else {
+      if (c.viewings >= 3) supporting.push(`You have been back to it ${c.viewings} times.`);
+      else if (c.viewings === 2) supporting.push("You have watched it twice.");
+    }
     if (c.finished && c.totalSeasons)
       supporting.push(`You watched all ${c.totalSeasons} seasons.`);
   }
@@ -720,24 +777,46 @@ function explain(
       return {
         label: c.unit === "show" ? "You stayed with it" : "You keep going back",
         reason:
-          c.unit === "show" && c.totalSeasons
+          // Only when they actually finished it. This read "you rated all N
+          // seasons" off the series' season count rather than off what they
+          // rated, so a show in this slot for any other reason was told it had
+          // been completed when it had not.
+          c.unit === "show" && c.finished && c.totalSeasons
             ? `You rated all ${c.totalSeasons} seasons. Almost nothing else here gets finished.`
-            : `You have watched this ${c.viewings} times. Nearly everything else you rate, you rate once.`,
+            : c.unit === "show" && c.ratedSeasons
+              ? `You have rated ${c.ratedSeasons} seasons of it. Almost nothing else here gets that many.`
+              : `You have watched this ${c.viewings} times. Nearly everything else you rate, you rate once.`,
         supporting,
         angle,
       };
-    case "stability":
+    case "stability": {
+      /**
+       * A series holding its level season after season is real evidence of a
+       * settled opinion, and it is not the same claim as having gone back to
+       * something. The card used to make the second claim out of the first,
+       * telling somebody who had rated six seasons once each that they had
+       * "rated this more than once and landed on the same number both times".
+       */
+      const seasonsHeld =
+        c.unit === "show" && (c.ratedSeasons ?? 0) >= 3 && (c.seasonSpread ?? 99) <= 5;
+      const rerated = c.ratingSpread !== null && c.ratingSpread <= 5;
       return {
         label: "You have not changed your mind",
-        reason:
-          c.ratingSpread !== null && c.ratingSpread <= 5
-            ? `You have rated this more than once and landed on the same number both times.`
+        reason: rerated
+          ? c.unit === "show"
+            ? `You have gone back and rated part of this again, and landed in the same place.`
+            : `You have rated this more than once and landed on the same number both times.`
+          : seasonsHeld
+            ? (c.seasonSpread ?? 0) === 0
+              ? `You rated ${c.ratedSeasons} seasons of it and gave every one of them the same score.`
+              : `You rated ${c.ratedSeasons} seasons of it and never moved more than ${((c.seasonSpread ?? 0) / 10).toFixed(1)} between them.`
             : c.ageDays > 365
               ? `You logged this ${Math.round(c.ageDays / 365)} years ago at ${rating} and it has stood since.`
               : `Your verdict on this has not moved.`,
         supporting,
         angle,
       };
+    }
     case "outlier":
       return {
         label: "The one that breaks the pattern",

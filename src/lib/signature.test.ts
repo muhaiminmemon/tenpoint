@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { selectFromCandidates, type SignatureCandidate } from "./signature";
+import {
+  selectFromCandidates,
+  seriesRatingSpread,
+  seriesViewings,
+  type SignatureCandidate,
+} from "./signature";
 import { themesFor } from "./preference-profile";
 
 /**
@@ -242,5 +247,53 @@ describe("explanations", () => {
       expect(t.evidence).toBeDefined();
       expect(t.reason.length).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * Rating a series season by season is not rewatching it.
+ *
+ * The defect these pin shipped: a card told somebody who had rated all six
+ * seasons of Better Call Saul exactly once each that they had "been back to it
+ * 6 times", and said the same of nine seasons of Dragon Ball Z. The rewatch
+ * count and the season count were the same number, because the season entry
+ * counts were being summed.
+ */
+describe("a series' viewing count", () => {
+  it("reads six seasons rated once each as one time through", () => {
+    expect(seriesViewings([1, 1, 1, 1, 1, 1])).toBe(1);
+  });
+
+  it("counts a whole second pass as two", () => {
+    expect(seriesViewings([2, 2, 2, 2, 2])).toBe(2);
+  });
+
+  it("counts going back to one season as a return", () => {
+    expect(seriesViewings([1, 1, 3, 1, 1, 1])).toBe(3);
+  });
+
+  it("never reads a series as watched zero times", () => {
+    expect(seriesViewings([])).toBe(1);
+    expect(seriesViewings([0, 0])).toBe(1);
+  });
+
+  it("does not grow with the length of the show", () => {
+    const short = seriesViewings(Array(2).fill(1));
+    const long = seriesViewings(Array(38).fill(1));
+    expect(long).toBe(short);
+  });
+});
+
+describe("a series' rating spread", () => {
+  it("is absent when no part of it was ever rated twice", () => {
+    expect(seriesRatingSpread([null, null, null])).toBeNull();
+  });
+
+  it("reports the widest move among the parts that were re-rated", () => {
+    expect(seriesRatingSpread([null, 5, null, 12])).toBe(12);
+  });
+
+  it("is zero, not absent, when a re-rating landed on the same number", () => {
+    expect(seriesRatingSpread([null, 0])).toBe(0);
   });
 });

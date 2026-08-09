@@ -5,6 +5,7 @@ import LibraryView from "./LibraryView";
 import ProfileDiaryTab from "./ProfileDiaryTab";
 import ProfileWatchlistTab from "./ProfileWatchlistTab";
 import type { LibraryFilm } from "@/lib/library";
+import type { SeriesProgress } from "@/lib/series-progress";
 import type { ProfileDiaryRow } from "./ProfileDiaryList";
 import type { ProfileWatchlistRow } from "./ProfileWatchlistList";
 
@@ -12,12 +13,20 @@ type Tab = "library" | "diary" | "watchlist";
 
 type Props = {
   films: LibraryFilm[];
+  /** where they stand on each series, so the Shows view is the same here as at home */
+  series?: SeriesProgress[];
   diaryRows: ProfileDiaryRow[] | null;
   watchlistRows: ProfileWatchlistRow[] | null;
   editable: boolean;
 };
 
-export default function ProfileTabs({ films, diaryRows, watchlistRows, editable }: Props) {
+export default function ProfileTabs({
+  films,
+  series,
+  diaryRows,
+  watchlistRows,
+  editable,
+}: Props) {
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: "library", label: "Library", count: films.length },
     ...(diaryRows ? [{ id: "diary" as const, label: "Diary", count: diaryRows.length }] : []),
@@ -66,7 +75,7 @@ export default function ProfileTabs({ films, diaryRows, watchlistRows, editable 
           (films.length === 0 ? (
             <p className="py-8 text-sm text-ash">No films logged yet.</p>
           ) : (
-            <LibraryView films={films} editable={editable} />
+            <LibraryView films={films} editable={editable} series={series} />
           ))}
         {tab === "diary" && diaryRows && (
           <ProfileDiaryTab rows={diaryRows} editable={editable} />

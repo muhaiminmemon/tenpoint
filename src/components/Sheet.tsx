@@ -28,20 +28,38 @@ type Props = {
  * `overflow-hidden`. Portalling fixes that everywhere at once instead of
  * asking every future caller to know which ancestors are safe.
  */
+/**
+ * Every sheet currently open, oldest first. The keyboard belongs to the last.
+ *
+ * Sheets nest: rating a season opens the log sheet over the series panel it
+ * was opened from. Both listen for Escape on `document`, and `stopPropagation`
+ * cannot separate two listeners bound to the same node, so one press ran both
+ * handlers and closed the pair. Registration order made it worse rather than
+ * better: the outer sheet subscribed first, so it was the one that closed
+ * first. The top of this stack decides who answers, and the same guard keeps
+ * the outer panel from stealing the focus trap back off the inner one.
+ */
+const openSheets: symbol[] = [];
+
 export default function Sheet({ open, onClose, title, subtitle, children }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocus = useRef<HTMLElement | null>(null);
+  const token = useRef(Symbol("sheet"));
   const { rendered, state } = usePresence(open, 180);
 
   useEffect(() => {
     if (!open) return;
     restoreFocus.current = document.activeElement as HTMLElement | null;
 
+    const me = token.current;
+    openSheets.push(me);
+
     // the page behind must not scroll under the sheet
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     function onKeyDown(e: KeyboardEvent) {
+      if (openSheets[openSheets.length - 1] !== me) return;
       if (e.key === "Escape") {
         e.stopPropagation();
         onClose();
@@ -72,6 +90,8 @@ export default function Sheet({ open, onClose, title, subtitle, children }: Prop
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      const at = openSheets.lastIndexOf(me);
+      if (at !== -1) openSheets.splice(at, 1);
       document.body.style.overflow = prev;
       restoreFocus.current?.focus?.();
     };

@@ -3,9 +3,11 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import { useUrlState } from "@/lib/useUrlState";
 import SeriesShelf from "./SeriesShelf";
+import SeriesSheet, { seriesStanding } from "./SeriesSheet";
 import type { SeriesProgress } from "@/lib/series-progress";
 import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { CaretRight } from "@phosphor-icons/react/ssr";
 import {
   DndContext,
   closestCenter,
@@ -91,6 +93,15 @@ const SAVED_VIEWS: { key: SavedView; label: string }[] = [
 const SAVED_KEYS = SAVED_VIEWS.map((v) => v.key);
 
 /**
+ * Anything that isn't a film.
+ *
+ * Normally that is one collapsed series row. It also covers the bare season
+ * and whole-series rows a caller sees when it asked not to collapse, so the
+ * Films chip cannot quietly count a series as a film either way.
+ */
+const isTelevision = (x: LibraryFilm) => x.kind !== "movie";
+
+/**
  * The active filter text, so a row can say why it is on screen.
  *
  * Filtering on cast means a search for an actor returns films whose titles
@@ -102,6 +113,15 @@ const SAVED_KEYS = SAVED_VIEWS.map((v) => v.key);
  * three layout components that have no interest in it.
  */
 const MatchQuery = createContext("");
+
+/**
+ * Opening a series, from wherever its row happens to be drawn.
+ *
+ * A context for the same reason the query above is one: the callback would
+ * otherwise be threaded through the ledger, the shelf and the sortable
+ * wrapper, none of which have any interest in television.
+ */
+const OpenSeries = createContext<((showId: string) => void) | null>(null);
 
 export default function LibraryView({ films, editable, series }: Props) {
   const pathname = usePathname();
@@ -118,6 +138,20 @@ export default function LibraryView({ films, editable, series }: Props) {
     setItems(films);
   }
 
+  /**
+   * Which series is open, held as an id rather than as the series itself.
+   *
+   * Rating a season from inside the panel refetches the page, and a panel
+   * holding a copy of the row it was opened from would go on showing the
+   * ratings as they were before the edit. Looking it up every render means the
+   * open panel is the same data as the row underneath it, always.
+   */
+  const [openShowId, setOpenShowId] = useState<string | null>(null);
+  const openSeries =
+    openShowId === null
+      ? null
+      : (items.find((f) => f.series?.showId === openShowId)?.series ?? null);
+
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
     let out = items;
@@ -133,7 +167,7 @@ export default function LibraryView({ films, editable, series }: Props) {
     // Films against series, first, because it is the widest cut anybody makes
     // and every other view reads better inside one of them.
     if (saved === "movies") out = out.filter((x) => x.kind === "movie");
-    if (saved === "shows") out = out.filter((x) => x.kind === "season");
+    if (saved === "shows") out = out.filter(isTelevision);
     if (saved === "great") out = out.filter((x) => x.rating !== null && x.rating >= 80);
     if (saved === "thisYear") out = out.filter((x) => x.lastWatched?.startsWith(thisYear));
     if (saved === "rewatched") out = out.filter((x) => x.rewatched);
@@ -170,7 +204,7 @@ export default function LibraryView({ films, editable, series }: Props) {
     return {
       all: items.length,
       movies: items.filter((x) => x.kind === "movie").length,
-      shows: items.filter((x) => x.kind === "season").length,
+      shows: items.filter(isTelevision).length,
       great: items.filter((x) => x.rating !== null && x.rating >= 80).length,
       thisYear: items.filter((x) => x.lastWatched?.startsWith(thisYear)).length,
       rewatched: items.filter((x) => x.rewatched).length,
@@ -265,6 +299,7 @@ export default function LibraryView({ films, editable, series }: Props) {
         // hundreds of rows, and animating between two of them would be a long
         // slow scroll nobody asked for.
         <div key={view} className="pop-in">
+          <OpenSeries.Provider value={setOpenShowId}>
           <MatchQuery.Provider value={filter.trim().toLowerCase()}>
           {view === "ledger" ? (
             dragEnabled ? (
@@ -276,6 +311,7 @@ export default function LibraryView({ films, editable, series }: Props) {
             <Shelf films={shown} />
           )}
           </MatchQuery.Provider>
+          </OpenSeries.Provider>
         </div>
       )}
 
@@ -286,6 +322,14 @@ export default function LibraryView({ films, editable, series }: Props) {
           </p>
           {hasMore && <div ref={sentinelRef} aria-hidden className="h-1" />}
         </>
+      )}
+
+      {openSeries && (
+        <SeriesSheet
+          series={openSeries}
+          editable={editable}
+          onClose={() => setOpenShowId(null)}
+        />
       )}
     </div>
   );
@@ -426,6 +470,26 @@ function LedgerRow({
 
   const poster = posterUrl(film.posterPath, "w154");
   const billed = useBilledMatch(film);
+  const openSeries = useContext(OpenSeries);
+
+  /**
+   * What the second line says, which is not the same question for the two.
+   *
+   * A film is placed by when it was made and who made it. A series is placed
+   * by how far through it you are, which is the only thing about a programme
+   * that a shelf cannot show and a viewer actually wants.
+   */
+  const subline = film.series
+    ? [
+        film.year,
+        seriesStanding(film.series),
+        film.series.nextSeason !== null ? `next up season ${film.series.nextSeason}` : null,
+      ]
+    : [
+        film.year,
+        billed ? `with ${billed}` : film.director,
+        film.entryCount > 1 ? `watched ${film.entryCount}×` : null,
+      ];
 
   return (
     <li
@@ -450,12 +514,25 @@ function LedgerRow({
         <span className="h-[60px] w-10 shrink-0 rounded-[3px] bg-tray" aria-hidden />
       )}
       <span className="min-w-0 flex-1">
-        <Link href={`/film/${film.slug}`} className="block truncate text-paper hover:underline">
-          {film.title}
-        </Link>
+        {film.series ? (
+          // A series opens rather than navigates: its seasons are the thing
+          // being asked for, and they are one panel away instead of a page.
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            onClick={() => openSeries?.(film.series!.showId)}
+            className="flex min-w-0 max-w-full items-center gap-1 rounded-card text-left text-paper hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-beam-edge"
+          >
+            <span className="truncate">{film.title}</span>
+            <CaretRight aria-hidden className="size-3 shrink-0 text-dim" />
+          </button>
+        ) : (
+          <Link href={`/film/${film.slug}`} className="block truncate text-paper hover:underline">
+            {film.title}
+          </Link>
+        )}
         <span className="block truncate text-xs text-ash">
-          {[film.year, billed ? `with ${billed}` : film.director].filter(Boolean).join(" · ")}
-          {film.entryCount > 1 ? ` · watched ${film.entryCount}×` : ""}
+          {subline.filter(Boolean).join("  ·  ")}
         </span>
       </span>
       {draggable && (
@@ -489,32 +566,67 @@ function Shelf({ films }: { films: LibraryFilm[] }) {
 function ShelfTile({ film }: { film: LibraryFilm }) {
   const poster = posterUrl(film.posterPath, "w342");
   const billed = useBilledMatch(film);
+  const openSeries = useContext(OpenSeries);
+  const series = film.series;
+
+  const content = (
+    <>
+      <span className="relative block">
+        {poster ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={poster}
+            alt={`Poster for ${film.title}`}
+            loading="lazy"
+            className="aspect-[2/3] w-full rounded-card bg-tray object-cover"
+          />
+        ) : (
+          <span className="flex aspect-[2/3] w-full items-center justify-center rounded-card bg-tray p-2 text-center text-sm text-ash">
+            {film.title}
+          </span>
+        )}
+        {/* A poster that opens rather than navigates should say so, and the
+            useful way to say it is with the count: this is one work, and it is
+            this many seasons deep. */}
+        {series && series.totalSeasons > 0 && (
+          <span className="num absolute bottom-1.5 left-1.5 rounded-[3px] bg-[rgba(14,14,16,.82)] px-1.5 py-0.5 text-[10px] text-paper">
+            {series.totalSeasons} {series.totalSeasons === 1 ? "season" : "seasons"}
+          </span>
+        )}
+      </span>
+      <span className="mt-1.5 flex items-baseline justify-between gap-2">
+        <span className="truncate text-xs text-ash">{film.title}</span>
+        <span className={`num text-sm ${ratingColor(film.rating)}`}>
+          {film.rating !== null ? formatTenths(film.rating) : ""}
+        </span>
+      </span>
+      {series ? (
+        <span className="mt-0.5 block truncate text-[11px] text-dim">
+          {seriesStanding(series)}
+        </span>
+      ) : (
+        billed && <span className="mt-0.5 block truncate text-[11px] text-dim">with {billed}</span>
+      )}
+    </>
+  );
+
   return (
-          <li className="group relative">
-            <Link href={`/film/${film.slug}`} className="block">
-              {poster ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={poster}
-                  alt={`Poster for ${film.title}`}
-                  loading="lazy"
-                  className="aspect-[2/3] w-full rounded-card bg-tray object-cover"
-                />
-              ) : (
-                <span className="flex aspect-[2/3] w-full items-center justify-center rounded-card bg-tray p-2 text-center text-sm text-ash">
-                  {film.title}
-                </span>
-              )}
-              <span className="mt-1.5 flex items-baseline justify-between gap-2">
-                <span className="truncate text-xs text-ash">{film.title}</span>
-                <span className={`num text-sm ${ratingColor(film.rating)}`}>
-                  {film.rating !== null ? formatTenths(film.rating) : ""}
-                </span>
-              </span>
-              {billed && (
-                <span className="mt-0.5 block truncate text-[11px] text-dim">with {billed}</span>
-              )}
-            </Link>
-          </li>
+    <li className="group relative">
+      {series ? (
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-label={`${film.title}, ${seriesStanding(series).toLowerCase()}`}
+          onClick={() => openSeries?.(series.showId)}
+          className="block w-full rounded-card text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-beam-edge"
+        >
+          {content}
+        </button>
+      ) : (
+        <Link href={`/film/${film.slug}`} className="block">
+          {content}
+        </Link>
+      )}
+    </li>
   );
 }

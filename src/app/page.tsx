@@ -19,7 +19,10 @@ export default async function Home() {
     const [topRated, taste, library, friendIds, recentViewings] = await Promise.all([
       getGlobalTopRated(10),
       getTasteProfile(user.id, { includePrivate: true }),
-      getRankedLibrary(user.id, { includePrivate: true }),
+      // Read at the season grain, not collapsed: nothing on this page lists
+      // the library, and the card that consumes it counts a season as a
+      // season on purpose.
+      getRankedLibrary(user.id, { includePrivate: true, collapseSeries: false }),
       friendIdsOf(user.id),
       getRecentViewings(user.id, 6),
     ]);
