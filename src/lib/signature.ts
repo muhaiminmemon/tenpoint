@@ -276,7 +276,10 @@ async function loadCandidates(userId: string, privacy: SQL): Promise<Candidate[]
     c.seasonSpread = spread;
     // Finished, not merely caught up: a returning series gains seasons, and a
   // card that says "you finished this" must not be made false by an airdate.
-  const ended = ["Ended", "Canceled"].includes(String(head.show_status ?? ""));
+  // Both spellings. `series-progress.ts` reads all three, and this read two, so
+  // a show TMDB spells "Cancelled" counted as finished in the library and not
+  // on the card — the same series, two answers, on one account.
+  const ended = ["Ended", "Canceled", "Cancelled"].includes(String(head.show_status ?? ""));
   c.finished = ended && (c.totalSeasons ?? 0) > 0 && seasons.length >= (c.totalSeasons ?? 0);
     c.crowdCount = rowsForShow.reduce((n, r) => n + (r.crowd_n as number), 0);
     const means = rowsForShow.map((r) => r.crowd_mean).filter((m): m is number => m !== null);
@@ -471,7 +474,18 @@ function attachment(c: Candidate): number {
    * below a film somebody happened to put on twice, and `SEASON_WEIGHT` says
    * elsewhere on this card that a season is four films of watching.
    */
-  if (c.finished) score += 0.35;
+  /**
+   * And priced by how much series there was to carry.
+   *
+   * A flat bonus made finishing a one-season documentary worth exactly as much
+   * as finishing a six-season drama, which put single-season titles into the
+   * attachment slot on no evidence of attachment at all: rating the only
+   * season of a thing is just rating it. Nothing is claimed below two seasons,
+   * and it reaches the full amount at four, where carrying a series really is
+   * the shape of a rewatch.
+   */
+  const carried = c.finished ? (c.totalSeasons ?? 0) : 0;
+  if (carried >= 2) score += 0.35 * Math.min(1, (carried - 1) / 3);
   return Math.max(0, Math.min(1, score));
 }
 
@@ -718,6 +732,81 @@ function rarity(count: number, only: string, few: (n: number) => string): string
   return "";
 }
 
+/**
+ * Say the thing that actually put this title in the slot.
+ *
+ * Five separate facts earn the attachment angle — going back to it, writing
+ * about it, ranking it, and carrying a series to its end — and the sentence
+ * used to lead with finishing whenever finishing was true. That is wrong twice
+ * over. It announced a completion on titles that won the slot for some other
+ * reason entirely, and on the shelf of somebody who rates television the way
+ * this product asks them to, season by season, every series they own is
+ * finished, so "you rated all five seasons" is true of all of them and singles
+ * out none of them.
+ *
+ * So the facts are tried in order of how much they distinguish *this* title on
+ * *this* shelf, and each one is checked before it is claimed. When none of
+ * them distinguishes anything the sentence states the plain fact and stops,
+ * which is still a true reason for the title being here and is at least not a
+ * comparison the reader can disprove from their own library.
+ */
+function attachmentReason(c: ScoredCandidate, shelf: Shelf): { reason: string; usedReview: boolean } {
+  const say = (reason: string, usedReview = false) => ({ reason, usedReview });
+  const seasons = c.ratedSeasons ?? 0;
+  const times = c.viewings === 2 ? "twice" : `${c.viewings} times`;
+
+  // Finishing, but only where finishing is rare enough to mean something.
+  if (c.unit === "show" && c.finished && c.totalSeasons && shelf.finishedShows <= 4) {
+    const all =
+      c.totalSeasons === 1 ? "You rated its only season" : `You rated all ${c.totalSeasons} seasons`;
+    return say(`${all}${rarity(
+      shelf.finishedShows,
+      "the only series you have finished",
+      (n) => `one of ${n} series you have finished`,
+    )}.`);
+  }
+
+  // The deepest run on the shelf. This is the one that still says something
+  // when somebody finishes everything they start.
+  if (c.unit === "show" && seasons > 1 && seasons === shelf.mostRatedSeasons) {
+    return say(`You rated ${seasons} seasons of it, more than any other series here.`);
+  }
+
+  // Going back to it, where going back is not something they do often.
+  if (c.viewings >= 2 && shelf.revisitedTitles <= 4) {
+    return say(`You have watched this ${times}${rarity(
+      shelf.revisitedTitles,
+      "the only title you have gone back to",
+      (n) => `one of ${n} titles you have gone back to`,
+    )}.`);
+  }
+
+  if (c.viewings >= 2) return say(`You have watched this ${times}.`);
+  if (c.unit === "show" && c.finished && c.totalSeasons) {
+    return say(
+      c.totalSeasons === 1
+        ? "You rated its only season."
+        : `You rated all ${c.totalSeasons} seasons.`,
+    );
+  }
+  if (c.unit === "show" && seasons > 0) {
+    return say(`You have rated ${seasons === 1 ? "a season" : `${seasons} seasons`} of it.`);
+  }
+
+  /**
+   * Nothing about repeat viewing left to claim.
+   *
+   * Writing about something and placing it by hand are the other two things
+   * that earn this slot, and a title can win on those alone. The fallback used
+   * to say "you have kept coming back to this one" regardless, which on a
+   * title watched exactly once is simply false — and false in the direction
+   * that flatters the card, which is the worst direction.
+   */
+  if (c.reviews > 0) return say("You stopped to write something down after this one.", true);
+  if (c.ranked) return say("You placed this by hand rather than letting the rating sort it.");
+  return say("You have kept coming back to this one.");
+}
+
 function shelfFacts(all: ScoredCandidate[]): Shelf {
   return {
     finishedShows: all.filter((c) => c.unit === "show" && c.finished).length,
@@ -814,37 +903,18 @@ function explain(
     case "attachment":
       return {
         label: c.unit === "show" ? "You stayed with it" : "You keep going back",
-        reason:
-          // Only when they actually finished it. This read "you rated all N
-          // seasons" off the series' season count rather than off what they
-          // rated, so a show in this slot for any other reason was told it had
-          // been completed when it had not.
-          c.unit === "show" && c.finished && c.totalSeasons
-            ? `${
-                c.totalSeasons === 1
-                  ? "You rated its only season"
-                  : `You rated all ${c.totalSeasons} seasons`
-              }${rarity(
-                shelf.finishedShows,
-                "the only series you have finished",
-                (n) => `one of ${n} series you have finished`,
-              )}.`
-            : c.unit === "show" && c.ratedSeasons
-              ? `You have rated ${
-                  c.ratedSeasons === 1 ? "a season" : `${c.ratedSeasons} seasons`
-                } of it${
-                  c.ratedSeasons === shelf.mostRatedSeasons && shelf.mostRatedSeasons > 1
-                    ? ", more than any other series here"
-                    : ""
-                }.`
-              : `You have watched this ${
-                  c.viewings === 2 ? "twice" : `${c.viewings} times`
-                }${rarity(
-                  shelf.revisitedTitles,
-                  "the only title you have gone back to",
-                  (n) => `one of ${n} titles you have gone back to`,
-                )}.`,
-        supporting,
+        // When the headline is the review, the supporting note must not be the
+        // review as well: the same fact printed twice is what makes a panel
+        // read as generated rather than written.
+        ...(() => {
+          const { reason, usedReview } = attachmentReason(c, shelf);
+          return {
+            reason,
+            supporting: usedReview
+              ? supporting.filter((s) => !s.startsWith("You stopped to write"))
+              : supporting,
+          };
+        })(),
         angle,
       };
     case "stability": {
