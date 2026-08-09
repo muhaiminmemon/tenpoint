@@ -1,6 +1,6 @@
 import FoilLight, { CARD_FOIL } from "./FoilLight";
 import CardGrain, { CARD_GRAIN } from "./CardGrain";
-import { RARITY_TIERS, stockDef } from "@/lib/taste-card";
+import { RARITY_TIERS, stockDef, stockTextureStyle } from "@/lib/taste-card";
 import { posterUrl } from "@/lib/tmdb-urls";
 
 /**
@@ -42,7 +42,7 @@ export default function SpecimenCard({
         style={{ background: stock?.material ?? "linear-gradient(158deg,#18181e,#0f0f13)" }}
       >
         {stock?.texture && (
-          <span aria-hidden className="absolute inset-0" style={{ backgroundImage: stock.texture }} />
+          <span aria-hidden className="absolute inset-0" style={stockTextureStyle(stock)} />
         )}
         <CardGrain intensity={tier.sheenOp} strength={CARD_GRAIN} />
         <FoilLight intensity={tier.sheenOp * CARD_FOIL} sweepSec={tier.sweepSec} />

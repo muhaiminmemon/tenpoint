@@ -30,6 +30,11 @@ colors:
   stock-neon-high: "#1d2c3c"
   stock-nebula-low: "#231e36"
   stock-nebula-high: "#3b3054"
+  # Filmstrip rakes across three tones rather than two: gunmetal into copper,
+  # the amber of celluloid base. The only warm-saturated ground in the set.
+  stock-filmstrip-low: "#1b1a1f"
+  stock-filmstrip-mid: "#2b2320"
+  stock-filmstrip-high: "#402c19"
   # Variant accents dealt from the highest-rated decade.
   accent-emerald: "#7fb59a"
   accent-amethyst: "#a98fd6"

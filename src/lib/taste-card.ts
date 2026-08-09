@@ -1619,13 +1619,59 @@ export function rankTraits(traits: Trait[]): Trait[] {
 
 export type StockDef = {
   name: string;
-  /** the CSS ground this stock prints on */
+  /**
+   * The CSS ground this stock prints on.
+   *
+   * Kept to plain gradients on purpose: the shareable card image is drawn by
+   * Satori, which reads this and nothing else, and supports only a narrow
+   * subset of CSS. Anything a browser can do but an image cannot belongs in
+   * `texture`, which never reaches the renderer.
+   */
   material: string;
   /** what reads to it, in the user's own terms */
   condition: string;
   /** an inner texture layered over the ground; null for a plain stock */
   texture: string | null;
+  /**
+   * How the texture's layers tile, when a stock needs more than a stretched
+   * gradient. Comma lists, one entry per layer of `texture`.
+   *
+   * A stock without these is a full-bleed wash and needs no positioning. One
+   * with them is being printed *on* rather than tinted: Filmstrip punches
+   * sprocket holes down both edges, which is a repeating tile at a fixed
+   * rhythm and cannot be expressed as a single stretched gradient.
+   *
+   * Every value is a percentage rather than a pixel count, because the same
+   * string is drawn at 46px wide in the binder's specimen case and at ten
+   * times that on the card itself. Pixels would give the specimen four
+   * enormous holes and the card a row of pinpricks.
+   */
+  textureSize?: string;
+  texturePosition?: string;
+  textureRepeat?: string;
 };
+
+/** Everything a texture needs to paint, or nothing when the stock is plain. */
+export type TextureStyle = {
+  backgroundImage: string;
+  backgroundSize: string;
+  backgroundPosition: string;
+  backgroundRepeat: string;
+};
+
+/**
+ * The texture of a stock as a style object, so the five surfaces that print a
+ * card cannot disagree about how one is laid down.
+ */
+export function stockTextureStyle(stock: StockDef | undefined): TextureStyle | undefined {
+  if (!stock?.texture) return undefined;
+  return {
+    backgroundImage: stock.texture,
+    backgroundSize: stock.textureSize ?? "auto",
+    backgroundPosition: stock.texturePosition ?? "0% 0%",
+    backgroundRepeat: stock.textureRepeat ?? "repeat",
+  };
+}
 
 export const STOCK_DEFS: StockDef[] = [
   {
@@ -1642,13 +1688,44 @@ export const STOCK_DEFS: StockDef[] = [
       "Your films keep returning to the dark: noir, investigations, tradecraft, the occult, and whatever is standing behind you.",
     texture: "repeating-linear-gradient(74deg,rgba(143,174,204,.02) 0 1px,transparent 1px 10px)",
   },
+  /**
+   * A length of 35mm, not a grey card with faint lines on it.
+   *
+   * This was the only stock in the set with no hue at all, graphite on
+   * graphite, and its texture was 1px hairlines at two percent opacity, which
+   * is under the threshold where anything is visible. So the loudest shelves
+   * in the product, the ones that read to Action, Adventure and War, drew the
+   * quietest object of the six and it looked like a card whose finish had
+   * failed to load.
+   *
+   * Amber is the one hue nothing else here owns, and it is the right one:
+   * celluloid base, tungsten, muzzle flash. The ground rakes from gunmetal at
+   * the top corner into copper at the bottom, and the texture punches the
+   * strip itself, sprocket holes down both edges with a frame line ruled
+   * between them that stops short of the perforations the way a real one does.
+   */
   {
     name: "Filmstrip",
-    material: "linear-gradient(150deg,#1a1a1f,#26262d)",
+    material: "linear-gradient(150deg,#1b1a1f 0%,#2b2320 58%,#402c19 100%)",
     condition:
       "Your films keep returning to motion: heists, revenge, blades, engines, the front line, the open road.",
-    texture:
-      "repeating-linear-gradient(0deg,rgba(236,234,230,.02) 0 1px,transparent 1px 9px)",
+    texture: [
+      // The frame line, ruled between the perforation columns and fading out
+      // before it reaches them.
+      "linear-gradient(90deg,transparent 0%,rgba(236,234,230,.085) 14%,rgba(236,234,230,.085) 86%,transparent 100%)",
+      // One sprocket hole per tile, warm at its rim: the card is a lit object
+      // and a perforation is where the light gets through.
+      "radial-gradient(ellipse 30% 34% at 50% 50%,rgba(236,234,230,.10) 0 62%,rgba(217,178,95,.06) 66% 84%,transparent 86%)",
+      "radial-gradient(ellipse 30% 34% at 50% 50%,rgba(236,234,230,.10) 0 62%,rgba(217,178,95,.06) 66% 84%,transparent 86%)",
+      // Halation: the bloom exposed stock carries in its bottom corner.
+      "radial-gradient(76% 54% at 10% 94%,rgba(217,178,95,.11),transparent 64%)",
+    ].join(","),
+    // A Kodak Standard perforation is taller than it is wide, and there are
+    // four to a frame rather than a dotted line of them: the first pass tiled
+    // at 6.4% and read as a beaded border rather than as punched stock.
+    textureSize: "86% 1px,7% 8%,7% 8%,100% 100%",
+    texturePosition: "center 63%,left 3.2% top 5%,right 3.2% top 5%,0% 0%",
+    textureRepeat: "no-repeat,repeat-y,repeat-y,no-repeat",
   },
   {
     name: "Marble",

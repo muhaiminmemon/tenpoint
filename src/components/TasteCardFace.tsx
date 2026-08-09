@@ -3,7 +3,7 @@ import FoilLight, { CARD_FOIL } from "./FoilLight";
 import CardGrain, { CARD_GRAIN } from "./CardGrain";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
-import { stockDef } from "@/lib/taste-card";
+import { stockDef, stockTextureStyle } from "@/lib/taste-card";
 import type { HomeTasteCardData } from "@/lib/taste";
 
 /**
@@ -116,7 +116,7 @@ export default function TasteCardFace({
         style={{ background: stock?.material ?? "linear-gradient(158deg,#18181e,#0f0f13)" }}
       >
         {stock?.texture && (
-          <span aria-hidden className="absolute inset-0" style={{ backgroundImage: stock.texture }} />
+          <span aria-hidden className="absolute inset-0" style={stockTextureStyle(stock)} />
         )}
         {/* Sits above the grain and the foil, so the sweep reads as light
             crossing the finished surface rather than another layer under it. */}
