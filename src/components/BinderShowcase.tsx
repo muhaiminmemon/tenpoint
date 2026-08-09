@@ -220,32 +220,9 @@ function SignatureSection({ films, person }: { films: Binder["signature"]; perso
           Signature
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
-          Not the four highest ratings. On most shelves those are four versions of the same
-          film, and the top of everybody&rsquo;s list is the same canon. These four are chosen
-          to <em className="not-italic text-paper">prove a taste</em>, and each one has to earn
-          its place on its own before the set is considered at all.
-        </p>
-        <dl className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
-          {[
-            ["Loved", `Rated well against ${person ? "their" : "your"} own scale, not a general one.`],
-            ["Telling", `It expresses what ${person ? "their" : "your"} shelf keeps returning to.`],
-            ["Particular", "Loving it says something a similar viewer’s card would not say."],
-            ["Settled", "The opinion has held, rather than being a first impression."],
-            ["Returned to", "Rewatched, written about, finished, or ranked by hand."],
-          ].map(([term, detail]) => (
-            <div key={term} className="flex items-baseline gap-2 border-t border-seam pt-2">
-              <dt className="shrink-0 text-[10px] uppercase tracking-[.14em] text-paper">
-                {term}
-              </dt>
-              <dd className="text-[13px] leading-snug text-ash">{detail}</dd>
-            </div>
-          ))}
-        </dl>
-        <p className="mt-4 text-sm leading-relaxed text-ash">
-          A series counts as one work here, with its seasons as the evidence behind it &mdash;
-          a single season proves nothing to a reader, but the show does. Repetition is
-          discouraged and never forbidden: if four paranoid thrillers genuinely are the answer,
-          all four stay.
+          Not the four highest ratings &mdash; on most shelves those are four versions of the
+          same film. Each of these is here for a different reason, and the reason is written
+          under it. A series counts as one work, with its seasons as the evidence.
         </p>
       </div>
 
@@ -412,7 +389,7 @@ function StarsSection({ person }: { person?: string }) {
               {"\u2605".repeat(b.stars)}
               <span className="text-seam">{"\u2605".repeat(5 - b.stars)}</span>
             </dt>
-            <dd className="text-[14px] text-paper">Average {b.range}</dd>
+            <dd className="text-[13px] text-paper">Average {b.range}</dd>
           </div>
         ))}
       </dl>

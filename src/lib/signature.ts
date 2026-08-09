@@ -98,8 +98,10 @@ type Candidate = {
   embedding: number[] | null;
   viewings: number;
   reviews: number;
-  /** days between the first and most recent time this was logged */
-  heldDays: number;
+  /** days since this was first logged, so an old verdict can count as a settled one */
+  ageDays: number;
+  /** how far the rating moved across rewatches; null when it was only ever rated once */
+  ratingSpread: number | null;
   /** manual position among rating ties, when the user has dragged one */
   ranked: boolean;
   /** shows only */
@@ -138,8 +140,18 @@ async function loadCandidates(userId: string, privacy: SQL): Promise<Candidate[]
       select film_id,
              count(*)::int as n,
              count(*) filter (where review is not null and length(trim(review)) > 0)::int as reviews,
-             extract(epoch from (max(coalesce(watched_on::timestamptz, created_at))
-                              - min(coalesce(watched_on::timestamptz, created_at)))) / 86400 as held_days
+             -- How long this opinion has stood: days since it was FIRST logged.
+             --
+             -- This used to be the span between the first and last entry, which
+             -- is not how long a rating has been held at all — a title watched
+             -- once scored zero however many years ago it was, and the number
+             -- only became non-zero on a rewatch. It was the rewatch signal
+             -- wearing a different name, and it double-counted with attachment.
+             extract(epoch from (now() - min(coalesce(watched_on::timestamptz, created_at))))
+               / 86400 as age_days,
+             -- Whether the verdict moved when they went back to it. Null when
+             -- there is only one rating, because one rating is not a trend.
+             case when count(rating) > 1 then max(rating) - min(rating) end as rating_spread
       from diary_entries
       where user_id = ${userId} and ${privacy}
       group by film_id
@@ -161,7 +173,8 @@ async function loadCandidates(userId: string, privacy: SQL): Promise<Candidate[]
            c.rating,
            coalesce(s.n, 1) as viewings,
            coalesce(s.reviews, 0) as reviews,
-           coalesce(s.held_days, 0) as held_days,
+           coalesce(s.age_days, 0) as age_days,
+           s.rating_spread,
            (lo.film_id is not null) as ranked,
            coalesce(cr.n, 0) as crowd_n, cr.mean as crowd_mean,
            sh.slug as show_slug, sh.name as show_name, sh.poster_path as show_poster,
@@ -235,7 +248,7 @@ async function loadCandidates(userId: string, privacy: SQL): Promise<Candidate[]
     }
     c.viewings = seasons.reduce((n, r) => n + (r.viewings as number), 0) || c.viewings;
     c.reviews = rowsForShow.reduce((n, r) => n + (r.reviews as number), 0);
-    c.heldDays = Math.max(...rowsForShow.map((r) => Number(r.held_days ?? 0)));
+    c.ageDays = Math.max(...rowsForShow.map((r) => Number(r.age_days ?? 0)));
     c.ranked = rowsForShow.some((r) => r.ranked === true);
     c.ratedSeasons = seasons.length;
     c.totalSeasons = (head.total_seasons as number) ?? seasons.length;
@@ -275,7 +288,8 @@ function toCandidate(r: Record<string, unknown>, unit: SignatureUnit): Candidate
     embedding: Array.isArray(r.embedding) ? (r.embedding as number[]) : null,
     viewings: Number(r.viewings ?? 1),
     reviews: Number(r.reviews ?? 0),
-    heldDays: Number(r.held_days ?? 0),
+    ageDays: Number(r.age_days ?? 0),
+    ratingSpread: r.rating_spread === null || r.rating_spread === undefined ? null : Number(r.rating_spread),
     ranked: r.ranked === true,
     crowdCount: Number(r.crowd_n ?? 0),
     crowdMean: r.crowd_mean === null || r.crowd_mean === undefined ? null : Number(r.crowd_mean),
@@ -345,14 +359,24 @@ function distinctiveness(c: Candidate, profile: PreferenceProfile): number {
  * year, or a rewatch, or a whole series without falling apart, is a position.
  */
 function stability(c: Candidate): number {
-  const age = Math.max(0, Math.min(1, c.heldDays / 365));
-  const repeated = c.viewings >= 2 ? 1 : 0;
-  // For a series, agreeing with yourself across seasons is the evidence.
-  const consistent =
-    c.seasonSpread === undefined
-      ? 0
-      : Math.max(0, Math.min(1, 1 - c.seasonSpread / 30));
-  const parts = c.seasonSpread === undefined ? [age, repeated] : [age, repeated, consistent];
+  const parts: number[] = [];
+
+  // A verdict that has stood for years is a position rather than a first
+  // impression, and this is true whether or not they ever went back to it.
+  parts.push(Math.max(0, Math.min(1, c.ageDays / 730)));
+
+  // Going back and landing on the same number is the strongest evidence an
+  // opinion held. Absent rather than zero when they only rated it once: no
+  // second reading is not the same as a reading that moved.
+  if (c.ratingSpread !== null) {
+    parts.push(Math.max(0, Math.min(1, 1 - c.ratingSpread / 20)));
+  }
+
+  // For a series, agreeing with yourself across seasons is the same evidence.
+  if (c.seasonSpread !== undefined) {
+    parts.push(Math.max(0, Math.min(1, 1 - c.seasonSpread / 30)));
+  }
+
   return parts.reduce((a, b) => a + b, 0) / parts.length;
 }
 
@@ -587,13 +611,22 @@ function explain(
     .filter((t): t is NonNullable<typeof t> => Boolean(t))
     .sort((a, b) => b.share * b.lift - a.share * a.lift);
 
+  /**
+   * The extra facts, minus whatever the headline already said.
+   *
+   * When attachment is the reason a title is here, the sentence above already
+   * reads "you have watched this three times" — repeating it underneath as a
+   * supporting note is the same fact printed twice, which is exactly what makes
+   * a panel look generated rather than written.
+   */
   const supporting: string[] = [];
-  if (c.viewings >= 3) supporting.push(`You have been back to it ${c.viewings} times.`);
-  else if (c.viewings === 2) supporting.push("You have watched it twice.");
+  if (lead !== "attachment") {
+    if (c.viewings >= 3) supporting.push(`You have been back to it ${c.viewings} times.`);
+    else if (c.viewings === 2) supporting.push("You have watched it twice.");
+    if (c.finished && c.totalSeasons)
+      supporting.push(`You watched all ${c.totalSeasons} seasons.`);
+  }
   if (c.reviews > 0) supporting.push("You stopped to write something down after it.");
-  if (c.finished && c.totalSeasons)
-    supporting.push(`You watched all ${c.totalSeasons} seasons.`);
-  if (c.heldDays > 365) supporting.push("You have rated it this highly for over a year.");
 
   /**
    * The theme, as a noun phrase that can follow "your taste for".
@@ -607,68 +640,79 @@ function explain(
   const theme = themeNames[0]?.note ?? null;
   const angle = lead;
 
+  const rating = (c.rating / 10).toFixed(1);
+  const avg = (profileMean / 10).toFixed(1);
+  const above = ((c.rating - profileMean) / 10).toFixed(1);
+  const share = themeNames[0] ? Math.round(themeNames[0].share * 100) : 0;
+
   switch (lead) {
     case "representation":
       return {
-        label: "The clearest example",
+        label: "Most like the rest of your shelf",
         reason: theme
-          ? `The clearest intersection of your taste for ${theme}.`
-          : "The closest thing on your shelf to what you keep returning to.",
+          ? `${share}% of what you rate is about ${theme}. This is the strongest example of it you own.`
+          : `It sits closest to the middle of what you actually watch.`,
         supporting,
         angle,
       };
     case "distinctiveness":
       return {
-        label: "The one that sets you apart",
-        reason: theme
-          ? `One of the works that most distinguishes your taste from otherwise similar viewers, and a defining example of your taste for ${theme}.`
-          : "One of the works that most distinguishes your taste from otherwise similar viewers.",
+        label: "Least like everyone else",
+        reason:
+          c.crowdCount >= 5 && c.crowdMean !== null
+            ? `You gave this ${rating}. The ${c.crowdCount} other people here who rated it average ${(c.crowdMean / 10).toFixed(1)}.`
+            : theme
+              ? `Hardly anyone has seen this, and you rate it ${rating}. It is the least predictable thing about your taste for ${theme}.`
+              : `Hardly anyone has seen this, and you rate it ${rating}.`,
         supporting,
         angle,
       };
     case "attachment":
       return {
-        label: c.unit === "show" ? "Your longest attachment" : "The one you go back to",
+        label: c.unit === "show" ? "You stayed with it" : "You keep going back",
         reason:
-          c.unit === "show"
-            ? "Your strongest long-form attachment and one of your most consistently high-rated series."
-            : "You have returned to this more than almost anything else you rate this highly.",
+          c.unit === "show" && c.totalSeasons
+            ? `You rated all ${c.totalSeasons} seasons. Almost nothing else here gets finished.`
+            : `You have watched this ${c.viewings} times. Nearly everything else you rate, you rate once.`,
         supporting,
         angle,
       };
     case "stability":
       return {
-        label: "The one that stuck",
-        reason: "An opinion that has held: rated highly, and it has stayed there.",
+        label: "You have not changed your mind",
+        reason:
+          c.ratingSpread !== null && c.ratingSpread <= 5
+            ? `You have rated this more than once and landed on the same number both times.`
+            : c.ageDays > 365
+              ? `You logged this ${Math.round(c.ageDays / 365)} years ago at ${rating} and it has stood since.`
+              : `Your verdict on this has not moved.`,
         supporting,
         angle,
       };
     case "influence":
       return {
-        label: "The one that opened a door",
+        label: "It led you somewhere",
         reason: c.director
-          ? `You went on to watch more of ${c.director} after this one.`
-          : "You went on to watch more like this one.",
+          ? `You went on to rate more ${c.director} films after this one.`
+          : theme
+            ? `You went on to rate more about ${theme} after this one.`
+            : `You went on to rate more like it.`,
         supporting,
         angle,
       };
     default:
       /**
-       * Affection, said as conviction rather than as a ranking.
+       * Affection, said as a number the reader can check.
        *
-       * This label used to read "One of your highest", which was both the
-       * commonest outcome and a direct contradiction of the sentence at the top
-       * of the section — the panel opens by saying these are *not* the four
-       * highest ratings and then labelled three of them that way. Conviction
-       * against somebody's own scale is the true statement and the interesting
-       * one: a hard marker's 8.5 belongs here for the same reason a generous
-       * one's 10.0 does.
+       * This label used to read "One of your highest", which contradicted the
+       * heading directly above it, and then "The one you are surest about",
+       * which is a feeling rather than a fact. The rating and the average are
+       * both on the card already; saying the gap between them is the plainest
+       * true thing there is.
        */
       return {
-        label: "The one you are surest about",
-        reason: theme
-          ? `You rate this well above your own average, and a defining example of your taste for ${theme}.`
-          : `Rated ${(c.rating / 10).toFixed(1)} against an average of ${(profileMean / 10).toFixed(1)} — one of the few you are this certain about.`,
+        label: "Your highest conviction",
+        reason: `You gave this ${rating}. Your average is ${avg}, so it sits ${above} above everything else you log.`,
         supporting,
         angle,
       };

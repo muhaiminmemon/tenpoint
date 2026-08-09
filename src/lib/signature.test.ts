@@ -33,7 +33,8 @@ function title(over: Partial<SignatureCandidate> = {}): SignatureCandidate {
     embedding: over.embedding ?? null,
     viewings: over.viewings ?? 1,
     reviews: over.reviews ?? 0,
-    heldDays: over.heldDays ?? 0,
+    ageDays: over.ageDays ?? 0,
+    ratingSpread: over.ratingSpread ?? null,
     ranked: over.ranked ?? false,
     crowdCount: over.crowdCount ?? 0,
     crowdMean: over.crowdMean ?? null,
@@ -219,7 +220,7 @@ describe("explanations", () => {
       rating: 95 - (i % 5),
       viewings: i % 3 === 0 ? 3 : 1,
       reviews: i % 4 === 0 ? 1 : 0,
-      heldDays: i * 30,
+      ageDays: i * 30,
     }));
     const picked = selectFromCandidates(lib, 80, 9).titles;
     const labels = picked.map((t) => t.label);
