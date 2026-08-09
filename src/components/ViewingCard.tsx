@@ -70,7 +70,7 @@ export default function ViewingCard({ viewing, busy, onEdit, onDelete }: Props) 
             The chain ends on the rating printed large to the left, so the two
             always agree about what the current number is. */}
         {viewing.ratingHistory && viewing.ratingHistory.length > 0 && viewing.rating !== null && (
-          <p className="num mt-1 text-[11.5px] text-dim">
+          <p className="num mt-1 text-[11px] text-dim">
             <span className="sr-only">
               You changed this rating{" "}
               {viewing.ratingHistory.length === 1

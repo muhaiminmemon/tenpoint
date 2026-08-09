@@ -481,12 +481,49 @@ export const STOCK_BY_CLUSTER: Record<string, string> = {
   apocalypse: "Nebula",
   // what could not happen, by magic
   myth: "Gilt",
-  // drawn rather than filmed
-  ink: "Cel", shounen: "Cel", adultanimation: "Cel",
+  /**
+   * Drawn rather than filmed — which was one coat over three appetites.
+   *
+   * The same surgery the four stocks above got, applied to the cluster that
+   * inherited the problem. Cel covered `ink` at 7%, `shounen` at 9.2% and
+   * `adultanimation` at 8%: 24.2% of the catalogue under one finish, the
+   * widest slice any stock held and half again what Neon Rain held when it
+   * was judged too wide. It also meant every viewer arriving from MyAnimeList
+   * — a named audience, not a side case — was issued the same card, and the
+   * loudest one in the set at that.
+   *
+   * They are not one appetite. A tournament series escalating over nine
+   * seasons, an animated satire, and a film about a talking dog are as far
+   * apart as witches are from detectives, which is the argument that split
+   * Neon Rain in the first place.
+   */
+  ink: "Cel", shounen: "Screentone", adultanimation: "Riso",
   // the record, and remarks upon it
   period: "Marble", satire: "Marble", truestory: "Marble", court: "Marble",
   deadpan: "Marble", winterholiday: "Marble",
 };
+
+/**
+ * What to call a theme when the subject is films rather than a person.
+ *
+ * A cluster carries two names for good reasons. `name` is a noun for a
+ * *viewer* — Suitor, Vigilante, Contender — and it is what the archetype is
+ * built from, because a title has to name somebody. That noun is the wrong
+ * word on a chart of what a shelf is made of: "Suitor 20%" invites the reader
+ * to work out what a Suitor is before they can read their own breakdown.
+ *
+ * The leading phrase of the note is already the plain answer, written when the
+ * clusters were, so it is taken rather than authored a second time: cut at the
+ * first comma or "and", which turns "romance, marriage and heartbreak" into
+ * "romance" and "superheroes and super powers" into "superheroes". One source
+ * for both, so a note edited later cannot leave a label behind describing
+ * something else.
+ */
+export function clusterLabel(cluster: { note: string }): string {
+  const cut = cluster.note.search(/,| and /);
+  const head = cut === -1 ? cluster.note : cluster.note.slice(0, cut);
+  return head.charAt(0).toUpperCase() + head.slice(1);
+}
 
 /** Every keyword any cluster cares about, for the query that counts them. */
 export const CLUSTER_KEYWORDS: string[] = [

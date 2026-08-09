@@ -37,20 +37,27 @@ export function TasteCardFrontBig({
   // Themes, not genre tags. Genre tags gave nearly everybody the same three
   // lines; a theme is the thing a library keeps returning to. Falls back to
   // genres for a library too new for any theme to have emerged.
-  // The multiple, in the order the multiple decided. Genres have no multiple,
-  // so a library too new for themes keeps showing shares.
   const themed = data.themeDNA.length > 0;
-  const dnaSource = themed
-    ? data.themeDNA
-    : data.genreShare.slice(0, 5).map((g) => ({ ...g, lift: 0 }));
-  // Same rule as the chips on the front: chosen by distinctiveness, printed
-  // and ordered by share, so the bars, the numbers and the order all agree.
-  const genreDNA = [...dnaSource]
-    .sort((a, b) => b.pct - a.pct)
-    .map((g) => ({ label: g.name, pct: g.pct, dot: accentFor(g.name) }));
+  const dnaSource = themed ? data.themeDNA : data.genreShare.slice(0, 5);
+  /**
+   * Left in the order it arrives.
+   *
+   * These used to be re-sorted by share here, which was harmless while every
+   * row was a theme and actively wrong once the last row became "Everything
+   * else": the remainder is usually the largest single share on a varied
+   * shelf, so sorting floated it to the top and the breakdown opened with the
+   * bucket that says the least. The reading already comes out biggest-first
+   * with the remainder last.
+   */
+  const genreDNA = dnaSource.map((g) => ({
+    label: g.name,
+    pct: g.pct,
+    dot: accentFor(g.name),
+  }));
   const signature = data.signatureFilms[0];
 
   return (
+
     <div className="relative flex flex-col p-4">
       {/* Drifting light, and only at the top.
        *
@@ -93,13 +100,7 @@ export function TasteCardFrontBig({
         </span>
       </div>
 
-      {/* The portrait wears the tier, the way the card's own rim does.
-       *
-       * It used to be a conic of the decade accent plus a hardcoded beam blue
-       * and warn red, which was three full-strength hues in one ring and the
-       * last place on the card still doing that. Rank is the thing worth
-       * showing around a face, and the tier's metal is already guaranteed to
-       * sit on any of the ten grounds, so the ring and the rim now agree. */}
+      {/* The portrait wears the tier, the way the card's own rim does. */}
       <div
         className="relative mx-auto mt-3 size-[86px] rounded-full p-0.5"
         style={{
@@ -122,7 +123,7 @@ export function TasteCardFrontBig({
         <div className="display text-[22px] leading-none text-paper">{displayName.toUpperCase()}</div>
         <div className="num mt-1 text-[11px] text-card-2">@{username}</div>
         {data.archetype && (
-          <div className="display mt-2 text-[14px]" style={{ color: variant.accentColor }}>
+          <div className="display mt-2 text-[15px]" style={{ color: variant.accentColor }}>
             {data.archetype}
           </div>
         )}
@@ -156,7 +157,6 @@ export function TasteCardFrontBig({
                     style={{ width: `${Math.max(4, d.pct)}%` }}
                   />
                 </span>
-
               </div>
             ))}
           </div>
@@ -201,6 +201,7 @@ export function TasteCardFrontBig({
         <span>No. {String(memberNumber).padStart(4, "0")}</span>
       </div>
     </div>
+
   );
 }
 

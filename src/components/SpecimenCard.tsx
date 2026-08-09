@@ -58,7 +58,7 @@ export default function SpecimenCard({
             </span>
           </div>
 
-          <p className="display mt-2 text-[21px] leading-[1.05] text-paper">
+          <p className="display mt-2 text-[22px] leading-[1.05] text-paper">
             The Midnight
             <br />
             Maximalist

@@ -163,7 +163,7 @@ export default function SeriesSheet({
               </div>
             )}
             <div className="min-w-0">
-              <p className="num text-[12.5px] text-ash">
+              <p className="num text-[12px] text-ash">
                 {[
                   seriesStanding(series),
                   series.nextSeason !== null ? `next up season ${series.nextSeason}` : null,
@@ -214,7 +214,7 @@ export default function SeriesSheet({
 
         <Link
           href={`/show/${series.slug}`}
-          className="mt-5 inline-flex items-center gap-1.5 rounded-card text-[13.5px] text-beam transition-colors hover:text-paper focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-beam-edge"
+          className="mt-5 inline-flex items-center gap-1.5 rounded-card text-[13px] text-beam transition-colors hover:text-paper focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-beam-edge"
         >
           Open the series page
         </Link>
@@ -274,8 +274,8 @@ function SeasonRow({
   const body = (
     <>
       <span className="min-w-0">
-        <span className="block truncate text-[14.5px] text-paper">{season.label}</span>
-        <span className="num mt-0.5 block truncate text-[11.5px] text-ash">{meta}</span>
+        <span className="block truncate text-[15px] text-paper">{season.label}</span>
+        <span className="num mt-0.5 block truncate text-[11px] text-ash">{meta}</span>
       </span>
       {/* The crowd first, then you, in the order every other surface prints
           them, so the eye learns one place to look for each. `dim` measured
@@ -334,7 +334,7 @@ function SeasonRow({
         <button
           type="button"
           onClick={onRemove}
-          className="rounded-card px-2 py-1 text-right text-[11.5px] text-ash opacity-0 transition-opacity hover:text-paper focus-visible:text-paper focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100 sm:opacity-0"
+          className="rounded-card px-2 py-1 text-right text-[11px] text-ash opacity-0 transition-opacity hover:text-paper focus-visible:text-paper focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100 sm:opacity-0"
         >
           Remove
         </button>

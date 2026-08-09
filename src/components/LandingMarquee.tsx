@@ -93,7 +93,7 @@ export default function LandingMarquee({ posters }: { posters: WallPoster[] }) {
                   the page has finished loading. Almost every rating on the
                   service so far arrived this way, and until now the only route
                   to it was a settings page you had to already know about. */}
-              <p className="mt-5 text-[14px] leading-relaxed text-ash">
+              <p className="mt-5 text-[15px] leading-relaxed text-ash">
                 Already keep a diary on Letterboxd?{" "}
                 <Link
                   href="/signup?next=/import"
@@ -184,7 +184,7 @@ function StartBadge() {
             />
           </defs>
           <text
-            className="display text-[9.5px] uppercase"
+            className="display text-[10px] uppercase"
             fill="#d9b25f"
             letterSpacing="2.2"
           >

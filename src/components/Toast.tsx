@@ -123,7 +123,7 @@ function ToastRow({ toast, onDismiss }: { toast: Toast; onDismiss: (id: number) 
 
       <div className="min-w-0 flex-1 pt-0.5">
         {toast.title && (
-          <p className="display text-[14px] font-medium leading-tight text-paper">{toast.title}</p>
+          <p className="display text-[15px] font-medium leading-tight text-paper">{toast.title}</p>
         )}
         <p
           className={`text-[13px] leading-snug ${toast.title ? "mt-1 text-ash" : "text-paper"}`}

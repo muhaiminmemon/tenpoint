@@ -74,6 +74,16 @@ colors:
   # into hot orange. Deliberately the most saturated card in the set.
   stock-cel-low: "#171016"
   stock-cel-high: "#7c3a12"
+  # Two more carved out of Cel on the same evidence. Cel covered animation,
+  # shounen and animated satire at once — 24.2% of the catalogue, wider than
+  # Neon Rain was when its width was called a defect, and it handed every
+  # MyAnimeList arrival the same card. Hues taken from the gaps in the set:
+  # everything else sits at 24–44°, 137°, 209°, 266° and 315–344°, leaving
+  # cyan and yellow-green unclaimed.
+  stock-screentone-low: "#101a1e"
+  stock-screentone-high: "#1f4a52"
+  stock-riso-low: "#141709"
+  stock-riso-high: "#3d4a12"
   # Variant accents dealt from the highest-rated decade.
   #
   # Tints rather than hues: roughly 85% lightness at a sixth of the chroma they
@@ -386,6 +396,10 @@ of the room rather than a bright rectangle dropped into it.
 - **Filmstrip** `#1a1a1f → #26262d` — near-neutral graphite. Motion.
 - **Marble** `#23232a → #3a3a43` — cool stone. The record and remarks on it.
 - **Nebula** `#231e36 → #3b3054` — violet. What could not happen.
+- **Screentone** `#101a1e → #1f4a52` — cyan, printed through a halftone dot.
+  The tournament and the next rung above it.
+- **Riso** `#141709 → #3d4a12` — yellow-green, misregistered. The joke with
+  something under it.
 - **Bare** `#1c1c21` — flat `tray`, no texture. Nothing has emerged yet.
 
 Textures never exceed **4.5% opacity** (`rgba(236,234,230,.014)` to `.045`).

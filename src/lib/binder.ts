@@ -92,6 +92,8 @@ export type Binder = {
   signature: SignatureTitle[];
   /** null before anything is rated: no finish is in force yet */
   yoursVariant: string | null;
+  /** every finish this library has earned, for the owner-visit write */
+  heldVariantNames: string[];
   yoursTier: RarityTier | null;
   /** null until enough is rated for the card to name one */
   archetype: ArchetypeRead | null;
@@ -182,11 +184,20 @@ export async function loadBinder(
             : "unheld",
   }));
 
+  /**
+   * Earned now counts as held, without waiting for a second page load.
+   *
+   * `held_variants` is written on the owner's own visit, so a finish earned
+   * this minute would otherwise render unheld until the next one. Reading the
+   * computed set alongside the recorded one keeps the binder honest on the
+   * first load, and the write below makes it durable.
+   */
+  const earned = hasCard ? new Set([...everHeld, ...variant.held]) : everHeld;
+
   const variants: VariantRow[] = STOCK_DEFS.map((stock) => ({
     name: stock.name,
     stock,
-    state:
-      stock.name === yoursVariant ? "yours" : everHeld.has(stock.name) ? "held" : "unheld",
+    state: stock.name === yoursVariant ? "yours" : earned.has(stock.name) ? "held" : "unheld",
   }));
 
   return {
@@ -197,7 +208,11 @@ export async function loadBinder(
     personality: computePersonality(taste, signals).map((axis) =>
       thirdPerson ? { ...axis, note: inThirdPerson(axis.note) } : axis,
     ),
-    themes: themeReadings(signals, 6),
+    // Ten rather than six. The remainder row is a real share and on a varied
+    // shelf it was the biggest bar on the chart: six rows left 43% of the
+    // average library in it, ten leaves 28%. The binder has the room, and
+    // this is the page somebody comes to actually read the breakdown.
+    themes: themeReadings(signals, 10),
     signature: (
       await stabilise(
         user.id,
@@ -219,6 +234,7 @@ export async function loadBinder(
         : f,
     ),
     yoursVariant,
+    heldVariantNames: hasCard ? variant.held : [],
     yoursTier: tier,
     archetype,
     toArchetype: Math.max(0, CLASS_THRESHOLD - taste.rated),

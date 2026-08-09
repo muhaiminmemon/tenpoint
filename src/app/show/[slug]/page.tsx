@@ -141,6 +141,31 @@ export default async function ShowPage(ctx: {
   const score = derivedScore([...rated.values()].map((r) => r.rating));
   const today = new Date().toISOString().slice(0, 10);
 
+  /**
+   * Where this viewer stands on the seasons, said in the page's own terms.
+   *
+   * A season that has not aired cannot be rated and must not count against
+   * somebody: a running show with next season already listed would otherwise
+   * never read as caught up, however completely they have watched it.
+   */
+  const airedSeasons = seasons.filter((s) => !(s.releaseDate && s.releaseDate > today));
+  const ratedAired = airedSeasons.filter((s) => rated.has(s.id)).length;
+  const throughAllSeasons = airedSeasons.length > 0 && ratedAired === airedSeasons.length;
+  const wholeRated = entries.some((e) => e.rating !== null);
+  // Cancelled counts as ended, the same way the library reads it: telling
+  // somebody they are merely "caught up" on a show that stopped in 2006 is
+  // just wrong.
+  const ended = ["Ended", "Canceled", "Cancelled"].includes(show.status ?? "");
+  /**
+   * One season is not a season list.
+   *
+   * Offering "rate by seasons · 1" on a miniseries is asking somebody to open
+   * a list to do the thing the panel above already does. The rater still
+   * appears if a season here is already rated, because hiding it would strand
+   * a rating with no way to change or remove it.
+   */
+  const showSeasonRater = seasons.length > 1 || seasons.some((s) => rated.has(s.id));
+
   const run = [show.firstAirYear, show.lastAirYear && show.lastAirYear !== show.firstAirYear ? show.lastAirYear : null]
     .filter(Boolean)
     .join(" to ");
@@ -214,7 +239,7 @@ export default async function ShowPage(ctx: {
               lists={editableLists}
             />
 
-            {seasons.length > 0 && (
+            {showSeasonRater && (
               <SeasonRater
                 showName={show.name}
                 open={rated.size > 0}
@@ -234,8 +259,43 @@ export default async function ShowPage(ctx: {
               />
             )}
 
+            {/* One season, so there is nothing to break into seasons. */}
+            {!showSeasonRater && seasons.length === 1 && (
+              <p className="mt-4 text-[13px] text-ash">
+                {show.name} has one season, so the rating above is the whole show.
+              </p>
+            )}
+
+            {/*
+             * Rating every season is finishing the series, and nothing said so.
+             *
+             * Somebody who works through nine seasons one at a time has made a
+             * complete statement about the show, and the page went on offering
+             * the same panel as if they had done nothing. It also never
+             * explained what the whole-series rating is *for* once the seasons
+             * are all in, which is the question that arrives at exactly this
+             * moment: it is one verdict on the show, not the average of the
+             * parts, and the two are stored and read separately everywhere.
+             */}
+            {showSeasonRater && throughAllSeasons && (
+              <div className="mt-4 rounded-card border border-seam bg-tray p-3.5">
+                <p className="text-[13px] text-paper">
+                  {ended
+                    ? `All ${airedSeasons.length} seasons rated. You finished ${show.name} season by season.`
+                    : `Every season so far rated. You are caught up on ${show.name}.`}
+                </p>
+                {!wholeRated && (
+                  <p className="mt-1.5 text-[12px] leading-relaxed text-ash">
+                    Give the whole show a rating too? The panel above is one verdict on the
+                    series itself. It is kept apart from the average of its seasons, so it
+                    replaces nothing you have said here.
+                  </p>
+                )}
+              </div>
+            )}
+
             {score !== null && (
-              <p className="mt-4 text-[12.5px] text-ash">
+              <p className="mt-4 text-[12px] text-ash">
                 Your seasons average{" "}
                 <span className={`num text-[15px] ${ratingColor(score)}`}>{formatTenths(score)}</span>
                 {show.voteAverage !== null && (
@@ -254,7 +314,7 @@ export default async function ShowPage(ctx: {
                 Seasons
               </h2>
               {show.voteAverage !== null && (
-                <span className="text-[12.5px] text-dim">
+                <span className="text-[12px] text-dim">
                   Audience{" "}
                   <span className="num text-[15px] text-ash">{formatTenths(show.voteAverage)}</span>
                 </span>

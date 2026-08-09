@@ -117,8 +117,8 @@ async function Grid({ filters }: { filters: ReturnType<typeof parseFilters> }) {
   return (
     <>
       <div className="mt-6 flex flex-wrap items-baseline justify-between gap-3">
-        <p className="text-[12.5px] text-ash">{describeFilters(described, match?.heading)}</p>
-        <p className="num text-[12.5px] text-dim">
+        <p className="text-[12px] text-ash">{describeFilters(described, match?.heading)}</p>
+        <p className="num text-[12px] text-dim">
           {page.totalResults.toLocaleString()} {unitFor(filters, page.totalResults)}
         </p>
       </div>
@@ -127,7 +127,7 @@ async function Grid({ filters }: { filters: ReturnType<typeof parseFilters> }) {
           the director is right nearly every time; this is the one click back
           for the time it is not. */}
       {(match?.other || match?.dropped) && (
-        <p className="mt-1.5 text-[12.5px] text-dim">
+        <p className="mt-1.5 text-[12px] text-dim">
           {match.other && (
             <Link
               href={`/browse${filtersToQuery({ ...filters, as: match.other, page: 1 })}`}
@@ -187,7 +187,7 @@ function Pager({
         <span />
       )}
 
-      <span className="num text-[12.5px] text-dim">
+      <span className="num text-[12px] text-dim">
         {page} of {totalPages.toLocaleString()}
       </span>
 
@@ -256,7 +256,7 @@ async function Rails({ media }: { media: Media }) {
               <li key={g.id}>
                 <Link
                   href={link({ genre: g.id })}
-                  className="inline-block rounded-full border border-seam px-3.5 py-1.5 text-[12.5px] text-ash transition-colors hover:border-dim hover:text-paper"
+                  className="inline-block rounded-full border border-seam px-3.5 py-1.5 text-[13px] text-ash transition-colors hover:border-dim hover:text-paper"
                 >
                   {g.name}
                 </Link>
@@ -306,7 +306,7 @@ async function Rails({ media }: { media: Media }) {
             <li key={g.id}>
               <Link
                 href={link({ genre: g.id })}
-                className="inline-block rounded-full border border-seam px-3.5 py-1.5 text-[12.5px] text-ash transition-colors hover:border-dim hover:text-paper"
+                className="inline-block rounded-full border border-seam px-3.5 py-1.5 text-[13px] text-ash transition-colors hover:border-dim hover:text-paper"
               >
                 {g.name}
               </Link>

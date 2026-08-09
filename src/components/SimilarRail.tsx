@@ -55,7 +55,7 @@ export default function SimilarRail({
           <h2 id="similar" className="display text-[19px] leading-none text-paper">
             More like this
           </h2>
-          <p className="mt-1.5 text-[12.5px] text-ash">
+          <p className="mt-1.5 text-[12px] text-ash">
             {films.length > 0
               ? "Closest first. The line under each one says why it is here."
               : "Everything close to this is already in your diary."}
@@ -72,7 +72,7 @@ export default function SimilarRail({
           <button
             type="button"
             onClick={() => setFrom((f) => (f + PAGE) % films.length)}
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-seam px-3 py-1.5 text-[12.5px] text-ash transition-colors hover:border-dim hover:text-paper focus-visible:border-beam"
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-seam px-3 py-1.5 text-[13px] text-ash transition-colors hover:border-dim hover:text-paper focus-visible:border-beam"
           >
             <ArrowsClockwise aria-hidden className="size-3.5" />
             Show others
@@ -104,7 +104,7 @@ export default function SimilarRail({
               </span>
               {/* Two lines, always. Left to itself one reason wraps and the
                   next does not, and the row bottoms out ragged. */}
-              <span className="mt-0.5 line-clamp-2 block min-h-[2.4em] text-[11.5px] leading-snug text-ash">
+              <span className="mt-0.5 line-clamp-2 block min-h-[2.4em] text-[11px] leading-snug text-ash">
                 {f.why}
               </span>
             </Link>

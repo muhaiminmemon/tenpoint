@@ -107,7 +107,7 @@ export default function TasteCardDialog({
       >
         <div className="flex items-center justify-between gap-3 border-b border-[#232329] px-4 py-3.5 sm:px-5">
           <div className="flex min-w-0 items-baseline gap-3">
-            <span className="display truncate text-[16px] text-paper">{displayName}</span>
+            <span className="display truncate text-[17px] text-paper">{displayName}</span>
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
             <div className="flex gap-0.5 rounded-[7px] border border-seam bg-[#1a1a1f] p-0.5">
@@ -155,7 +155,7 @@ export default function TasteCardDialog({
             <button
               type="button"
               onClick={() => setFlipped((f) => !f)}
-              className="mx-auto mt-3 block w-full max-w-[368px] rounded-card border border-seam bg-tray py-2 text-[12.5px] text-ash hover:text-paper sm:max-w-[320px]"
+              className="mx-auto mt-3 block w-full max-w-[368px] rounded-card border border-seam bg-tray py-2 text-[13px] text-ash hover:text-paper sm:max-w-[320px]"
             >
               <span className="flex items-center justify-center gap-1.5">
                 {flipped ? "Show front" : "Show back"}
@@ -298,7 +298,7 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
           Traits · {data.traitsHeldCount} held of {data.traitsTotal}
         </span>
       </div>
-      <p className="mb-3 text-[11.5px] leading-snug text-dim">
+      <p className="mb-3 text-[11px] leading-snug text-dim">
         Every one of these is a count you can check against your own diary, and the bar is how far
         you are from the next mark.
       </p>
@@ -333,7 +333,7 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
               }`}
             >
               <div className="flex items-baseline justify-between gap-2">
-                <span className={`display text-[13.5px] ${t.held ? "text-paper" : "text-dim"}`}>
+                <span className={`display text-[13px] ${t.held ? "text-paper" : "text-dim"}`}>
                   {t.name}
                 </span>
                 {t.side === "show" && (
@@ -342,7 +342,7 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
                   </span>
                 )}
               </div>
-              <div className="mt-0.5 text-[11.5px] leading-snug text-dim">
+              <div className="mt-0.5 text-[11px] leading-snug text-dim">
                 <span className={t.held ? "num text-ash" : "num"}>{t.count}</span> {t.unit}
               </div>
               <div className="mt-2 h-[3px] overflow-hidden rounded-full bg-dim">
@@ -351,7 +351,7 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
                   style={{ width: `${pct}%`, opacity: t.held ? 1 : 0.45 }}
                 />
               </div>
-              <div className="mt-1.5 text-[10.5px] text-dim">
+              <div className="mt-1.5 text-[11px] text-dim">
                 {t.toNext === null
                   ? "Every mark passed."
                   : `${t.toNext} more for ${target}.`}
@@ -524,8 +524,8 @@ function ShareTab({
 
       {failed && (
         <div className="mt-3 rounded-card border border-seam bg-[#1a1a1f] px-3 py-2.5">
-          <p className="text-[12.5px] text-paper">That card wouldn&apos;t draw.</p>
-          <p className="mt-0.5 text-[11.5px] leading-snug text-ash">
+          <p className="text-[12px] text-paper">That card wouldn&apos;t draw.</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-ash">
             Usually a poster that failed to load. Try again, or pick another size.
           </p>
           <button

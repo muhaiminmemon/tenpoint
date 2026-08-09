@@ -140,19 +140,30 @@ function ArchetypeSection({ binder, person }: { binder: Binder; person?: string 
         <h2 id="archetype" className="display text-[26px] leading-none text-paper">
           Archetype
         </h2>
-        <p className="mt-3 text-sm leading-relaxed text-ash">
-          {person ? `${person}'s` : "Your"} title is two readings joined. The second word is
-          the thing {person ? "their" : "your"} films keep returning to, found by theme rather
-          than genre: not &ldquo;Thriller&rdquo; but the heists, the time loops, the houses that
-          will not let go. It is weighed against how common that theme is, so it names what{" "}
-          {person ? "they" : "you"} watch unusually much of rather than what everyone watches.
-          The first word is how {person ? "they" : "you"} watch: whichever measure{" "}
-          {person ? "their" : "your"} library sits furthest from ordinary on, including several
-          that read {person ? "their" : "your"} opinions rather than {person ? "their" : "your"}{" "}
-          shelf, which is what separates two people who have seen all the same films.{" "}
-          {person ? "They" : "You"} never pick either, and both are re-read every time{" "}
-          {person ? "their" : "your"} taste moves.
-        </p>
+        {/* One sentence per idea, and each one assembled whole.
+         *
+         * This was a single hundred-word chain with pronouns interpolated at
+         * eleven points mid-sentence, which is both hard to read and the exact
+         * shape that once shipped "what youkeep returning to": a `{" "}` between
+         * two expressions loses its space. Built as strings, it cannot. */}
+        <div className="mt-3 space-y-2.5 text-sm leading-relaxed text-ash">
+          <p>
+            {[
+              `${person ? `${person}'s` : "Your"} title is two words, and ${person ? "they pick" : "you pick"} neither.`,
+              `The second word is what ${person ? "their" : "your"} films keep returning to.`,
+              "It is found by theme rather than genre: not “Thriller” but the heists, the time loops, the houses that will not let go.",
+              `It is weighed against how common that theme is, so it names what ${person ? "they" : "you"} watch unusually much of rather than what everyone watches.`,
+            ].join(" ")}
+          </p>
+          <p>
+            {[
+              `The first word is how ${person ? "they" : "you"} watch.`,
+              `It is whichever measure ${person ? "their" : "your"} library sits furthest from ordinary on.`,
+              `Several of those read ${person ? "their" : "your"} opinions rather than ${person ? "their" : "your"} shelf, which is what separates two people who have seen all the same films.`,
+            ].join(" ")}
+          </p>
+          <p>{`Both are re-read every time ${person ? "their" : "your"} taste moves.`}</p>
+        </div>
       </div>
 
       {a === null ? (
@@ -350,14 +361,30 @@ function ThemesSection({ themes, person }: { themes: Binder["themes"]; person?: 
         <h2 id="dna" className="display text-[26px] leading-none text-paper">
           Taste DNA
         </h2>
-        <p className="mt-3 text-sm leading-relaxed text-ash">
-          The names on the back of {person ? "their" : "your"} card, and what each one counts. A
-          film joins a theme by what it is about rather than what it is filed under, so one film
-          can belong to several. The multiple is the figure that matters: it is how much more of
-          that theme {person ? "their" : "your"} library holds than an ordinary one of the same
-          size, and the theme at the top of this list is the one the card is named after. A big
-          theme with a small multiple is just a theme everybody watches.
-        </p>
+        <div className="mt-3 space-y-2.5 text-sm leading-relaxed text-ash">
+          <p>
+            {[
+              `The names on the back of ${person ? "their" : "your"} card, and what each one counts.`,
+              "A film joins a theme by what it is about rather than what it is filed under, so one film can belong to several.",
+            ].join(" ")}
+          </p>
+          <p>
+            {[
+              "Every film is filed under one theme here, so the shares are a whole and add to 100.",
+              "A film that is two things at once goes to the rarer of them, because that is the one that says something: nearly everything has a family in it somewhere, so a film about witches is filed under witches.",
+              "The last row is the rest of the shelf — themes too small to list, and films that fit none.",
+            ].join(" ")}
+          </p>
+          {/* The distinction the old copy blurred: this block is not the one
+              that names the card, and saying so stops a reader trying to
+              reconcile a 20% share here with a title chosen on a multiple. */}
+          <p>
+            This is what {person ? "their" : "your"} shelf is made of, which is a different
+            question from what is unusual about it. The title above is chosen on the second: a
+            theme has to be out of the ordinary to name somebody, and a big theme everybody
+            watches never will.
+          </p>
+        </div>
       </div>
 
       <dl className="mt-7 border-b border-seam">
@@ -370,11 +397,11 @@ function ThemesSection({ themes, person }: { themes: Binder["themes"]; person?: 
             />
             <div className="flex items-baseline gap-3">
               <dt className="display flex-1 text-[17px] leading-tight text-paper">{t.name}</dt>
-              <dd className="num shrink-0 text-[13px] text-dim">
-                {t.count} {t.count === 1 ? "title" : "titles"} · {t.pct}%
+              <dd className="num shrink-0 text-[13px] text-ash">
+                {t.count} {t.count === 1 ? "title" : "titles"}
               </dd>
-              <dd className="num w-14 shrink-0 text-right text-[17px] leading-tight text-beam">
-                {t.lift.toFixed(1)}&times;
+              <dd className="num w-14 shrink-0 text-right text-[17px] leading-tight text-paper">
+                {t.pct}%
               </dd>
             </div>
             <dd className="mt-1.5 max-w-[62ch] text-sm leading-relaxed text-ash">{t.note}.</dd>
@@ -447,8 +474,8 @@ function PersonalitySection({ rows, person }: { rows: PersonalityRow[]; person?:
         <p className="mt-3 text-sm leading-relaxed text-ash">
           Four ways of cutting the same library. Every film lands in exactly one band of each
           bar, so each bar adds to 100 and every figure is a plain count. Nothing here is a
-          target, and an axis only appears once enough of {person ? "their" : "your"} library
-          carries what it needs.
+          target. A bar only appears once enough of {person ? "their" : "your"} library carries
+          the thing it measures.
         </p>
       </div>
 
@@ -493,8 +520,8 @@ function PersonalitySection({ rows, person }: { rows: PersonalityRow[]; person?:
                     className="size-2 shrink-0 rounded-full bg-beam"
                     style={{ opacity: segmentOpacity(i, axis.bands.length) }}
                   />
-                  <dt className="flex-1 text-[13.5px] text-paper">{band.label}</dt>
-                  <dd className="num shrink-0 text-[13.5px] text-dim">{band.count}</dd>
+                  <dt className="flex-1 text-[13px] text-paper">{band.label}</dt>
+                  <dd className="num shrink-0 text-[13px] text-dim">{band.count}</dd>
                   <dd className="num w-12 shrink-0 text-right text-[15px] text-beam">
                     {band.pct}%
                   </dd>
@@ -502,7 +529,7 @@ function PersonalitySection({ rows, person }: { rows: PersonalityRow[]; person?:
               ))}
             </dl>
 
-            <p className="mt-1.5 max-w-[62ch] text-[12.5px] leading-relaxed text-ash">
+            <p className="mt-1.5 max-w-[62ch] text-[12px] leading-relaxed text-ash">
               {axis.note}
             </p>
           </div>
@@ -606,13 +633,21 @@ export default function BinderShowcase({
                 directly beneath it, because the set grew and the sentence did
                 not. A number a reader can check against the list on the same
                 screen has to come from the list. */}
-            {binder.variants.length} stocks: the ground the card is printed on. Stock reads the
-            same thing your title
-            does, which is what your films keep returning to, weighed against how common that
-            theme is rather than how much of your shelf it happens to fill. It used to read the
-            genre tag leading your ratings, and genre tags are broad enough that three in four
-            libraries came out on the same stock. It is never chosen, and it moves when taste
-            does: watch enough of something else and the card is dealt on different stock.
+            {binder.variants.length} stocks: the ground the card is printed on.
+          </p>
+          <p className="mt-2.5 text-sm leading-relaxed text-ash">
+            A stock reads what your films keep returning to, weighed against how common that
+            theme is rather than how much of your shelf it happens to fill.
+          </p>
+          <p className="mt-2.5 text-sm leading-relaxed text-ash">
+            Recent watching counts for more. Nothing is ever dropped and there is no cut-off
+            date: a viewing simply counts half as much once it is two years old, and half again
+            two years after that. So the stock follows your taste rather than the calendar, and
+            a shelf you built years ago cannot lock it in place.
+          </p>
+          <p className="mt-2.5 text-sm leading-relaxed text-ash">
+            Nothing here is chosen. Every stock you have earned stays yours, whichever one the
+            card happens to be wearing.
           </p>
         </div>
 

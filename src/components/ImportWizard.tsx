@@ -319,8 +319,8 @@ export default function ImportWizard() {
           className="mt-0.5 size-4 shrink-0 accent-beam"
         />
         <span className="min-w-0">
-          <span className="block text-[14px] text-paper">Import without the ratings</span>
-          <span className="mt-0.5 block text-[12.5px] text-ash">
+          <span className="block text-[15px] text-paper">Import without the ratings</span>
+          <span className="mt-0.5 block text-[12px] text-ash">
             Everything still lands in your diary and counts as watched. The scores are left
             behind, so you can rate it all again here from scratch.
           </span>

@@ -1,5 +1,5 @@
 import type { TasteSignals } from "./taste-card-signals";
-import { CLUSTERS, CLUSTER_PREVALENCE, STOCK_BY_CLUSTER } from "./archetype-clusters";
+import { CLUSTERS, CLUSTER_PREVALENCE, STOCK_BY_CLUSTER, clusterLabel } from "./archetype-clusters";
 
 // ---------------------------------------------------------------------------
 // LAYER 1 — LEVEL: films watched, mostly. Ticks up forever, no ceiling. Lives
@@ -983,8 +983,7 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
  * case, so below the margin the title falls through to it rather than
  * inventing a theme out of noise.
  */
-function signatureClusters(s: TasteSignals) {
-  const total = s.clusterFilmCount;
+function signatureClusters(counts: Record<string, number>, total: number) {
   if (total <= 0) return [];
   const floor = Math.max(4, Math.round(total * 0.02));
 
@@ -1011,7 +1010,7 @@ function signatureClusters(s: TasteSignals) {
   const MARGIN = 1.35;
 
   const ranked = CLUSTERS.map((c) => {
-    const count = s.clusters[c.key] ?? 0;
+    const count = counts[c.key] ?? 0;
     const expected = total * (CLUSTER_PREVALENCE[c.key] ?? 0.05);
     return { cluster: c, count, lift: (count + PRIOR) / (expected + PRIOR) };
   })
@@ -1053,44 +1052,74 @@ function signatureClusters(s: TasteSignals) {
  */
 export type ThemeReading = {
   key: string;
-  /** the name as it prints, without the article */
+  /** the plain category word, for a chart about films */
   name: string;
   /** what the theme actually is, in a reader's own words */
   note: string;
   count: number;
   pct: number;
-  /** how many times more of it this library holds than an ordinary one */
-  lift: number;
 };
 
+/**
+ * How a shelf divides, as a whole.
+ *
+ * This used to print the multiple beside a share and order by the multiple,
+ * which asked one block to answer two different questions at once. The
+ * multiple says what is *distinctive* about a library and is the right tool
+ * for naming somebody, which is what the archetype still uses it for. A
+ * breakdown asks what a shelf is *made of*, and for that a share is the honest
+ * figure — but only if the shares are a partition. Overlapping ones added to
+ * no fixed number, so four bars reading 24, 24, 21 and 18 gave a reader no way
+ * to know whether that was most of their shelf or a third of it.
+ *
+ * So: every film filed under one theme, biggest share first, and a last row
+ * carrying everything not shown. The rows always total 100 because they are
+ * the same films counted once each.
+ */
 export function themeReadings(s: TasteSignals, take = 5): ThemeReading[] {
   const total = s.clusterFilmCount;
   if (total <= 0) return [];
+
+  const ranked = CLUSTERS.map((c) => ({ cluster: c, count: s.clustersExclusive[c.key] ?? 0 }))
+    .filter((r) => r.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  const shown = ranked.slice(0, take);
+  const rows: ThemeReading[] = shown.map((r) => ({
+    key: r.cluster.key,
+    name: clusterLabel(r.cluster),
+    note: r.cluster.note,
+    count: r.count,
+    pct: Math.round((r.count / total) * 100),
+  }));
+
   /**
-   * Ordered by the multiple, and the multiple is what gets printed.
+   * The remainder, named rather than dropped.
    *
-   * These were ordered by distinctiveness and printed as share, which put the
-   * theme that named the card *below* a bigger one and left the list looking
-   * like it disagreed with the title. Whatever decides the order has to be the
-   * number on the page.
+   * It is two things at once — themes too small to list, and films that match
+   * no theme at all — and both are genuinely "the rest of the shelf", so they
+   * are one row. Its share is computed as what is left after the rows above
+   * rather than from its own count, which is what guarantees the column adds
+   * to exactly 100 after rounding instead of to 99 or 101.
    */
-  return signatureClusters(s)
-    .slice(0, take)
-    .map((r) => ({
-      key: r.cluster.key,
-      name: r.cluster.name,
-      note: r.cluster.note,
-      count: r.count,
-      pct: Math.round((r.count / total) * 100),
-      lift: r.lift,
-    }));
+  const rest = total - shown.reduce((sum, r) => sum + r.count, 0);
+  if (rest > 0) {
+    rows.push({
+      key: "rest",
+      name: "Everything else",
+      note: "themes too small to list, and films that fit none of them",
+      count: rest,
+      pct: 100 - rows.reduce((sum, r) => sum + r.pct, 0),
+    });
+  }
+  return rows;
 }
 
 export function themeDNA(
   s: TasteSignals,
   take = 5,
-): { name: string; pct: number; lift: number }[] {
-  return themeReadings(s, take).map(({ name, pct, lift }) => ({ name, pct, lift }));
+): { key: string; name: string; pct: number }[] {
+  return themeReadings(s, take).map(({ key, name, pct }) => ({ key, name, pct }));
 }
 
 export function readArchetype(
@@ -1098,7 +1127,7 @@ export function readArchetype(
   topGenres: { name: string; count: number }[],
   s: TasteSignals,
 ): ArchetypeRead {
-  const themes = signatureClusters(s);
+  const themes = signatureClusters(s.clusters, s.clusterFilmCount);
   const ranked = readings(s, topGenre).sort((a, b) => b.score - a.score);
 
   /**
@@ -1130,7 +1159,6 @@ export function readArchetype(
   if (themes[0]) {
     const top = themes[0];
     const share = Math.round((top.count / s.clusterFilmCount) * 100);
-    const times = top.lift.toFixed(1);
 
     /**
      * The runner-up, and how close it came.
@@ -1152,9 +1180,21 @@ export function readArchetype(
           : `Closest behind: ${next.cluster.name}.`;
     }
 
+    /**
+     * Lift chooses; share speaks.
+     *
+     * The multiple is the right way to *pick* a theme \u2014 it finds what is
+     * distinctive about a shelf rather than what is merely common on every
+     * shelf \u2014 and the wrong way to state one. "1.8\u00d7 what a shelf that size
+     * usually holds" measures against a prevalence table the reader cannot
+     * see, so it is a number nobody can check, printed beside one they can.
+     * Both figures here are countable off their own library, and the typical
+     * share is named outright instead of folded into a ratio.
+     */
+    const typical = Math.round((CLUSTER_PREVALENCE[top.cluster.key] ?? 0.05) * 100);
     const nounMeaning =
       `${top.count} of your titles are about ${top.cluster.note}` +
-      `, ${times}\u00d7 what a shelf that size usually holds and ${share}% of the whole shelf.`;
+      `, ${share}% of your shelf, where most shelves sit near ${typical}%.`;
 
     return {
       themeKey: top.cluster.key,
@@ -1204,6 +1244,13 @@ export type Variant = {
   accent: string;
   aura: string;
   accentColor: string;
+  /**
+   * Every finish this library has earned, printed or not.
+   *
+   * The card wears one; the binder should show all of them as held. Recorded
+   * on each read, so a finish earned and then watched past is kept.
+   */
+  held: string[];
 };
 
 const GENRE_STOCK: Record<string, string> = {
@@ -1240,11 +1287,55 @@ export function computeVariant(
   topDecade: number | null,
   mean: number | null,
 ): Variant {
-  const theme = signatureClusters(signals)[0];
+  /**
+   * The stock answers to taste; the archetype answers to the record.
+   *
+   * Read flat, the finish was an argmax that could never move: a library that
+   * is mostly one thing was issued one stock on its first hundred films and
+   * was still being issued it a decade later, so nine of the ten finishes in
+   * the binder were unreachable for that person by construction. The
+   * collection machinery was already there — `held_variants` keeps a row per
+   * finish and never moves `first_held_at` — and the issuing rule was what
+   * starved it.
+   *
+   * So the printed finish reads the weighted library, where a recent viewing
+   * counts for more than an old one. Not a window: a cut-off is a clock, and
+   * it decides a finish by the calendar rather than by what somebody watches.
+   * The name a card carries still reads the plain record, because that is the
+   * claim about who they are rather than about what they are watching now.
+   */
+  const current = signatureClusters(signals.clustersWeighted, signals.clusterFilmCount);
+  const lifetime = signatureClusters(signals.clusters, signals.clusterFilmCount);
+
+  /**
+   * The weighted reading can come back empty where the plain one does not, on
+   * a library thin enough that discounting spreads it under the threshold. The
+   * record still stands in that case: a thing already shown to somebody is not
+   * taken back, the same principle as `tier_floor`.
+   */
+  const theme = current[0] ?? lifetime[0];
   const stock =
     (theme && STOCK_BY_CLUSTER[theme.cluster.key]) ||
     (topGenre && GENRE_STOCK[topGenre]) ||
     "Bare";
+
+  /**
+   * Every finish the library has ever earned, not just the one it wears.
+   *
+   * Only the winner was ever recorded, which is why a binder could sit at one
+   * held finish forever. Anything clearing the margin over the lifetime
+   * reading is genuinely held — the person really does watch that much of it —
+   * and holding is permanent anyway, so it is read lifetime rather than over
+   * the window.
+   */
+  const held = [
+    ...new Set(
+      [...lifetime, ...current]
+        .map((r) => STOCK_BY_CLUSTER[r.cluster.key])
+        .filter((name): name is string => Boolean(name))
+        .concat(stock === "Bare" ? [] : [stock]),
+    ),
+  ];
 
   // The name is decided here; the colour is looked up, never restated. These
   // two used to carry their own copies of the same four hexes, so softening
@@ -1271,7 +1362,7 @@ export function computeVariant(
   else if (mean < 82) aura = "Cosmic";
   else aura = "Analog";
 
-  return { name: stock, stock, accent, aura, accentColor };
+  return { name: stock, stock, accent, aura, accentColor, held };
 }
 
 // ---------------------------------------------------------------------------
@@ -1764,11 +1855,48 @@ export const STOCK_DEFS: StockDef[] = [
    * Gilt at a glance. The second bloom is gold rather than the beam blue every
    * other stock uses, because a cool highlight on this ground goes muddy.
    */
+  /**
+   * Two stocks carved out of Cel, on the evidence that carved the last four.
+   *
+   * Cel held `ink`, `shounen` and `adultanimation` — 24.2% of the catalogue,
+   * wider than Neon Rain was when its width was judged a defect. The hues
+   * were chosen off the gaps in the set rather than by feel: everything
+   * printed here already sits between 24° and 44° (Cel, Gilt, Vellum), 137°
+   * (Marble), 209° (Neon Rain), 266° (Nebula) and 315–344° (Bromide,
+   * Oxblood), which leaves yellow-green and cyan unclaimed.
+   *
+   * Both are named for a printing process, the way Vellum, Bromide, Gilt and
+   * Cel are, and both carry their process as the texture rather than as a
+   * louder ground: the dot and the misregistration are the identity, the hue
+   * only keeps them off each other.
+   */
+  {
+    name: "Screentone",
+    material: "linear-gradient(150deg,#101a1e,#1f4a52)",
+    condition:
+      "Your films keep returning to the tournament and the next rung above it: shounen, manga adaptations, power that escalates.",
+    texture: [
+      "radial-gradient(rgba(236,234,230,.045) 22%,transparent 23%) 0 0/6px 6px",
+      "radial-gradient(rgba(236,234,230,.028) 22%,transparent 23%) 3px 3px/6px 6px",
+      "radial-gradient(84% 62% at 78% 18%,rgba(236,234,230,.03),transparent 62%)",
+    ].join(","),
+  },
+  {
+    name: "Riso",
+    material: "linear-gradient(150deg,#141709,#3d4a12)",
+    condition:
+      "Your films keep returning to the joke with something under it: adult animation, animated satire, the cartoon that is not for children.",
+    texture: [
+      "repeating-linear-gradient(94deg,rgba(236,234,230,.03) 0 1px,transparent 1px 4px)",
+      "repeating-linear-gradient(86deg,rgba(217,178,95,.022) 0 1px,transparent 1px 5px)",
+      "radial-gradient(74% 58% at 22% 78%,rgba(236,234,230,.035),transparent 60%)",
+    ].join(","),
+  },
   {
     name: "Cel",
     material: "linear-gradient(150deg,#171016,#7c3a12)",
     condition:
-      "Your films keep returning to what was drawn rather than filmed: animation, talking animals, tournaments, toys.",
+      "Your films keep returning to what was drawn rather than filmed: animation, talking animals, toys.",
     texture: [
       "radial-gradient(70% 54% at 26% 22%,rgba(236,234,230,.05),transparent 60%)",
       "radial-gradient(60% 50% at 78% 80%,rgba(217,178,95,.055),transparent 56%)",

@@ -6,7 +6,7 @@ import { topMoviesOfYear } from "@/lib/tmdb";
 import { buildHomeTasteCard, getTasteProfile, markTierSeen } from "@/lib/taste";
 import { getRankedLibrary, getRecentViewings } from "@/lib/library";
 import { friendIdsOf } from "@/lib/social";
-import { recordHeldVariant } from "@/lib/variant-history";
+import { recordHeldVariants } from "@/lib/variant-history";
 import TopRatedBoard from "@/components/TopRatedBoard";
 import HomeLayout from "@/components/HomeLayout";
 import LandingMarquee from "@/components/LandingMarquee";
@@ -34,7 +34,10 @@ export default async function Home() {
     // builder: the profile renders the same card for visitors, and a write
     // inside the builder would let a stranger's page load stamp a finish into
     // this account's binder history.
-    if (tasteCard.variant.name) await recordHeldVariant(user.id, tasteCard.variant.name);
+    // Every finish the library has earned, not only the one it is wearing:
+    // a shelf concentrated in one theme prints one finish for life, so
+    // recording the printed one alone could never add a second row.
+    await recordHeldVariants(user.id, tasteCard.variant.held);
 
     // Arriving at the home page is what counts as seeing it, since the card is
     // right here. Storing the tier rather than a timestamp means a later rise

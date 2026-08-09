@@ -90,13 +90,19 @@ export default function TasteCardFace({
    * page has to be the one the order is in. The multiple that chose them is a
    * binder fact, not a card fact.
    */
-  const chips = (
-    data.themeDNA.length > 0
-      ? data.themeDNA
-      : data.genreShare.map((g) => ({ ...g, lift: 0 }))
-  )
-    .slice(0, 3)
-    .sort((a, b) => b.pct - a.pct);
+  /**
+   * Three themes, and never the remainder.
+   *
+   * The breakdown ends with an "everything else" row so its shares are a
+   * whole, which the binder and the big card both want. This band is a
+   * three-theme teaser rather than a whole, and on a varied shelf the
+   * remainder is the largest share there is — it would take a third of the
+   * band to say nothing. The order it arrives in is already biggest-first, so
+   * there is nothing to sort.
+   */
+  const chips = (data.themeDNA.length > 0 ? data.themeDNA : data.genreShare)
+    .filter((g) => !("key" in g) || g.key !== "rest")
+    .slice(0, 3);
 
   const name = (
     <span

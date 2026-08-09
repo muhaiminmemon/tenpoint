@@ -1,6 +1,19 @@
 import { sql, type SQL } from "drizzle-orm";
-import { CLUSTERS, KEYWORD_STOPLIST } from "./archetype-clusters";
+import { CLUSTERS, CLUSTER_PREVALENCE, KEYWORD_STOPLIST } from "./archetype-clusters";
+
 import { db } from "@/db";
+
+/**
+ * How fast the printed finish answers to new watching.
+ *
+ * A viewing counts half as much once it is this many years old, and half
+ * again two years after that. Two years is slow enough that a settled taste
+ * keeps its finish and fast enough that a genuine change shows up inside the
+ * change rather than on an anniversary.
+ */
+export const RECENCY_HALF_LIFE_YEARS = 2;
+
+const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 
 /** The raw counts every trait, milestone and variant axis is read off. */
 export type TasteSignals = {
@@ -166,6 +179,22 @@ export type TasteSignals = {
   /** how many rated films fall into each themed cluster, and the denominator */
   clusters: Record<string, number>;
   clusterFilmCount: number;
+  /**
+   * The same library with recent watching counting for more.
+   *
+   * The stock a card is printed on should answer to what somebody is actually
+   * watching. Counted flat, it could not: a large shelf is decided by its own
+   * past, so a viewer whose taste had genuinely moved kept the finish their
+   * first hundred films chose. Scaled to sum to the same total as the plain
+   * count, so every threshold downstream keeps its meaning.
+   */
+  clustersWeighted: Record<string, number>;
+  /**
+   * The same films filed under exactly one theme each, so a breakdown of them
+   * is a whole. Overlapping counts are right for choosing a theme and wrong
+   * for dividing a shelf, because they add to no fixed number.
+   */
+  clustersExclusive: Record<string, number>;
   /** who the recurring face and the recurring director actually are */
   topCastName: string | null;
   topDirectorName: string | null;
@@ -589,41 +618,165 @@ export async function getTasteSignals(
 }
 
 /**
- * Which themed clusters a library falls into, counted once per film.
+ * Which themed clusters a library falls into, counted once per film, twice.
  *
  * Done in a second pass rather than the big query because the keyword-to-theme
  * map lives in code, not in the database: a film carrying three keywords from
  * one cluster is one film in that cluster, and expressing that in SQL would
  * mean shipping four hundred mappings into the statement.
+ *
+ * Two readings come out of the one pass. The plain count is the library as a
+ * record, and it is what names the archetype and what a finish is held on. The
+ * weighted count is the same library read with recent watching counting for
+ * more, and it is what decides the stock the card is printed on.
  */
 async function clusterCounts(
   userId: string,
   privacy: SQL,
-): Promise<{ clusters: Record<string, number>; clusterFilmCount: number }> {
+): Promise<{
+  clusters: Record<string, number>;
+  clustersWeighted: Record<string, number>;
+  clustersExclusive: Record<string, number>;
+  clusterFilmCount: number;
+}> {
   const rows = await db.execute(sql`
     with cur as (
-      select distinct on (d.film_id) d.film_id
+      -- the current opinion per title, and the date they say they watched it.
+      -- Deliberately not coalesced to created_at: see the weighting below.
+      select distinct on (d.film_id) d.film_id, d.watched_on
       from diary_entries d
       where d.user_id = ${userId} and d.rating is not null and ${privacy}
       order by d.film_id, d.watched_on desc nulls last, d.created_at desc
     )
-    select cur.film_id, f.keywords
+    select cur.film_id, cur.watched_on, f.keywords
     from cur join films f on f.id = cur.film_id
     where jsonb_typeof(f.keywords) = 'array' and jsonb_array_length(f.keywords) > 0
   `);
 
   const counts: Record<string, number> = {};
-  let films = 0;
+  const weighted: Record<string, number> = {};
+  const now = Date.now();
+
+  /**
+   * Age discounts a viewing; it never erases it.
+   *
+   * A cut-off window was the first answer here and it was the wrong
+   * instrument: a window is a clock, and what should move a finish is taste.
+   * It also produced a cliff, where a film counted fully on one day and not at
+   * all the next. Halving every two years instead means a shelf keeps its
+   * whole history and still answers to what somebody is actually watching.
+   *
+   * A date in the future — a typo, or a timezone edge — clamps to today rather
+   * than being rewarded with a weight above one.
+   */
+  const weigh = (watchedOn: string) => {
+    const years = Math.max(0, (now - new Date(watchedOn).getTime()) / MS_PER_YEAR);
+    return Number.isFinite(years) ? 0.5 ** (years / RECENCY_HALF_LIFE_YEARS) : 1;
+  };
+
+  const parsed: { hits: string[]; weight: number | null }[] = [];
+  const dated: number[] = [];
+
   for (const row of rows as unknown as Record<string, unknown>[]) {
-    films++;
     const held = new Set(
       (row.keywords as string[]).map((k) => k.toLowerCase()).filter((k) => !KEYWORD_STOPLIST.has(k)),
     );
-    for (const c of CLUSTERS) {
-      if (c.keywords.some((k) => held.has(k))) counts[c.key] = (counts[c.key] ?? 0) + 1;
+    const hits = CLUSTERS.filter((c) => c.keywords.some((k) => held.has(k))).map((c) => c.key);
+    const watchedOn = row.watched_on ? String(row.watched_on) : null;
+    const weight = watchedOn ? weigh(watchedOn) : null;
+    if (weight !== null) dated.push(weight);
+    parsed.push({ hits, weight });
+  }
+
+  /**
+   * An unknown date is not "today".
+   *
+   * Falling back to `created_at` was the first version of this and it had the
+   * incentive exactly backwards: a film logged without a date was stamped with
+   * the moment the row was written and counted at full weight, while the same
+   * film logged with its true date of 2005 was discounted to almost nothing.
+   * Entering an accurate date made a viewing count for *less*, which is the
+   * opposite of what the diary should reward. It also mattered in the common
+   * case rather than a rare one: Letterboxd's `ratings.csv` carries no watched
+   * date at all, and somebody sitting down to rate everything they have ever
+   * seen in one evening produces a whole library of them.
+   *
+   * Undated viewings take the median weight of the dated ones instead, which
+   * neither promotes nor punishes them. With nothing dated at all — that one
+   * evening, or a `ratings.csv` import and nothing since — every weight is 1,
+   * and the weighted reading is exactly the plain count. No recency signal
+   * exists in that library, so the card does not invent one.
+   */
+  const median =
+    dated.length > 0
+      ? [...dated].sort((a, b) => a - b)[Math.floor(dated.length / 2)]
+      : 1;
+
+  let weightTotal = 0;
+  const films = parsed.length;
+  for (const row of parsed) {
+    const weight = row.weight ?? median;
+    weightTotal += weight;
+    for (const key of row.hits) {
+      counts[key] = (counts[key] ?? 0) + 1;
+      weighted[key] = (weighted[key] ?? 0) + weight;
     }
   }
-  return { clusters: counts, clusterFilmCount: films };
+
+  /**
+   * The same films again, filed under exactly one theme each.
+   *
+   * The counts above overlap on purpose: a film about a haunted house during a
+   * war is genuinely both, and asking "how much of this shelf is horror" wants
+   * it counted in horror. That makes them the right input for choosing a theme
+   * and the wrong input for a breakdown, because overlapping shares add to
+   * whatever they add to — a reader looking at 24, 24, 21 and 18 has no way to
+   * know that is not a whole.
+   *
+   * A film goes to whichever of its themes this library holds most of. Sending
+   * it to the *rarest* theme instead was the obvious rule and the wrong one: it
+   * is the choice that fragments hardest, because every film runs off to its
+   * own obscure corner. Measured across the seeded libraries it scattered the
+   * average shelf into 37 buckets and left 58% of it below any reasonable cut,
+   * so a breakdown of six rows was mostly a footnote saying "everything else".
+   * Filing a film with its neighbours instead is also the more truthful answer
+   * to the question this block asks, which is what a shelf is made of rather
+   * than what is unusual about it — the archetype above already answers that,
+   * and still picks on rarity.
+   *
+   * Ties go to the rarer theme, so the tie-break keeps the informative choice
+   * without letting it drive the whole partition.
+   */
+  const exclusive: Record<string, number> = {};
+  for (const row of parsed) {
+    if (row.hits.length === 0) continue;
+    const home = row.hits.reduce((best, key) => {
+      const bigger = (counts[key] ?? 0) - (counts[best] ?? 0);
+      if (bigger !== 0) return bigger > 0 ? key : best;
+      return (CLUSTER_PREVALENCE[key] ?? 0.05) < (CLUSTER_PREVALENCE[best] ?? 0.05) ? key : best;
+    });
+    exclusive[home] = (exclusive[home] ?? 0) + 1;
+  }
+
+  /**
+   * Weights are redistributive, not deflationary.
+   *
+   * Scaling them back up so they sum to the film count keeps the weighted
+   * reading on the same scale as the plain one, which matters because the
+   * threshold a theme has to clear is an absolute number of films. Without
+   * this, a library watched entirely a decade ago would weigh almost nothing
+   * and clear no threshold at all, and somebody who stopped logging would
+   * lose their finish for having a past instead of a present.
+   */
+  const scale = weightTotal > 0 ? films / weightTotal : 1;
+  for (const key of Object.keys(weighted)) weighted[key] *= scale;
+
+  return {
+    clusters: counts,
+    clustersWeighted: weighted,
+    clustersExclusive: exclusive,
+    clusterFilmCount: films,
+  };
 }
 
 const num = (r: Record<string, unknown>, key: string) => (r[key] as number) ?? 0;

@@ -643,7 +643,8 @@ export type HomeTasteCardData = TasteProfile & {
   heroStats: Stat[];
   genreShare: { name: string; pct: number }[];
   /** the themes the library runs on, for the DNA strip on the back */
-  themeDNA: { name: string; pct: number; lift: number }[];
+  /** how the shelf divides, biggest share first, always totalling 100 */
+  themeDNA: { key: string; name: string; pct: number }[];
 };
 
 /** the point at which the archetype names itself */
@@ -700,7 +701,14 @@ export async function buildHomeTasteCard(
       // Looked up, not typed. This held a copy of the old full-strength
       // Cobalt, so a card with nothing rated yet would have kept the blue
       // every other card had already given up.
-      variant: { name: "", stock: "", accent: "", aura: "", accentColor: accentColorOf("Cobalt") },
+      variant: {
+        name: "",
+        stock: "",
+        accent: "",
+        aura: "",
+        accentColor: accentColorOf("Cobalt"),
+        held: [],
+      },
       traits: [],
       traitsHeldCount: 0,
       traitsTotal: 0,
@@ -866,7 +874,9 @@ export async function buildHomeTasteCard(
       name: g.name,
       pct: signals.genreTaggedCount ? Math.round((g.count / signals.genreTaggedCount) * 100) : 0,
     })),
-    themeDNA: themeDNA(signals),
+    // Eight on the card, which is what its block has height for; the binder
+    // shows ten. Both end with the remainder, so both still total 100.
+    themeDNA: themeDNA(signals, 8),
   };
 }
 

@@ -16,10 +16,27 @@ import { heldVariants } from "@/db/schema";
  * two years ago does not rewrite when you first had it.
  */
 export async function recordHeldVariant(userId: string, variantName: string): Promise<void> {
-  if (!variantName) return;
+  await recordHeldVariants(userId, [variantName]);
+}
+
+/**
+ * The same, for every finish a library has earned rather than only the one it
+ * is wearing.
+ *
+ * Recording the printed finish alone is what kept a binder at one held stock
+ * forever: a library concentrated in one theme prints one finish for life, so
+ * the only row it could ever write was the row it already had. One statement
+ * rather than one per name, because this runs on every card read.
+ */
+export async function recordHeldVariants(userId: string, names: string[]): Promise<void> {
+  const values = [...new Set(names.filter(Boolean))].map((variantName) => ({
+    userId,
+    variantName,
+  }));
+  if (values.length === 0) return;
   await db
     .insert(heldVariants)
-    .values({ userId, variantName })
+    .values(values)
     .onConflictDoNothing({ target: [heldVariants.userId, heldVariants.variantName] });
 }
 

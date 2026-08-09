@@ -190,7 +190,7 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
             type="button"
             aria-pressed={filters.media === m.key}
             onClick={() => apply({ media: m.key, genre: null, q: "", as: null })}
-            className={`px-4 py-1.5 text-[13px] transition-colors sm:text-[12.5px] ${
+            className={`px-4 py-1.5 text-[13px] transition-colors sm:text-[12px] ${
               filters.media === m.key
                 ? "bg-paper text-carbon"
                 : "text-ash hover:text-paper"
@@ -216,12 +216,12 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
             placeholder={filters.media === "show" ? "Search shows" : "Title, director or cast"}
             aria-label="Search by title, director or cast"
             // 16px on touch, like the selects, or iOS zooms the page in.
-            className={`${CONTROL_H} w-full rounded-full border border-seam bg-tray pl-9 pr-3 text-base text-paper placeholder:text-dim transition-colors hover:border-dim focus:border-beam focus:outline-none sm:text-[12.5px]`}
+            className={`${CONTROL_H} w-full rounded-full border border-seam bg-tray pl-9 pr-3 text-base text-paper placeholder:text-dim transition-colors hover:border-dim focus:border-beam focus:outline-none sm:text-[12px]`}
           />
         </label>
         <button
           type="submit"
-          className={`${CONTROL_H} shrink-0 rounded-full border border-seam px-4 text-[13px] text-ash transition-colors hover:border-dim hover:text-paper sm:text-[12.5px]`}
+          className={`${CONTROL_H} shrink-0 rounded-full border border-seam px-4 text-[13px] text-ash transition-colors hover:border-dim hover:text-paper sm:text-[12px]`}
         >
           Search
         </button>
@@ -232,7 +232,7 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
               setText("");
               apply({ q: "", as: null });
             }}
-            className="shrink-0 px-1 text-[12.5px] text-ash transition-colors hover:text-paper"
+            className="shrink-0 px-1 text-[13px] text-ash transition-colors hover:text-paper"
           >
             Clear
           </button>
@@ -264,7 +264,7 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
-          className="flex items-center gap-2 rounded-full border border-seam px-3.5 py-1.5 text-[12.5px] text-ash transition-colors active:bg-tray"
+          className="flex items-center gap-2 rounded-full border border-seam px-3.5 py-1.5 text-[13px] text-ash transition-colors active:bg-tray"
         >
           <Faders aria-hidden className="size-3.5" />
           Filters
@@ -279,7 +279,7 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
           <button
             type="button"
             onClick={() => apply(EMPTY_FILTERS)}
-            className="rounded-full px-3 py-1.5 text-[12.5px] text-ash active:text-paper"
+            className="rounded-full px-3 py-1.5 text-[13px] text-ash active:text-paper"
           >
             Clear
           </button>
@@ -290,7 +290,7 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
         <button
           type="button"
           onClick={() => apply(EMPTY_FILTERS)}
-          className="mt-3 hidden rounded-full px-3 py-1.5 text-[12.5px] text-ash transition-colors hover:text-paper sm:inline-block"
+          className="mt-3 hidden rounded-full px-3 py-1.5 text-[13px] text-ash transition-colors hover:text-paper sm:inline-block"
         >
           Clear everything
         </button>
@@ -305,7 +305,7 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
         <button
           type="button"
           onClick={() => setSheetOpen(false)}
-          className="display mt-5 w-full rounded-card bg-paper py-3 text-[14px] font-medium text-carbon"
+          className="display mt-5 w-full rounded-card bg-paper py-3 text-[15px] font-medium text-carbon"
         >
           Show results
         </button>
@@ -318,7 +318,7 @@ export default function BrowseFilters({ filters }: { filters: Filters }) {
  * Every control in the filter row shares this height.
  *
  * The selects have to run at 16px on touch or iOS zooms the page when one is
- * focused, which made them noticeably taller than a chip set at 12.5px. Sitting
+ * focused, which made them noticeably taller than a chip set at 12px. Sitting
  * side by side, the chip read as a mistake. A shared minimum height lines them
  * up without forcing the chip to carry type it does not need.
  */
@@ -343,7 +343,7 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-full border text-[13px] transition-colors sm:text-[12.5px] ${
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full border text-[13px] transition-colors sm:text-[12px] ${
         compact ? "min-h-[34px] px-4 sm:min-h-[30px] sm:px-3.5" : `${CONTROL_H} px-4 sm:px-3.5`
       } ${
         active
@@ -375,7 +375,7 @@ function Select({
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
         // 16px on touch: anything smaller makes iOS Safari zoom the page in.
-        className={`${CONTROL_H} w-full appearance-none rounded-full border border-seam bg-tray pl-3.5 pr-8 text-base text-paper transition-colors hover:border-dim focus:border-beam focus:outline-none sm:w-auto sm:text-[12.5px]`}
+        className={`${CONTROL_H} w-full appearance-none rounded-full border border-seam bg-tray pl-3.5 pr-8 text-base text-paper transition-colors hover:border-dim focus:border-beam focus:outline-none sm:w-auto sm:text-[12px]`}
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>

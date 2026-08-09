@@ -46,7 +46,7 @@ export default function PosterTile({
         />
       </span>
 
-      <span className="mt-2 block truncate text-[12.5px] leading-tight text-ash transition-colors group-hover:text-paper">
+      <span className="mt-2 block truncate text-[12px] leading-tight text-ash transition-colors group-hover:text-paper">
         {movie.title}
       </span>
       {/* Year left, score right, both in tabular figures — so scanning down a

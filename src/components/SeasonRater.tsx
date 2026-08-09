@@ -159,7 +159,7 @@ export default function SeasonRater({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex items-center gap-1.5 rounded-card text-[13.5px] text-beam transition-colors hover:text-paper focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-beam-edge"
+        className="flex items-center gap-1.5 rounded-card text-[13px] text-beam transition-colors hover:text-paper focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-beam-edge"
       >
         {open ? "Hide seasons" : "Rate by seasons"}
         <span className="num text-[12px] text-dim">
@@ -200,7 +200,7 @@ export default function SeasonRater({
                 {/* The crowd first, then you. Same order as a film page, so the
                     eye learns one place to look for each. */}
                 {s.audience !== null && (
-                  <span className="num shrink-0 text-[12.5px] text-dim">
+                  <span className="num shrink-0 text-[12px] text-dim">
                     {formatTenths(s.audience)}
                   </span>
                 )}
@@ -209,7 +209,7 @@ export default function SeasonRater({
                     {formatTenths(s.rating)}
                   </span>
                 ) : (
-                  <span className="shrink-0 text-[12.5px] text-dim opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                  <span className="shrink-0 text-[13px] text-dim opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                     Rate
                   </span>
                 )}

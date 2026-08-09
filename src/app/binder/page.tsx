@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { loadBinder } from "@/lib/binder";
-import { recordHeldVariant } from "@/lib/variant-history";
+import { recordHeldVariants } from "@/lib/variant-history";
 import BinderShowcase from "@/components/BinderShowcase";
 
 export const metadata = { title: "Binder" };
@@ -12,8 +12,8 @@ export default async function BinderPage() {
   if (!user) redirect("/login?next=/binder");
 
   const binder = await loadBinder(user);
-  // Owner-only route, so this is the right place to note the finish in force.
-  if (binder.yoursVariant) await recordHeldVariant(user.id, binder.yoursVariant);
+  // Owner-only route, so this is the right place to note the finishes in force.
+  await recordHeldVariants(user.id, binder.heldVariantNames);
 
   return (
     <div>

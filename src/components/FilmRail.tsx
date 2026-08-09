@@ -35,12 +35,12 @@ export default function FilmRail({
       <div className="mb-3 flex items-baseline justify-between gap-4 px-4 sm:px-0">
         <div className="min-w-0">
           <h2 className="display text-[19px] leading-none text-paper">{title}</h2>
-          {note && <p className="mt-1.5 text-[12.5px] text-ash">{note}</p>}
+          {note && <p className="mt-1.5 text-[12px] text-ash">{note}</p>}
         </div>
         {href && (
           <Link
             href={href}
-            className="shrink-0 text-[12.5px] text-beam transition-colors hover:text-paper"
+            className="shrink-0 text-[13px] text-beam transition-colors hover:text-paper"
           >
             See all
           </Link>

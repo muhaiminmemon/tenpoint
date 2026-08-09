@@ -183,13 +183,13 @@ function Poster({
   const stock = stockDef(variant.stock);
   const size = SHARE_SIZES[fmt];
   const ground = stock?.material ?? "linear-gradient(158deg,#18181e,#0f0f13)";
-  const chips = (
-    data.themeDNA.length > 0
-      ? data.themeDNA
-      : data.genreShare.map((g) => ({ ...g, lift: 0 }))
-  )
-    .slice(0, 3)
-    .sort((a, b) => b.pct - a.pct);
+  // The same three the face shows, chosen the same way: the remainder row is
+  // a whole-breakdown fact and has no place in a three-theme band, and the
+  // order it arrives in is already biggest-first. This image and the card on
+  // screen have to be the same card.
+  const chips = (data.themeDNA.length > 0 ? data.themeDNA : data.genreShare)
+    .filter((g) => !("key" in g) || g.key !== "rest")
+    .slice(0, 3);
 
   /**
    * One card, drawn twice.
