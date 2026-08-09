@@ -20,7 +20,7 @@ export const maxDuration = 60;
 const schema = z.object({
   friend: z.string().min(1),
   /** which half of the catalogue to draw from; defaults to both */
-  media: z.enum(["all", "movie", "show"]).default("all"),
+  media: z.enum(["all", "movie", "show", "anime"]).default("all"),
 });
 
 export async function POST(req: Request) {

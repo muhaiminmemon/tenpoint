@@ -21,7 +21,7 @@ export default async function Nav() {
   return (
     <>
       <header className="border-b border-seam">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
           <Link
             href="/"
             className="flex shrink-0 items-center gap-2 display text-lg font-medium tracking-tight"
@@ -32,29 +32,34 @@ export default async function Nav() {
           </Link>
           {user ? (
             <>
-              {/* the full link set needs room; phones get the bottom bar instead */}
-              <div className="hidden sm:block">
+              {/* The full link set needs room, and "room" is measured, not
+                  guessed: nine links are 546px, the wordmark 103 and the right
+                  cluster 335, so the bar does not fit until about 1020. It used
+                  to appear from `sm`, which meant every width from 640 to 1068
+                  drew a nav on two rows. Below `lg` the bottom bar has it,
+                  which is what the bottom bar is for. */}
+              <div className="hidden lg:block">
                 <NavLinks pendingRequests={pendingRequests} cardChanged={cardChanged} />
               </div>
-              <div className="ml-auto flex items-center gap-3">
+              <div className="ml-auto flex items-center gap-2">
                 <CommandPalette />
                 {/* Only rendered for the handful of usernames in
                     ADMIN_USERNAMES; everyone else never learns it exists. */}
                 {isAdmin(user) && (
                   <Link
                     href="/admin"
-                    className="hidden text-sm text-ash hover:text-paper sm:inline"
+                    className="hidden text-sm text-ash hover:text-paper lg:inline"
                   >
                     Admin
                   </Link>
                 )}
                 <Link
                   href="/settings"
-                  className="hidden text-sm text-ash hover:text-paper sm:inline"
+                  className="hidden text-sm text-ash hover:text-paper lg:inline"
                 >
                   Settings
                 </Link>
-                <div className="hidden sm:block">
+                <div className="hidden lg:block">
                   <SignOutButton />
                 </div>
                 <Link

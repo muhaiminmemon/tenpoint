@@ -140,6 +140,8 @@ export type MutualLove = {
   posterPath: string | null;
   mine: number;
   theirs: number;
+  /** which route the slug belongs to; a series is not at /film */
+  kind: "movie" | "show";
 };
 
 /** Films you both rated highly: the actual common ground, not a similarity score. */
@@ -148,6 +150,20 @@ export async function getMutualLoves(
   bUserId: string,
   { threshold = 80, limit = 6 }: { threshold?: number; limit?: number } = {},
 ): Promise<MutualLove[]> {
+  /**
+   * Shared loves, counted as works rather than as rows.
+   *
+   * This joined `films` with no constraint on kind, so a pair who had both
+   * rated six seasons of one series highly saw that series six times, once per
+   * season, and it crowded out everything else they actually share. Excluding
+   * seasons outright would have been worse: almost nobody rates the
+   * whole-series row, so the shared love would simply have vanished.
+   *
+   * So each row resolves to the work it belongs to and the ratings collapse
+   * the same way the library collapses them: a film is itself, and a series is
+   * the whole-series verdict when there is one, otherwise the mean of the
+   * seasons that person rated.
+   */
   const rows = await db.execute(sql`
     with a as (
       select distinct on (film_id) film_id, rating from diary_entries
@@ -158,13 +174,44 @@ export async function getMutualLoves(
       select distinct on (film_id) film_id, rating from diary_entries
       where user_id = ${bUserId} and rating is not null and private = false
       order by film_id, watched_on desc nulls last, created_at desc
+    ),
+    aw as (
+      select coalesce(f.show_id, f.id) as work_id,
+             (f.show_id is not null) as is_show,
+             coalesce(
+               max(a.rating) filter (where f.kind = 'movie'),
+               max(a.rating) filter (where f.kind = 'show'),
+               round(avg(a.rating) filter (where f.kind = 'season'))
+             )::int as rating
+      from a join films f on f.id = a.film_id
+      group by coalesce(f.show_id, f.id), (f.show_id is not null)
+    ),
+    bw as (
+      select coalesce(f.show_id, f.id) as work_id,
+             (f.show_id is not null) as is_show,
+             coalesce(
+               max(b.rating) filter (where f.kind = 'movie'),
+               max(b.rating) filter (where f.kind = 'show'),
+               round(avg(b.rating) filter (where f.kind = 'season'))
+             )::int as rating
+      from b join films f on f.id = b.film_id
+      group by coalesce(f.show_id, f.id), (f.show_id is not null)
     )
-    select f.slug, f.title, f.year, f.poster_path, a.rating as mine, b.rating as theirs
-    from a
-    join b on b.film_id = a.film_id
-    join films f on f.id = a.film_id
-    where a.rating >= ${threshold} and b.rating >= ${threshold}
-    order by least(a.rating, b.rating) desc, f.title asc
+    select
+      case when aw.is_show then sh.slug else f.slug end as slug,
+      case when aw.is_show then sh.name else f.title end as title,
+      case when aw.is_show then sh.first_air_year else f.year end as year,
+      case when aw.is_show then sh.poster_path else f.poster_path end as poster_path,
+      aw.is_show,
+      aw.rating as mine,
+      bw.rating as theirs
+    from aw
+    join bw on bw.work_id = aw.work_id
+    left join shows sh on aw.is_show and sh.id = aw.work_id
+    left join films f on (not aw.is_show) and f.id = aw.work_id
+    where aw.rating >= ${threshold} and bw.rating >= ${threshold}
+      and coalesce(sh.slug, f.slug) is not null
+    order by least(aw.rating, bw.rating) desc, 2 asc
     limit ${limit}
   `);
 
@@ -175,6 +222,7 @@ export async function getMutualLoves(
     posterPath: r.poster_path as string | null,
     mine: r.mine as number,
     theirs: r.theirs as number,
+    kind: r.is_show ? ("show" as const) : ("movie" as const),
   }));
 }
 
@@ -803,7 +851,10 @@ export async function buildHomeTasteCard(
         : [match.bestMatch, match.rival]
       : [],
     heroStats: [
-      { label: "Films logged", value: String(taste.rated) },
+      // Works, not rows: this said "Films" while the number behind it counted
+      // every season of every series, so a television watcher read as having
+      // logged four times the films they had.
+      { label: "Titles logged", value: String(mix.films + mix.shows) },
       { label: "Hours logged", value: String(Math.round(signals.totalRuntimeMinutes / 60)) },
       { label: "Home decade", value: taste.topDecade ? decadeLabel(taste.topDecade.decade) : "-" },
       { label: "Reviews", value: String(signals.reviewCount) },

@@ -67,7 +67,7 @@ export default function BottomNav({
     <>
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-20 flex border-t border-seam bg-[rgba(20,20,23,.97)] px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 flex border-t border-seam bg-[rgba(20,20,23,.97)] px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur lg:hidden"
       >
         {PRIMARY.map((item) => (
           <NavLink

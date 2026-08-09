@@ -48,7 +48,7 @@ export default function ProfileOverlap({
               return (
                 <li key={m.slug}>
                   <Link
-                    href={`/film/${m.slug}`}
+                    href={m.kind === "show" ? `/show/${m.slug}` : `/film/${m.slug}`}
                     className="group block w-[68px]"
                     title={`${m.title}: you ${formatTenths(m.mine)}, ${theirName} ${formatTenths(m.theirs)}`}
                   >

@@ -709,7 +709,7 @@ const POOL = 700;
 const OUT_ALREADY = sql`(${films.releaseDate} is null or ${films.releaseDate} <= current_date)`;
 
 /** Which half of the catalogue a pair wants suggestions from. */
-export type RecMedia = "all" | "movie" | "show";
+export type RecMedia = "all" | "movie" | "show" | "anime";
 
 /**
  * What may be suggested, by kind.
@@ -724,6 +724,24 @@ export type RecMedia = "all" | "movie" | "show";
 function mediaFilter(media: RecMedia) {
   if (media === "movie") return sql`${films.kind} = 'movie'`;
   if (media === "show") return sql`${films.kind} = 'show'`;
+  /**
+   * Anime cuts across the other two rather than sitting beside them.
+   *
+   * It is a kind of show, not a third medium, so this asks the same question
+   * of both halves: a series whose show is classified `anime`, or a film the
+   * catalogue tags as one. Spirited Away belongs in this answer as much as
+   * Attack on Titan does, and a filter that only read `shows.form` would have
+   * quietly dropped every anime film.
+   *
+   * The season rule above still holds: `kind` is constrained the same way, so
+   * nobody is ever told to go and watch episode seven of anything.
+   */
+  if (media === "anime") {
+    return sql`${films.kind} in ('movie', 'show') and (
+      exists (select 1 from shows sh where sh.id = ${films.showId} and sh.form = 'anime')
+      or (${films.keywords} is not null and jsonb_exists(${films.keywords}, 'anime'))
+    )`;
+  }
   return sql`${films.kind} in ('movie', 'show')`;
 }
 /** How many of each person's favourites are walked outward from. */

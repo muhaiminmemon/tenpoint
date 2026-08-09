@@ -96,7 +96,7 @@ export default function TasteStatStrip({ taste, compare }: Props) {
                   return (
                     <li key={m.slug}>
                       <Link
-                        href={`/film/${m.slug}`}
+                        href={m.kind === "show" ? `/show/${m.slug}` : `/film/${m.slug}`}
                         title={`${m.title} · you ${formatTenths(m.mine)} · them ${formatTenths(
                           m.theirs,
                         )}`}

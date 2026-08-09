@@ -42,9 +42,12 @@ export default function ProfileReading({
       )}
 
       <div className="mt-6 flex flex-wrap items-baseline gap-x-9 gap-y-4">
-        {/* Titles, because this counts seasons too. It said Films while the
-            number beside it included every season of every series. */}
-        <Figure label="Titles rated" value={String(data.rated)} />
+        {/* Works, not rows. This counted every season of every series, so a
+            profile could say 308 titles beside a shelf showing 252: the same
+            library, told twice, by two different rules. A series is one title
+            here however many seasons it took, which is what the shelf, the
+            headline count and the card's own mix all already say. */}
+        <Figure label="Titles rated" value={String(data.mix.films + data.mix.shows)} />
         {data.mean !== null && (
           <Figure
             label="Average"

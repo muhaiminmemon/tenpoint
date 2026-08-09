@@ -5,6 +5,9 @@ import { usePresence } from "@/lib/usePresence";
 import Link from "next/link";
 import { posterUrl } from "@/lib/tmdb-urls";
 import { errorFrom, readJson } from "@/lib/http";
+// The scopes come from the recommender itself, so a scope added there cannot
+// be missing here, and one removed there stops compiling here.
+import type { RecMedia } from "@/lib/recs";
 
 type RecFilm = {
   filmId: string;
@@ -36,9 +39,9 @@ export default function RecsView({ friend }: { friend: string }) {
    * ranking cannot infer from their libraries. Held here rather than in the
    * URL because it is a question about tonight, not a page worth linking to.
    */
-  const [media, setMedia] = useState<"all" | "movie" | "show">("all");
+  const [media, setMedia] = useState<RecMedia>("all");
 
-  async function load(pick: "all" | "movie" | "show" = media) {
+  async function load(pick: RecMedia = media) {
     setState("loading");
     setError(null);
     // without this a first "not eligible yet" answer sticks for the session,
@@ -97,9 +100,6 @@ export default function RecsView({ friend }: { friend: string }) {
     }
   }
 
-  if (state === "loading") {
-    return <p className="text-ash">Comparing your libraries…</p>;
-  }
   if (state === "error") {
     return (
       <div>
@@ -125,11 +125,29 @@ export default function RecsView({ friend }: { friend: string }) {
     );
   }
 
-  const MEDIA: { key: "all" | "movie" | "show"; label: string }[] = [
+  const MEDIA: { key: RecMedia; label: string }[] = [
     { key: "all", label: "Anything" },
     { key: "movie", label: "A film" },
     { key: "show", label: "A series" },
+    { key: "anime", label: "Anime" },
   ];
+
+  /**
+   * What an empty answer means, which depends on what was asked.
+   *
+   * Every scope used to end on "Log a few more films and come back", so
+   * narrowing to a series and finding nothing read as a complaint about the
+   * size of your diary. It is not: the pair is eligible, the run completed,
+   * and this half of the catalogue simply had nothing left that neither of you
+   * had already dealt with. Saying so, and naming the way out, is the honest
+   * version.
+   */
+  const EMPTY: Record<RecMedia, string> = {
+    all: "Nothing left to suggest right now. Rate a few more titles and come back.",
+    movie: "No films left to suggest for the two of you. Try Anything, or a series.",
+    show: "No series left to suggest for the two of you. Try Anything, or a film.",
+    anime: "No anime left to suggest for the two of you. Try Anything.",
+  };
 
   return (
     <div>
@@ -160,7 +178,7 @@ export default function RecsView({ friend }: { friend: string }) {
 
       {error && <p className="mb-4 text-sm text-warn">{error}</p>}
       <ul className="space-y-4">
-        {films.map((f) => {
+        {(state === "loading" ? [] : films).map((f) => {
           const poster = posterUrl(f.posterPath, "w154");
           const saved = savedIds.has(f.filmId);
           return (
@@ -202,10 +220,10 @@ export default function RecsView({ friend }: { friend: string }) {
           );
         })}
       </ul>
-      {films.length === 0 && (
-        <p className="text-ash">
-          Nothing left to suggest right now. Log a few more films and come back.
-        </p>
+      {state === "loading" ? (
+        <p className="text-ash">Comparing your libraries…</p>
+      ) : (
+        films.length === 0 && <p className="text-ash">{EMPTY[media]}</p>
       )}
       <div className="mt-6">
         <button

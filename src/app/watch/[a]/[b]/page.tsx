@@ -27,7 +27,11 @@ export default async function WatchPage(ctx: { params: Promise<{ a: string; b: s
     <div className="mx-auto max-w-xl">
       <h1 className="display text-2xl">What should we watch?</h1>
       <p className="mt-1 text-sm text-ash">
-        Five films neither you nor {other.displayName ?? other.username} has logged.
+        {/* "Titles", not "films": this line is rendered on the server and cannot
+            know which scope the reader has picked, and it sat above five series
+            or five anime saying "films" either way. The product's own rule is to
+            prefer the word that covers both media wherever a statement does. */}
+        Five titles neither you nor {other.displayName ?? other.username} has logged.
       </p>
       <div className="mt-6">
         <RecsView friend={other.username} />
