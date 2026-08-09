@@ -41,8 +41,10 @@ colors:
   # Mythic is pearl rather than rainbow: iridescence at low chroma, so the top
   # finish does not carry a blue segment onto a warm card.
   tier-mythic-pearl-cool: "#cfd8e3"
+  tier-mythic-pearl-violet: "#e7d9f0"
   tier-mythic-pearl-warm: "#ecdcc0"
   tier-mythic-pearl-blush: "#e6cdc8"
+  tier-mythic-pearl-mint: "#d6e6e0"
   tier-mythic-pearl-steel: "#d3dbe6"
   # The dark end of each tier's swatch chip, where the metal runs into shadow.
   tier-rare-swatch-low: "#20242a"
@@ -83,6 +85,15 @@ colors:
   accent-cobalt: "#cfdae8"
   accent-emerald: "#cfe3d8"
   accent-amethyst: "#ddd2ea"
+  # Aura — the fourth axis, read from the average rating. These are swatch dots
+  # in the binder and appear nowhere on a card, so unlike the accents they sit
+  # on the app's graphite and may keep full chroma. Cosmic's violet used to be
+  # borrowed from the amethyst accent, which orphaned it the moment the accents
+  # went pale; each axis owns its own colours now.
+  aura-noir: "#6a6a72"
+  aura-dream: "#8faecc"
+  aura-cosmic: "#a98fd6"
+  aura-analog: "#d9b25f"
 typography:
   display:
     fontFamily: "Space Grotesk, sans-serif"

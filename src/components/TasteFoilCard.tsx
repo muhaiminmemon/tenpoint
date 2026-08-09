@@ -89,7 +89,7 @@ export default function TasteFoilCard({
           setOpenTab("Card");
           setOpen(true);
         }}
-        className={`block w-full p-[2px] text-left ${justReminted ? "card-tier-pop" : ""}`}
+        className={`block w-full p-[2px] text-left ${tier.rimClass ?? ""} ${justReminted ? "card-tier-pop" : ""}`}
         style={{ background: tier.border, boxShadow: tier.glow === "none" ? undefined : tier.glow }}
       >
         <TasteCardFace

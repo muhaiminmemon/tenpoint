@@ -581,7 +581,47 @@ body {
   animation: marquee-ring 24s linear infinite;
 }
 
+/**
+ * The one rim in the product that turns.
+ *
+ * Every other tier is a still gradient, and the top of a six-rung ladder should
+ * be the rung where the object stops holding still. Registering the angle as a
+ * typed custom property is what makes it animatable at all: a conic-gradient
+ * cannot be interpolated, but the angle inside it can, so the browser tweens a
+ * number and the gradient is repainted from it. Composited on the GPU and one
+ * property wide, so it costs nothing next to the foil sweep already running.
+ *
+ * `border`/`borderFlat` on the tier stay the static version of the same pearl,
+ * for the share image, which is drawn by Satori and has no animation at all.
+ */
+@property --rim-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.rim-mythic {
+  background: conic-gradient(
+    from var(--rim-angle),
+    #cfd8e3,
+    #e7d9f0,
+    #ecdcc0,
+    #e6cdc8,
+    #d6e6e0,
+    #d3dbe6,
+    #cfd8e3
+  );
+  animation: rim-turn 18s linear infinite;
+}
+
+@keyframes rim-turn {
+  to {
+    --rim-angle: 360deg;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .rim-mythic,
   .fade-up,
   .scrim-in,
   .sheet-in,

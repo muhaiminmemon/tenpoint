@@ -133,7 +133,7 @@ export default function TasteCardFace({
          * that is a name rather than a field, and it is now sized like it. */}
         <div className="relative flex flex-col px-4 pb-4 pt-[18px]">
           <div className="flex items-baseline justify-between gap-2 text-[9px] uppercase tracking-[0.14em]">
-            <span className="display tracking-[0.06em] text-beam">@{username}</span>
+            <span className="display tracking-[0.06em] text-card-2">@{username}</span>
             <span className="num text-card-3">Since {memberSince}</span>
           </div>
 

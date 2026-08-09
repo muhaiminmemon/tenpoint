@@ -34,7 +34,7 @@ export default function SpecimenCard({
 
   return (
     <div
-      className={`w-[210px] p-[2px] sm:w-[248px] ${className}`}
+      className={`w-[210px] p-[2px] sm:w-[248px] ${tier.rimClass ?? ""} ${className}`}
       style={{ background: tier.border, boxShadow: tier.glow === "none" ? undefined : tier.glow }}
     >
       <div

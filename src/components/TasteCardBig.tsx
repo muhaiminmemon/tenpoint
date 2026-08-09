@@ -52,19 +52,26 @@ export function TasteCardFrontBig({
 
   return (
     <div className="relative flex flex-col p-4">
-      {tier.sheenOp >= 0.42 && (
+      {/* Drifting light, and only at the top.
+       *
+       * These lit at 0.42, which is Epic, whose finish reads "Silver foil,
+       * quiet shimmer" and promises no particles at all; Mythic's is the one
+       * that says "Full foil, drifting light, particles". The threshold is now
+       * Mythic's own sheen, so the copy and the card agree and the last rung
+       * has something no other rung has. */}
+      {tier.sheenOp >= 0.7 && (
         <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-          <span className="card-float-a absolute bottom-6 left-[18%] size-[3px] rounded-full bg-[rgba(217,178,95,.85)]" />
+          <span className="card-float-a absolute bottom-6 left-[18%] size-[3px] rounded-full bg-[rgba(236,234,230,.9)]" />
           <span
-            className="card-float-b absolute bottom-3 left-[42%] size-[2px] rounded-full bg-[rgba(143,174,204,.8)]"
+            className="card-float-b absolute bottom-3 left-[42%] size-[2px] rounded-full bg-[rgba(231,217,240,.8)]"
             style={{ animationDelay: "1.4s" }}
           />
           <span
-            className="card-float-a absolute bottom-7 left-[66%] size-[3px] rounded-full bg-[rgba(217,178,95,.7)]"
+            className="card-float-a absolute bottom-7 left-[66%] size-[3px] rounded-full bg-[rgba(236,220,192,.8)]"
             style={{ animationDelay: ".8s" }}
           />
           <span
-            className="card-float-b absolute bottom-4 left-[82%] size-[2px] rounded-full bg-[rgba(143,174,204,.7)]"
+            className="card-float-b absolute bottom-4 left-[82%] size-[2px] rounded-full bg-[rgba(214,230,224,.75)]"
             style={{ animationDelay: "2.2s" }}
           />
         </div>
@@ -86,12 +93,18 @@ export function TasteCardFrontBig({
         </span>
       </div>
 
-      {/* portrait */}
+      {/* The portrait wears the tier, the way the card's own rim does.
+       *
+       * It used to be a conic of the decade accent plus a hardcoded beam blue
+       * and warn red, which was three full-strength hues in one ring and the
+       * last place on the card still doing that. Rank is the thing worth
+       * showing around a face, and the tier's metal is already guaranteed to
+       * sit on any of the ten grounds, so the ring and the rim now agree. */}
       <div
         className="relative mx-auto mt-3 size-[86px] rounded-full p-0.5"
         style={{
-          background: `conic-gradient(from 28deg, ${variant.accentColor}, #8faecc, #c4756a, ${variant.accentColor})`,
-          boxShadow: `0 0 26px ${variant.accentColor}44`,
+          background: tier.borderFlat ?? tier.border,
+          boxShadow: tier.glow !== "none" ? tier.glow : undefined,
         }}
       >
         {avatarUrl ? (
@@ -107,7 +120,7 @@ export function TasteCardFrontBig({
       {/* identity */}
       <div className="mt-3 text-center">
         <div className="display text-[22px] leading-none text-paper">{displayName.toUpperCase()}</div>
-        <div className="num mt-1 text-[11px] text-beam">@{username}</div>
+        <div className="num mt-1 text-[11px] text-card-2">@{username}</div>
         {data.archetype && (
           <div className="display mt-2 text-[14px]" style={{ color: variant.accentColor }}>
             {data.archetype}
@@ -212,7 +225,7 @@ export function TasteCardBackBig({
         <div>
           <div className="text-[9px] uppercase tracking-[.18em] text-card-3">Profile</div>
           <div className="display text-[16px] text-paper">
-            {displayName} <span className="num text-[11px] text-beam">@{username}</span>
+            {displayName} <span className="num text-[11px] text-card-2">@{username}</span>
           </div>
         </div>
         <span className="text-[9px] uppercase tracking-[.2em]" style={{ color: data.tier.labelColor }}>

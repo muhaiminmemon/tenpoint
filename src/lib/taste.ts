@@ -14,6 +14,7 @@ import {
   ERA_BY_DECADE,
   evaluateTraits,
   tierStanding,
+  accentColorOf,
   RARITY_TIERS,
   type RarityTier,
   type TierStanding,
@@ -648,7 +649,10 @@ export async function buildHomeTasteCard(
       // Nothing rated is zero depth, which is Common without asking.
       tier: RARITY_TIERS[0],
       standing: null,
-      variant: { name: "", stock: "", accent: "", aura: "", accentColor: "#8faecc" },
+      // Looked up, not typed. This held a copy of the old full-strength
+      // Cobalt, so a card with nothing rated yet would have kept the blue
+      // every other card had already given up.
+      variant: { name: "", stock: "", accent: "", aura: "", accentColor: accentColorOf("Cobalt") },
       traits: [],
       traitsHeldCount: 0,
       traitsTotal: 0,

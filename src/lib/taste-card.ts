@@ -38,6 +38,12 @@ export type RarityTier = {
    * one. Present only where the screen rim is conic.
    */
   borderFlat?: string;
+  /**
+   * A class applied to the rim in the DOM, for a finish CSS can express and a
+   * gradient string cannot. Only the top rung has one, and everything that
+   * cannot run CSS -- the share image, above all -- falls back to `border`.
+   */
+  rimClass?: string;
   glow: string;
   labelColor: string;
   swatch: string;
@@ -119,11 +125,16 @@ export const RARITY_TIERS: RarityTier[] = [
     depth: 2500,
     range: "2,500 points",
     effect: "Full foil, drifting light, particles.",
-    border: "conic-gradient(from 0deg,#cfd8e3,#ecdcc0,#e6cdc8,#d3dbe6,#cfd8e3)",
-    borderFlat: "linear-gradient(130deg,#cfd8e3,#ecdcc0 34%,#e6cdc8 66%,#cfd8e3)",
-    glow: "0 0 34px rgba(236,234,230,.24)",
+    border:
+      "conic-gradient(from 0deg,#cfd8e3,#e7d9f0,#ecdcc0,#e6cdc8,#d6e6e0,#d3dbe6,#cfd8e3)",
+    borderFlat:
+      "linear-gradient(130deg,#cfd8e3,#e7d9f0 18%,#ecdcc0 40%,#e6cdc8 60%,#d6e6e0 80%,#cfd8e3)",
+    rimClass: "rim-mythic",
+    // Two shadows rather than one: a tight bright line that reads as the edge
+    // catching light, and a wide soft bloom that reads as the light leaving it.
+    glow: "0 0 0 1px rgba(236,234,230,.14), 0 0 46px rgba(236,234,230,.30)",
     labelColor: "#eceae6",
-    swatch: "conic-gradient(from 0deg,#cfd8e3,#ecdcc0,#e6cdc8,#d3dbe6,#cfd8e3)",
+    swatch: "conic-gradient(from 0deg,#cfd8e3,#e7d9f0,#ecdcc0,#e6cdc8,#d6e6e0,#d3dbe6,#cfd8e3)",
     sheenOp: 0.7,
     sweepSec: 34,
   },
@@ -1820,7 +1831,7 @@ export const ACCENT_DEFS: AxisDef[] = [
 ];
 
 /** The one place an accent's colour is written down, so the card and the binder cannot disagree. */
-const accentColorOf = (name: string): string =>
+export const accentColorOf = (name: string): string =>
   ACCENT_DEFS.find((a) => a.name === name)?.color ?? "#cfdae8";
 
 // Cut on the real spread of how people rate. The old bands asked 9.0 for

@@ -48,7 +48,9 @@ function Glassine() {
 function TierSpecimen({ tier, held }: { tier: TierRow["tier"]; held: boolean }) {
   return (
     <span
-      className="relative block h-[62px] w-[46px] shrink-0 overflow-hidden p-px"
+      className={`relative block h-[62px] w-[46px] shrink-0 overflow-hidden p-px ${
+        held ? (tier.rimClass ?? "") : ""
+      }`}
       style={{ background: tier.border, boxShadow: held && tier.glow !== "none" ? tier.glow : undefined }}
       aria-hidden
     >
