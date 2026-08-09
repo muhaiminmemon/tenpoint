@@ -147,7 +147,24 @@ async function loadCandidates(userId: string, privacy: SQL): Promise<Candidate[]
     ),
     spans as (
       select film_id,
-             count(*)::int as n,
+             /**
+              * Viewings, not diary rows.
+              *
+              * This counted rows, and a row is not a viewing. An entry logged
+              * without a rating is one, and so is the duplicate that correcting
+              * a score used to leave behind before that was changed to edit the
+              * viewing in place — so somebody who watched a series once and
+              * fixed a typo in one season's rating was told they had watched it
+              * twice, on their own card, about their own diary.
+              *
+              * A rewatch is the one thing here the viewer states outright: it is
+              * what the "log a rewatch" action sets. So a title is watched once
+              * plus however many times they said they went back to it. Two
+              * untagged rows now read as one viewing, which is the safe
+              * direction to be wrong in — claiming somebody rewatched something
+              * they did not is worse than missing that they did.
+              */
+             (1 + count(*) filter (where rewatch))::int as n,
              count(*) filter (where review is not null and length(trim(review)) > 0)::int as reviews,
              -- How long this opinion has stood: days since it was FIRST logged.
              --
