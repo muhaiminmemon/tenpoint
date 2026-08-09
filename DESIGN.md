@@ -44,8 +44,10 @@ colors:
   stock-bromide-high: "#42313c"
   stock-gilt-low: "#1e1810"
   stock-gilt-high: "#463618"
-  stock-cel-low: "#12232a"
-  stock-cel-high: "#1d4048"
+  # The only ground that sweeps temperature as well as value, cool plum black
+  # into hot orange. Deliberately the most saturated card in the set.
+  stock-cel-low: "#171016"
+  stock-cel-high: "#7c3a12"
   # Variant accents dealt from the highest-rated decade.
   accent-emerald: "#7fb59a"
   accent-amethyst: "#a98fd6"

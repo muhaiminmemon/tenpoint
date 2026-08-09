@@ -600,7 +600,12 @@ export default function BinderShowcase({
             Variants
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-ash">
-            Six stocks: the ground the card is printed on. Stock reads the same thing your title
+            {/* Counted, not typed. This said "six" while ten were listed
+                directly beneath it, because the set grew and the sentence did
+                not. A number a reader can check against the list on the same
+                screen has to come from the list. */}
+            {binder.variants.length} stocks: the ground the card is printed on. Stock reads the
+            same thing your title
             does, which is what your films keep returning to, weighed against how common that
             theme is rather than how much of your shelf it happens to fill. It used to read the
             genre tag leading your ratings, and genre tags are broad enough that three in four

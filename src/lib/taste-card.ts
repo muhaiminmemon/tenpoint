@@ -1745,14 +1745,28 @@ export const STOCK_DEFS: StockDef[] = [
       "repeating-linear-gradient(128deg,rgba(236,234,230,.02) 0 1px,transparent 1px 8px)",
     ].join(","),
   },
+  /**
+   * The one card allowed to be loud.
+   *
+   * Orange is the tightest slot in this palette, squeezed between Gilt's
+   * bronze and Oxblood's red, so it does not separate on hue: it separates on
+   * chroma. Letting the drawn stock be the most saturated object in the set is
+   * the argument rather than a compromise, because drawn things are more
+   * saturated than photographed ones and that is exactly what this reads to.
+   *
+   * The ground is the only one here that sweeps temperature as well as value,
+   * from a cool plum black into hot orange, which is what keeps it clear of
+   * Gilt at a glance. The second bloom is gold rather than the beam blue every
+   * other stock uses, because a cool highlight on this ground goes muddy.
+   */
   {
     name: "Cel",
-    material: "linear-gradient(150deg,#12232a,#1d4048)",
+    material: "linear-gradient(150deg,#171016,#7c3a12)",
     condition:
       "Your films keep returning to what was drawn rather than filmed: animation, talking animals, tournaments, toys.",
     texture: [
-      "radial-gradient(70% 54% at 26% 22%,rgba(236,234,230,.055),transparent 60%)",
-      "radial-gradient(60% 50% at 78% 80%,rgba(143,174,204,.035),transparent 56%)",
+      "radial-gradient(70% 54% at 26% 22%,rgba(236,234,230,.05),transparent 60%)",
+      "radial-gradient(60% 50% at 78% 80%,rgba(217,178,95,.055),transparent 56%)",
       "repeating-linear-gradient(46deg,rgba(236,234,230,.022) 0 1px,transparent 1px 9px)",
     ].join(","),
   },
