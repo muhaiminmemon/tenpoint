@@ -75,6 +75,15 @@ export type LibraryFilm = {
   /** a separate signal from the rating: one you'd put on again tonight */
   /** true when any viewing of it was logged as a rewatch */
   rewatched: boolean;
+  /**
+   * Anime, as a cross-cutting fact rather than a third media type.
+   *
+   * A series is anime when its show says so (`shows.form`); a film is anime
+   * when the catalogue tags it as such. Deliberately not a `kind`: anime is a
+   * kind of show, not a peer of film and television, so an anime series is
+   * still counted and filtered as a series everywhere else.
+   */
+  isAnime: boolean;
   /** present on, and only on, a collapsed series row */
   series?: LibrarySeries;
 };
@@ -139,6 +148,9 @@ export async function getRankedLibrary(
       f.poster_path,
       f.director,
       f.cast_names,
+      -- Anime from the series it belongs to, or from the film's own tags.
+      (coalesce(sh.form, '') = 'anime'
+        or (f.keywords is not null and jsonb_exists(f.keywords, 'anime'))) as is_anime,
       r.rating,
       s.entry_count,
       s.last_watched,
@@ -146,6 +158,7 @@ export async function getRankedLibrary(
       coalesce(o.sort_key, 0) as sort_key
     from stats s
     join films f on f.id = s.film_id
+    left join shows sh on sh.id = f.show_id
     left join rated r on r.film_id = s.film_id
     left join library_order o on o.user_id = ${userId} and o.film_id = s.film_id
     order by r.rating desc nulls last, coalesce(o.sort_key, 0) asc, f.title asc
@@ -176,6 +189,7 @@ export async function getRankedLibrary(
       lastWatched: r.last_watched as string | null,
       sortKey: r.sort_key as number,
       rewatched: Boolean(r.rewatched),
+      isAnime: Boolean(r.is_anime),
     };
   });
 
@@ -342,6 +356,7 @@ async function foldSeries(
       ),
       sortKey: representative.sortKey,
       rewatched: rows.some((r) => r.rewatched),
+      isAnime: rows.some((r) => r.isAnime),
       series,
     });
   }

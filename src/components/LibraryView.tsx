@@ -2,9 +2,7 @@
 
 import { createContext, useContext, useMemo, useState } from "react";
 import { useUrlState } from "@/lib/useUrlState";
-import SeriesShelf from "./SeriesShelf";
 import SeriesSheet, { seriesStanding } from "./SeriesSheet";
-import type { SeriesProgress } from "@/lib/series-progress";
 import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CaretRight } from "@phosphor-icons/react/ssr";
@@ -34,15 +32,6 @@ type Props = {
   films: LibraryFilm[];
   /** drag-to-reorder ties and edit links; false on public profiles */
   editable: boolean;
-  /**
-   * Series with where the viewer stands on each.
-   *
-   * The Shows view used to list season rows, which is the wrong grain for the
-   * only thing anybody asks of a television shelf. Given these, it lists
-   * programmes instead. Optional so callers that have no series data, or do
-   * not want the view, simply keep the old behaviour.
-   */
-  series?: SeriesProgress[];
 };
 
 type SortMode =
@@ -52,7 +41,8 @@ type SortMode =
   | "year-new"
   | "year-old"
   | "recent"
-  | "most-watched";
+  | "most-watched"
+  | "unfinished";
 
 /** The allow-lists the URL is validated against, so a hand-typed value cannot
     put the view into a state the component never handles. */
@@ -65,6 +55,7 @@ const SORT_MODES = [
   "year-old",
   "recent",
   "most-watched",
+  "unfinished",
 ] as const;
 
 const SORT_LABELS: Record<SortMode, string> = {
@@ -75,15 +66,32 @@ const SORT_LABELS: Record<SortMode, string> = {
   "year-old": "Year, oldest first",
   recent: "Recently watched",
   "most-watched": "Most watched",
+  unfinished: "Unfinished series first",
 };
 
 /** One-tap slices of the collection, in place of a stack of dropdowns. */
-type SavedView = "all" | "movies" | "shows" | "great" | "thisYear" | "rewatched" | "unrated";
+type SavedView =
+  | "all"
+  | "movies"
+  | "shows"
+  | "anime"
+  | "great"
+  | "thisYear"
+  | "rewatched"
+  | "unrated";
 
 const SAVED_VIEWS: { key: SavedView; label: string }[] = [
   { key: "all", label: "Everything" },
   { key: "movies", label: "Films" },
   { key: "shows", label: "Shows" },
+  /**
+   * Anime overlaps Films and Shows rather than partitioning them.
+   *
+   * Anime is a kind of show here, not a peer of film and television, so an
+   * anime series still counts under Shows and an anime film still counts under
+   * Films. This slice only asks a different question of the same shelf.
+   */
+  { key: "anime", label: "Anime" },
   { key: "great", label: "8.0+" },
   { key: "thisYear", label: "This year" },
   { key: "rewatched", label: "Rewatched" },
@@ -123,7 +131,7 @@ const MatchQuery = createContext("");
  */
 const OpenSeries = createContext<((showId: string) => void) | null>(null);
 
-export default function LibraryView({ films, editable, series }: Props) {
+export default function LibraryView({ films, editable }: Props) {
   const pathname = usePathname();
   const params = useSearchParams();
   const [view, setView] = useUrlState<"ledger" | "shelf">("view", "shelf", VIEWS);
@@ -168,6 +176,7 @@ export default function LibraryView({ films, editable, series }: Props) {
     // and every other view reads better inside one of them.
     if (saved === "movies") out = out.filter((x) => x.kind === "movie");
     if (saved === "shows") out = out.filter(isTelevision);
+    if (saved === "anime") out = out.filter((x) => x.isAnime);
     if (saved === "great") out = out.filter((x) => x.rating !== null && x.rating >= 80);
     if (saved === "thisYear") out = out.filter((x) => x.lastWatched?.startsWith(thisYear));
     if (saved === "rewatched") out = out.filter((x) => x.rewatched);
@@ -188,6 +197,22 @@ export default function LibraryView({ films, editable, series }: Props) {
             return (b.lastWatched ?? "").localeCompare(a.lastWatched ?? "");
           case "most-watched":
             return b.entryCount - a.entryCount || (b.rating ?? 0) - (a.rating ?? 0);
+          /**
+           * What am I part-way through: the one question a rating-ranked list
+           * cannot answer, and the only reason the separate series shelf
+           * existed. It is a sort here instead of a second component, so the
+           * search box, the view toggle and the count keep working while it is
+           * on.
+           */
+          case "unfinished": {
+            const rank = (x: LibraryFilm) =>
+              x.series?.state === "unfinished" ? 0 : x.series?.state === "caughtup" ? 1 : x.series ? 2 : 3;
+            return (
+              rank(a) - rank(b) ||
+              (b.lastWatched ?? "").localeCompare(a.lastWatched ?? "") ||
+              a.title.localeCompare(b.title)
+            );
+          }
           default:
             return 0;
         }
@@ -205,6 +230,7 @@ export default function LibraryView({ films, editable, series }: Props) {
       all: items.length,
       movies: items.filter((x) => x.kind === "movie").length,
       shows: items.filter(isTelevision).length,
+      anime: items.filter((x) => x.isAnime).length,
       great: items.filter((x) => x.rating !== null && x.rating >= 80).length,
       thisYear: items.filter((x) => x.lastWatched?.startsWith(thisYear)).length,
       rewatched: items.filter((x) => x.rewatched).length,
@@ -289,9 +315,7 @@ export default function LibraryView({ films, editable, series }: Props) {
         </div>
       </div>
 
-      {saved === "shows" && series ? (
-        <SeriesShelf series={series} />
-      ) : visible.length === 0 ? (
+      {visible.length === 0 ? (
         <p className="py-8 text-sm text-ash">Nothing matches those filters.</p>
       ) : (
         // Keyed so switching between the shelf and the ledger plays an
@@ -315,7 +339,7 @@ export default function LibraryView({ films, editable, series }: Props) {
         </div>
       )}
 
-      {visible.length > 0 && !(saved === "shows" && series) && (
+      {visible.length > 0 && (
         <>
           <p className="num mt-4 text-center text-[11px] text-dim">
             Showing {shown.length} of {total}

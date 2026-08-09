@@ -5,7 +5,6 @@ import { db } from "@/db";
 import { diaryEntries, films, friendRequests, users, watchlist } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { getRankedLibrary } from "@/lib/library";
-import { getSeriesProgress } from "@/lib/series-progress";
 import { formatTenths } from "@/lib/format";
 import { areFriends, canViewProfile, isBlockedBetween } from "@/lib/social";
 import { avatarSrc } from "@/lib/avatar";
@@ -96,10 +95,9 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
    * it. The card is about hours, and it has always weighed a season as a
    * season, so it reads the rows underneath.
    */
-  const [films_, cardLibrary, seriesProgress] = await Promise.all([
+  const [films_, cardLibrary] = await Promise.all([
     getRankedLibrary(profile.id, { includePrivate: isOwner }),
     getRankedLibrary(profile.id, { includePrivate: isOwner, collapseSeries: false }),
-    getSeriesProgress(profile.id, { includePrivate: isOwner }),
   ]);
   const rated = films_.filter((f) => f.rating !== null);
   const mean =
@@ -251,7 +249,6 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
 
       <ProfileTabs
         films={films_}
-        series={seriesProgress}
         diaryRows={diaryRows}
         watchlistRows={watchlistRows}
         editable={isOwner}
