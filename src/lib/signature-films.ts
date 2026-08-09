@@ -1,8 +1,21 @@
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { CLUSTERS, CLUSTER_PREVALENCE } from "./archetype-clusters";
-import { SEASON_WEIGHT } from "./taste-card";
 import type { TasteSignals } from "./taste-card-signals";
+
+/**
+ * What a season is worth when deciding how much of the card television gets.
+ *
+ * Deliberately its own constant rather than the ladder's `SEASON_WEIGHT`, which
+ * it used to import. Rank is not allowed to reach identity, and while those two
+ * numbers were the same symbol it did: re-tuning how fast somebody climbs the
+ * ladder silently changed which titles were printed on their card.
+ *
+ * It starts at the same value because the question happens to have the same
+ * answer — a season is roughly four films of watching either way — but the two
+ * are now free to move independently, which is the point.
+ */
+const SERIES_SHARE_WEIGHT = 4;
 
 /**
  * The four films printed on the card, and why each one is there.
@@ -589,7 +602,8 @@ function balance(picks: SignatureFilm[], candidates: Candidate[]): SignatureFilm
   // television by viewing time reads as a sixth, and the card puts up four
   // films for somebody who mostly watches series.
   const share =
-    (seasons.length * SEASON_WEIGHT) / (seasons.length * SEASON_WEIGHT + movies.length);
+    (seasons.length * SERIES_SHARE_WEIGHT) /
+    (seasons.length * SERIES_SHARE_WEIGHT + movies.length);
   // Below three rated seasons a television habit is not established enough to
   // spend a quarter of somebody's card on.
   const floor = seasons.length >= 3 ? 1 : 0;

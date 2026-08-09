@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-08T22:45:00.000Z",
+  "generatedAt": "2026-08-08T23:30:00.000Z",
   "title": "Design System: Tenpoint",
   "extensions": {
     "colorMeta": {
@@ -128,6 +128,22 @@
     ],
     "breakpoints": [
       { "name": "sm", "value": "640px" }
+    ],
+    "tierFinishes": [
+      { "name": "Common", "rim": "#2a2a31", "note": "Matte. Complete and quiet, not the card with its good bits removed." },
+      { "name": "Uncommon", "rim": "#34343d", "ground": "#30303a", "note": "One tonal step past edge: a refined edge rather than a colour." },
+      { "name": "Rare", "rim": "linear-gradient(160deg,#34506a,#8faecc)", "note": "First rank to take an accent. Beam-edge to beam." },
+      { "name": "Epic", "rim": "linear-gradient(160deg,#5a5570,#b3a3d6)", "ground": "#2a2740", "note": "Silver-violet foil; the sweep begins here." },
+      { "name": "Legendary", "rim": "conic-gradient(from 210deg,#4a3f24,#d9b25f,#3a3a44,#d9b25f,#4a3f24)", "note": "Warm metal. The one place a conic gradient is used." },
+      { "name": "Mythic", "rim": "conic-gradient(from 0deg,#8faecc,#d9b25f,#c4756a,#8faecc)", "note": "All three system accents at once, which is why nothing else may." }
+    ],
+    "cardStocks": [
+      { "name": "Vellum", "material": "linear-gradient(150deg,#2b2620,#3b352b)", "note": "Warm paper. People and rooms." },
+      { "name": "Neon Rain", "material": "linear-gradient(150deg,#111820,#1d2c3c)", "note": "Cold blue. The dark." },
+      { "name": "Filmstrip", "material": "linear-gradient(150deg,#1a1a1f,#26262d)", "note": "Near-neutral graphite. Motion." },
+      { "name": "Marble", "material": "linear-gradient(150deg,#23232a,#3a3a43)", "note": "Cool stone. The record." },
+      { "name": "Nebula", "material": "linear-gradient(150deg,#231e36,#3b3054)", "note": "Violet. What could not happen." },
+      { "name": "Bare", "material": "#1c1c21", "note": "Flat tray, no texture. Nothing has emerged yet." }
     ]
   },
   "components": [
@@ -231,6 +247,7 @@
       { "name": "The Card Scale Rule", "body": "Page type and card type are separate ramps. Never set page-ramp sizes on a card, or card-ramp sizes in page chrome. A card is a printed object at its own scale; the moment its type matches the surrounding page it stops reading as an object and becomes a panel.", "section": "typography" },
       { "name": "The Third Face Rule", "body": "Instrument Serif italic sets the taste card's archetype name at 38px, and nothing else — not headings, not the binder, not a page title. It earns its place because the archetype is the only string in the product that is a *name* rather than a field, and neither working face can say a name. The qualifier before it ('Deepcut', 'Midnight') stays a tracked 13px label in the body face, so the card reads qualifier-then-thing, which is the order the archetype is actually built in. Only the italic cut is loaded; a roman Instrument Serif anywhere is drift.", "section": "typography" },
       { "name": "The Two Voices Rule", "body": "Space Grotesk for structure and number, IBM Plex Sans for prose. A heading in Plex or a paragraph in Grotesk breaks the one distinction the type system makes.", "section": "typography" },
+      { "name": "The Three Palettes Rule", "body": "The graphite ladder dresses the interface, the tier palette dresses rank, and the stock palette dresses taste. They never trade: a stock colour in chrome, a tier colour on a page, or a UI token as a card ground all break the one distinction that lets a card read as a printed object rather than another panel.", "section": "colors" },
       { "name": "The Proportionate Corner Rule", "body": "Radius tracks the size of the object, not the system's preference for one number. A page panel takes 12px, a control takes 6px, and anything living inside a card or row takes 2-5px. The test: the corner should look like the same cut at every scale, which means the value has to change.", "section": "shapes" },
       { "name": "The Two Borders Rule", "body": "`seam` is the hairline inside a component — between rows, around a control. `edge` is the outline of a panel that sits on the page as its own surface, and it travels with the 12px radius. Using `seam` on a page panel makes it dissolve into the background; using `edge` inside a list makes every row shout.", "section": "shapes" },
       { "name": "The Tonal-Only Rule", "body": "Surfaces never lift with shadow. If something needs to read as raised, move it up a rung and give it a hairline. The only permitted shadow in the system is the marquee's `drop-shadow`, on illustration, not chrome.", "section": "elevation" }

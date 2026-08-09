@@ -17,6 +17,22 @@ colors:
   gold: "#d9b25f"
   good: "#8fbf7f"
   warn: "#c4756a"
+  # Tier finishes — the collectible rank palette. Earned objects only.
+  tier-common-label: "#8a8a92"
+  tier-uncommon-rim: "#34343d"
+  tier-uncommon-ground: "#30303a"
+  tier-epic-rim: "#5a5570"
+  tier-epic-foil: "#b3a3d6"
+  tier-epic-ground: "#2a2740"
+  # Card stocks — the taste palette. Card grounds only.
+  stock-vellum-low: "#2b2620"
+  stock-vellum-high: "#3b352b"
+  stock-neon-high: "#1d2c3c"
+  stock-nebula-low: "#231e36"
+  stock-nebula-high: "#3b3054"
+  # Variant accents dealt from the highest-rated decade.
+  accent-emerald: "#7fb59a"
+  accent-amethyst: "#a98fd6"
 typography:
   display:
     fontFamily: "Space Grotesk, sans-serif"
@@ -271,6 +287,49 @@ The ladder, darkest to lightest. Each step is a surface, not a decoration.
 - **Ash** (`#9a9aa3`): Secondary text. Labels, metadata, supporting copy.
 - **Dim** (`#6a6a72`): Tertiary text and placeholders. The floor for anything
   still meant to be read.
+
+### The tier finish palette
+
+A second, separate palette, and the only one that exists outside the graphite
+ladder. It dresses the six collectible card ranks and appears nowhere else in
+the product — not in chrome, not on a page, not on a control.
+
+- **Uncommon** — `#34343d` rim over `#30303a`: one tonal step past `edge`, a
+  refined edge rather than a colour.
+- **Rare** — `beam-edge` → `beam` gradient. The first rank that takes an accent.
+- **Epic** — `#5a5570` → `#b3a3d6` over `#2a2740`: a silver-violet foil.
+- **Legendary** — `#4a3f24` → `gold` → `#3a3a44`: warm metal, the one place a
+  conic gradient is used.
+- **Mythic** — `beam` → `gold` → `warn` in full interference. All three system
+  accents at once, which is why no other surface may do it.
+
+These are finishes on an earned object, so they follow **The Earned Gold Rule**
+rather than breaking it. A tier colour used as UI chrome is a defect.
+
+### The card stock palette
+
+The third and last palette: the ground a taste card is printed on, dealt from
+the theme the library keeps returning to. Every stock is a two-stop gradient at
+`150deg` with an almost invisible texture layered over it, and all of them sit
+in the same near-black register as the page, so the card reads as an object made
+of the room rather than a bright rectangle dropped into it.
+
+- **Vellum** `#2b2620 → #3b352b` — warm paper. People and rooms.
+- **Neon Rain** `#111820 → #1d2c3c` — cold blue. The dark: noir, the occult.
+- **Filmstrip** `#1a1a1f → #26262d` — near-neutral graphite. Motion.
+- **Marble** `#23232a → #3a3a43` — cool stone. The record and remarks on it.
+- **Nebula** `#231e36 → #3b3054` — violet. What could not happen.
+- **Bare** `#1c1c21` — flat `tray`, no texture. Nothing has emerged yet.
+
+Textures never exceed **4.5% opacity** (`rgba(236,234,230,.014)` to `.045`).
+They are felt rather than seen; a visible pattern would compete with the poster
+quartet the card is built around.
+
+**The Three Palettes Rule.** The graphite ladder dresses the interface, the tier
+palette dresses rank, and the stock palette dresses taste. They never trade: a
+stock colour in chrome, a tier colour on a page, or a UI token as a card ground
+all break the one distinction that lets a card read as a printed object rather
+than another panel.
 
 ### Named Rules
 

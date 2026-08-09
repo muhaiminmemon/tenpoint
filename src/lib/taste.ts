@@ -9,7 +9,6 @@ import {
   readArchetype,
   themeDNA,
   ARCHETYPE_BY_GENRE,
-  computeTier,
   computeVariant,
   ERA_BY_DECADE,
   evaluateTraits,
@@ -646,8 +645,8 @@ export async function buildHomeTasteCard(
       archetypeMeaning: "",
       full,
       toFull: FULL_CARD_THRESHOLD,
-      // Nothing rated means nothing met, so this is Common without asking.
-      tier: computeTier(0),
+      // Nothing rated is zero depth, which is Common without asking.
+      tier: RARITY_TIERS[0],
       standing: null,
       variant: { name: "", stock: "", accent: "", aura: "", accentColor: "#8faecc" },
       traits: [],
@@ -712,7 +711,9 @@ export async function buildHomeTasteCard(
         : 0,
   };
 
-  const standing = tierStanding(mix.films, mix.seasons, signals);
+  // Depth is read from the signals alone, so the ladder and the card can never
+  // disagree about the same library.
+  const standing = tierStanding(signals);
   const tier = standing.tier;
 
   const variant = computeVariant(
@@ -809,19 +810,25 @@ export { ERA_BY_DECADE, ARCHETYPE_BY_GENRE };
  * looking at the card should move it.
  */
 export async function syncUserTier(userId: string): Promise<void> {
-  const [taste, signals] = await Promise.all([
-    getTasteProfile(userId, { includePrivate: true }),
+  const [signals, row] = await Promise.all([
     getTasteSignals(userId, { includePrivate: true }),
+    db.select({ tierFloor: users.tierFloor }).from(users).where(eq(users.id, userId)).limit(1),
   ]);
-  const tier =
-    taste.rated > 0
-      ? tierStanding(
-          taste.rated - signals.seasonCount - signals.wholeShowCount,
-          signals.seasonsCredited,
-          signals,
-        ).tier.name
-      : null;
-  await db.update(users).set({ tier }).where(eq(users.id, userId));
+  const floor = row[0]?.tierFloor ?? null;
+  const tier = signals.rated > 0 ? tierStanding(signals).tier.name : null;
+
+  /**
+   * The high-water mark, kept as history rather than as a shield.
+   *
+   * The tier itself is whatever depth earns right now and is free to fall. This
+   * only ever rises, and only the binder reads it: a finish somebody genuinely
+   * passed through goes on reading as held even after their rank drops back
+   * below it, which is what a binder is for.
+   */
+  const rank = (name: string | null) => RARITY_TIERS.findIndex((t) => t.name === name);
+  const nextFloor = rank(tier) > rank(floor) ? tier : floor;
+
+  await db.update(users).set({ tier, tierFloor: nextFloor }).where(eq(users.id, userId));
 }
 
 /** Marks the current tier as seen, so the nav stops flagging it. */

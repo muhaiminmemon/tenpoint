@@ -6,17 +6,25 @@ import { CLUSTERS, CLUSTER_PREVALENCE, STOCK_BY_CLUSTER } from "./archetype-clus
 // in taste.ts (buildHomeTasteCard) since it's a trivial function of `rated`.
 
 // ---------------------------------------------------------------------------
-// LAYER 2 — RARITY: a six-tier ladder on what has been watched. Never grinded by
-// one path alone — see `nextTierMilestones` below for the "any three of five"
-// progress shown toward the next tier.
+// LAYER 2 — RARITY: a six-tier ladder on one number, Library Depth.
+//
+// Rank answers "how deep is this library", and nothing else. It is not a
+// reading of taste, and nothing computed here may reach the archetype, the
+// traits or the signature quartet.
+//
+// It used to state two counts per rung — "300 films or 75 seasons" — while
+// computing `films/floor + seasons/seasonFloor`, a sum of fractions. Those are
+// different rules, and the gap was wide enough to see in the data: the lowest
+// film count actually holding Epic was 155, not 300, because 155 films and 45
+// seasons is 1.12 rungs. A reader could not derive their own rank from what the
+// card told them. One integer with fixed per-unit values can be checked against
+// a diary by hand, which is the whole point.
 
 export type RarityTier = {
   name: "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic";
   index: number;
-  /** films alone that reach this rung */
-  floor: number;
-  /** seasons alone that reach it, roughly a quarter of the film count */
-  seasonFloor: number;
+  /** library depth that reaches this rung */
+  depth: number;
   range: string;
   effect: string;
   border: string;
@@ -42,9 +50,8 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Common",
     index: 0,
-    floor: 1,
-    seasonFloor: 1,
-    range: "Your first film or season",
+    depth: 0,
+    range: "Your first rating",
     effect: "Matte. Just the essentials.",
     border: "#2a2a31",
     glow: "none",
@@ -56,9 +63,8 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Uncommon",
     index: 1,
-    floor: 40,
-    seasonFloor: 10,
-    range: "40 films or 10 seasons",
+    depth: 60,
+    range: "60 points",
     effect: "A cleaner edge, faint sheen.",
     border: "#34343d",
     glow: "none",
@@ -70,9 +76,8 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Rare",
     index: 2,
-    floor: 120,
-    seasonFloor: 30,
-    range: "120 films or 30 seasons",
+    depth: 200,
+    range: "200 points",
     effect: "Beam-blue border.",
     border: "linear-gradient(160deg,#34506a,#8faecc)",
     glow: "none",
@@ -84,9 +89,8 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Epic",
     index: 3,
-    floor: 300,
-    seasonFloor: 75,
-    range: "300 films or 75 seasons",
+    depth: 500,
+    range: "500 points",
     effect: "Silver foil, quiet shimmer.",
     border: "linear-gradient(160deg,#5a5570,#b3a3d6)",
     glow: "none",
@@ -98,9 +102,8 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Legendary",
     index: 4,
-    floor: 700,
-    seasonFloor: 175,
-    range: "700 films or 175 seasons",
+    depth: 1200,
+    range: "1,200 points",
     effect: "Gold foil, warm glow.",
     border: "conic-gradient(from 210deg,#4a3f24,#d9b25f,#3a3a44,#d9b25f,#4a3f24)",
     borderFlat: "linear-gradient(130deg,#4a3f24,#d9b25f 28%,#3a3a44 52%,#d9b25f 76%,#4a3f24)",
@@ -113,9 +116,8 @@ export const RARITY_TIERS: RarityTier[] = [
   {
     name: "Mythic",
     index: 5,
-    floor: 1400,
-    seasonFloor: 350,
-    range: "1,400 films or 350 seasons",
+    depth: 2500,
+    range: "2,500 points",
     effect: "Full foil, drifting light, particles.",
     border: "conic-gradient(from 0deg,#8faecc,#d9b25f,#c4756a,#8faecc)",
     borderFlat: "linear-gradient(130deg,#8faecc,#d9b25f 34%,#c4756a 66%,#8faecc)",
@@ -128,230 +130,285 @@ export const RARITY_TIERS: RarityTier[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// LAYER 2b — MILESTONES: five real signals. Meeting three genuinely promotes,
-// on top of the film-count floor, so breadth is a real second route up the
-// ladder rather than a progress bar that decided nothing.
-
-export type Milestone = { label: string; detail: string; met: boolean };
-
-type MilestoneTargets = {
-  films: number;
-  genres: number;
-  decades: number;
-  reviews: number;
-  rewatches: number;
-};
-
-// Every target here is a fact about the films themselves (count, breadth,
-// curation) rather than time elapsed in the app — a bulk Letterboxd import
-// should land exactly where the same taste, logged natively, would.
-// Favourites used to be the fifth condition and was removed: the only control
-// that sets one lives inside the library's shelf view, so a tier could be
-// gated on an action most people never find. A milestone nobody can reach is
-// not a target, it is a wall.
-const MILESTONE_TARGETS: MilestoneTargets[] = [
-  { films: 25, genres: 5, decades: 2, reviews: 3, rewatches: 2 },
-  { films: 75, genres: 8, decades: 3, reviews: 8, rewatches: 5 },
-  { films: 150, genres: 11, decades: 4, reviews: 15, rewatches: 10 },
-  { films: 300, genres: 15, decades: 5, reviews: 25, rewatches: 20 },
-  { films: 500, genres: 17, decades: 6, reviews: 60, rewatches: 40 },
-];
+// LAYER 2b — LIBRARY DEPTH: the one number the ladder runs on.
+//
+// Depth is volume of recorded opinion, weighted by how much watching each unit
+// represents. It is not breadth, not obscurity, not effort, and not taste.
+// Genres, decades and reviews are worth nothing here on purpose: they used to
+// promote a rank, which is what made rank and identity impossible to tell
+// apart. They are collectibles now (see `COLLECTIBLES`), and collectibles never
+// move a tier.
 
 /**
- * The five conditions for one step up the ladder.
+ * One line of the sum, with its arithmetic intact.
  *
- * Extracted so the gate and the progress display read the same list. They used
- * to be separate: the card printed "needs any three of five" while the tier was
- * decided by film count alone, so someone could meet three conditions, watch
- * the interface confirm it, and stay exactly where they were.
+ * Both halves are here because the points alone cannot be checked. A panel
+ * reading "Seasons, 4 each — 292" next to a library holding 73 seasons asks the
+ * reader to divide before they can tell whether it is right, and most will read
+ * 292 as the number of seasons instead. Printing 73 × 4 = 292 makes the line
+ * verifiable at a glance, which is the entire argument for one integer.
  */
-export function milestonesAt(stepIndex: number, s: TasteSignals): Milestone[] {
-  const t = MILESTONE_TARGETS[stepIndex];
-  if (!t) return [];
-
+export type DepthLine = {
+  key: string;
+  /** what was counted, in the product's own words */
+  label: string;
+  /** how many there are */
+  count: number;
+  /** what one of them is worth */
+  per: number;
+  /** what the line contributes, after any cap */
+  points: number;
   /**
-   * Titles, counted the way the ladder counts them.
-   *
-   * `rated` is rows, and a series rated whole and by season puts both on the
-   * shelf, so somebody who rated Breaking Bad and three of its seasons was
-   * four films closer to a tier for one show. The ladder already resolves this
-   * with `seasonsCredited`, which takes the greater of the two readings rather
-   * than their sum, and this milestone now reads the same number instead of
-   * disagreeing with the gate standing next to it.
+   * True when a cap trimmed the line, so the panel can say so rather than
+   * print `40 × 1 = 25` and look broken.
    */
-  const titles = s.rated - s.seasonCount - s.wholeShowCount + s.seasonsCredited;
-
-  return [
-    { label: `${t.films} titles logged`, detail: `${titles} / ${t.films}`, met: titles >= t.films },
-    {
-      label: `${t.genres} genres watched`,
-      detail: `${s.distinctGenres} genres`,
-      met: s.distinctGenres >= t.genres,
-    },
-    {
-      label: `${t.decades} decades explored`,
-      detail: `${s.distinctDecades} decades`,
-      met: s.distinctDecades >= t.decades,
-    },
-    {
-      label: `${t.reviews} reviews written`,
-      detail: `${s.reviewCount} reviews`,
-      met: s.reviewCount >= t.reviews,
-    },
-    {
-      label: `${t.rewatches} rewatches logged`,
-      detail: `${s.rewatchEntryCount} / ${t.rewatches}`,
-      met: s.rewatchEntryCount >= t.rewatches,
-    },
-  ];
-}
-
-/** Three of the five. The bar the card has always advertised. */
-export const MILESTONES_TO_PROMOTE = 3;
-
-/**
- * Everything about where someone stands on the ladder, from one function.
- *
- * The gate and the progress display used to be computed separately, and they
- * disagreed. Film count set a floor; meeting three of five conditions lifted
- * you one rung above it. But the card then drew the *next* rung's conditions,
- * which no number of met conditions could ever unlock, because the lift is
- * capped at one. People met three, watched the card confirm it, and stayed put.
- *
- * So both answers come from here. A tier is reached one of two ways and the
- * display always names the one that is actually in force:
- *
- * - **Standing on your count.** Three of five conditions lifts you a rung.
- * - **Already lifted.** The rung above needs the film count to catch up first;
- *   conditions cannot carry you twice.
- *
- * The cap is what stops breadth from running away with the whole ladder: the
- * top step's conditions are also satisfied at every step beneath it, so
- * uncapped chaining took a sixty-film library to Mythic, a tier that is meant
- * to mean five hundred.
- */
-export type TierGate =
-  | { kind: "milestones"; milestones: Milestone[]; met: number; needed: number }
-  | {
-      kind: "films";
-      filmsToNext: number;
-      seasonsToNext: number;
-      /** what each half is worth toward the next rung, as whole percentages */
-      filmPct: number;
-      seasonPct: number;
-      progressPct: number;
-    };
-
-export type TierStanding = {
-  /** the tier in force */
-  tier: RarityTier;
-  /** what the film count alone earns */
-  byCount: RarityTier;
-  /** true when conditions lifted the tier above the count */
-  promoted: boolean;
-  /** null at the top of the ladder */
-  next: RarityTier | null;
-  /** how the next rung is actually reached from here; null at the top */
-  gate: TierGate | null;
+  capped: boolean;
 };
 
-/**
- * How far along a rung somebody is, as a fraction of the two stated numbers.
- *
- * A rung is "300 films or 75 seasons", and either alone reaches it, so the two
- * are read as fractions and added: half the films plus half the seasons is a
- * whole rung. That is the only rule that does not punish somebody for watching
- * both, and it needs no multiplier to explain, which the previous version did.
- */
-export function ladderProgress(films: number, seasons: number, tier: RarityTier): number {
-  return films / Math.max(1, tier.floor) + seasons / Math.max(1, tier.seasonFloor);
-}
-
-export function tierStanding(films: number, seasons: number, signals: TasteSignals): TierStanding {
-  let byCount = RARITY_TIERS[0];
-  for (const t of RARITY_TIERS) {
-    if (ladderProgress(films, seasons, t) >= 1) byCount = t;
-  }
-
-  const step = milestonesAt(byCount.index, signals);
-  const met = step.filter((m) => m.met).length;
-  const above = RARITY_TIERS[byCount.index + 1];
-
-  const promoted = Boolean(above) && met >= MILESTONES_TO_PROMOTE;
-  const tier = promoted ? above : byCount;
-  const next = RARITY_TIERS[tier.index + 1] ?? null;
-
-  if (!next) return { tier, byCount, promoted, next: null, gate: null };
-
-  return {
-    tier,
-    byCount,
-    promoted,
-    next,
-    gate: promoted
-      ? // The lift is spent. Only watching moves the floor now, and once it
-        // moves the conditions for the rung after this one come back into play.
-        (() => {
-          // Both halves are shown as their own share of the rung, because
-          // "any mix" explains nothing: the two percentages add to the
-          // progress, and a reader can check either against their own diary.
-          const filmPct = Math.round((films / Math.max(1, tier.floor)) * 100);
-          const seasonPct = Math.round((seasons / Math.max(1, tier.seasonFloor)) * 100);
-          const left = Math.max(0, 1 - ladderProgress(films, seasons, tier));
-          return {
-            kind: "films" as const,
-            filmsToNext: Math.ceil(left * tier.floor),
-            seasonsToNext: Math.ceil(left * tier.seasonFloor),
-            filmPct,
-            seasonPct,
-            progressPct: Math.min(100, filmPct + seasonPct),
-          };
-        })()
-      : { kind: "milestones", milestones: step, met, needed: MILESTONES_TO_PROMOTE },
-  };
-}
+export type LibraryDepth = { depth: number; lines: DepthLine[] };
 
 /**
  * What one season is worth, measured against a film.
  *
- * Counting rows says this catalogue is 16% television. Counting hours says
- * 51%, because a season here runs fourteen episodes, which is 5.3 films of
- * watching. Neither is right for a card: rows under-count a habit that takes
- * most of somebody's viewing time, and hours would turn a film diary into a
- * television one.
+ * Checked against the catalogue rather than assumed. Across the seasons people
+ * actually rate, a season runs 13.9 episodes: 12.4 for live action, 19.7 for
+ * animation, 28.4 for anime. At ordinary per-episode durations that is roughly
+ * 558, 433 and 682 minutes, against a median film of 110 and a mean of 120 —
+ * so a season is about 4.5 films of watching, weighted by what gets rated.
  *
- * Four sits deliberately between the two, and it is the same ratio the ladder
- * states out loud: every rung is a film count and a season count roughly four
- * times smaller. Nothing here relies on a reader trusting a hidden multiplier.
+ * Four is therefore slightly conservative: it under-credits television rather
+ * than over-credits it, which is the safer error for a product whose catalogue
+ * is film-first.
  *
- * It is a weight and not a quota on purpose. A quota would give shows to
- * somebody who watches none and cap somebody who watches almost nothing else;
- * a weight is true for both of them and happens to land on 40/60 in the middle.
+ * Deliberately not per-form. Anime would be worth 5.7 and animation 3.6, so an
+ * anime watcher would climb 58% faster than an animation watcher for the same
+ * number of seasons — a visible unfairness bought for a rounding error, and one
+ * that would contradict anime being a kind of show rather than its own universe.
+ *
+ * It is stated out loud on the card. A hidden multiplier is the thing this
+ * redesign exists to remove.
  */
 export const SEASON_WEIGHT = 4;
 
+/** A finished series is worth a little, and only a little. */
+const COMPLETED_SHOW_POINTS = 2;
+const COMPLETED_SHOW_CAP = 50;
+
+/** Returning to something counts once per title, however often you return. */
+const REWATCH_POINTS = 1;
+const REWATCH_CAP = 25;
+
 /**
- * The size of a library in film-equivalents.
+ * How deep this library is, as one integer.
  *
- * The ladder no longer uses this: it states two real counts per rung instead,
- * which needs no constant to explain. This is still what decides how many of
- * the four signature slots a series can hold, and it is never applied to the
- * average, which has to stay the mean of the ratings to stay checkable.
+ * Base volume dominates by construction: at the Epic threshold of 500 the two
+ * bonuses together cap at 75, and only for somebody who has genuinely finished
+ * twenty-five series and returned to twenty-five different titles. In the
+ * catalogue as it stands, rewatches are 1.7% of all entries, so the typical
+ * contribution is nearly nothing.
+ *
+ * A whole-series rating is worth one season, not the whole run. It is one
+ * recorded opinion, and depth counts recorded opinions; crediting every aired
+ * season would make a single click on a fifteen-season show worth sixty films.
+ * Rating seasons individually remains the way to turn a long series into real
+ * depth, which also happens to protect the strongest thing this product does by
+ * making the granular path the rewarding one.
  */
-export function weightedSize(films: number, seasons: number): number {
-  return films + seasons * SEASON_WEIGHT;
+export function libraryDepth(signals: TasteSignals): LibraryDepth {
+  const line = (
+    key: string,
+    label: string,
+    count: number,
+    per: number,
+    cap?: number,
+  ): DepthLine => {
+    const raw = Math.max(0, count) * per;
+    const points = cap === undefined ? raw : Math.min(cap, raw);
+    return { key, label, count: Math.max(0, count), per, points, capped: points < raw };
+  };
+
+  const lines: DepthLine[] = [
+    line(
+      "films",
+      "films",
+      signals.rated - signals.seasonCount - signals.wholeShowCount,
+      1,
+    ),
+    line("seasons", "seasons", signals.seasonCount, SEASON_WEIGHT),
+    line("shows", "whole series", signals.wholeShowCount, SEASON_WEIGHT),
+    line(
+      "completed",
+      "series finished",
+      signals.completedShows,
+      COMPLETED_SHOW_POINTS,
+      COMPLETED_SHOW_CAP,
+    ),
+    line(
+      "rewatched",
+      "titles returned to",
+      signals.repeatTitleCount,
+      REWATCH_POINTS,
+      REWATCH_CAP,
+    ),
+  ];
+
+  return { depth: lines.reduce((sum, l) => sum + l.points, 0), lines };
+}
+
+// ---------------------------------------------------------------------------
+// LAYER 2c — COLLECTIBLES: the fun that used to distort the ladder.
+//
+// These were milestones, and meeting three of them lifted a rank. That made
+// rank a mixture of how much somebody had watched and how broadly, which is
+// exactly the conflation the redesign removes. They are achievements now: they
+// unlock finishes and binder plates, and they never touch depth or tier.
+//
+// They are not traits. A trait is an observation about what somebody watches;
+// these are things somebody has done. They must not render in the traits panel.
+
+export type CollectibleDef = {
+  key: string;
+  name: string;
+  /** what the number counts, in the product's own words */
+  unit: string;
+  target: number;
+  count: (s: TasteSignals) => number;
+  /** the condition, stated as a fact a reader could check */
+  condition: string;
+};
+
+export const COLLECTIBLES: CollectibleDef[] = [
+  {
+    key: "international",
+    name: "International Explorer",
+    unit: "titles not in English",
+    target: 25,
+    count: (s) => s.nonEnglishCount,
+    condition: "25 rated titles in a language other than English",
+  },
+  {
+    key: "rewatch",
+    name: "Rewatch Archive",
+    unit: "titles returned to",
+    target: 25,
+    count: (s) => s.repeatTitleCount,
+    condition: "25 different titles watched more than once",
+  },
+  {
+    key: "longform",
+    name: "Longform",
+    unit: "series finished",
+    target: 10,
+    count: (s) => s.completedShows,
+    condition: "10 series watched all the way through",
+  },
+  {
+    key: "classicist",
+    name: "Classicist Collection",
+    unit: "titles from before 1970",
+    target: 30,
+    count: (s) => s.preSeventyCount,
+    condition: "30 rated titles released before 1970",
+  },
+  {
+    key: "director",
+    name: "Director Deep Dive",
+    unit: "titles by one director",
+    target: 8,
+    count: (s) => s.maxDirectorCount,
+    condition: "8 rated titles by the same director",
+  },
+  {
+    key: "annotated",
+    name: "The Annotated Shelf",
+    unit: "reviews written",
+    target: 50,
+    count: (s) => s.reviewCount,
+    condition: "50 reviews written",
+  },
+];
+
+/** `count` stops being the function and becomes the number it produced. */
+export type Collectible = Omit<CollectibleDef, "count"> & { count: number; held: boolean };
+
+export function evaluateCollectibles(s: TasteSignals): Collectible[] {
+  return COLLECTIBLES.map((c) => {
+    const count = Math.max(0, Math.round(c.count(s)));
+    return { ...c, count, held: count >= c.target };
+  });
+}
+
+// ---------------------------------------------------------------------------
+
+export type TierGate = {
+  /** where this library stands */
+  depth: number;
+  /** the depth the next rung needs */
+  need: number;
+  /** how much more, so the card never makes a reader subtract */
+  toNext: number;
+  /** progress through the current rung, 0-100 */
+  progressPct: number;
+};
+
+export type TierStanding = {
+  /** the tier this library earns, now */
+  tier: RarityTier;
+  depth: number;
+  /** the sum, line by line, with its arithmetic intact */
+  lines: DepthLine[];
+  /** null at the top of the ladder */
+  next: RarityTier | null;
+  /** how the next rung is reached; null at the top */
+  gate: TierGate | null;
+};
+
+export function tierFor(depth: number): RarityTier {
+  let tier = RARITY_TIERS[0];
+  for (const t of RARITY_TIERS) {
+    if (depth >= t.depth) tier = t;
+  }
+  return tier;
+}
+
+/**
+ * Where somebody stands, and how the next rung is reached.
+ *
+ * The tier is whatever the library earns right now, with nothing held back and
+ * nothing carried forward. That means rank can fall — deleting entries, hiding
+ * private ones, or a change to the thresholds will all move it down — and that
+ * is the deliberate trade for a rank that always describes the shelf in front of
+ * you rather than the shelf you once had.
+ *
+ * The high-water mark is still recorded on `users.tier_floor`, but only as
+ * history: the binder reads it so a finish somebody genuinely passed through
+ * keeps reading as held. It never props up the tier in force.
+ */
+export function tierStanding(signals: TasteSignals): TierStanding {
+  const { depth, lines } = libraryDepth(signals);
+  const tier = tierFor(depth);
+
+  const next = RARITY_TIERS[tier.index + 1] ?? null;
+  if (!next) return { tier, depth, lines, next: null, gate: null };
+
+  const span = Math.max(1, next.depth - tier.depth);
+  return {
+    tier,
+    depth,
+    lines,
+    next,
+    gate: {
+      depth,
+      need: next.depth,
+      toNext: Math.max(0, next.depth - depth),
+      progressPct: Math.max(0, Math.min(100, Math.round(((depth - tier.depth) / span) * 100))),
+    },
+  };
 }
 
 /** The tier in force. A thin read on `tierStanding` for callers that want only that. */
-export function computeTier(rated: number, signals?: TasteSignals): RarityTier {
-  if (!signals) {
-    let tier = RARITY_TIERS[0];
-    for (const t of RARITY_TIERS) {
-      if (rated >= t.floor) tier = t;
-    }
-    return tier;
-  }
-  return tierStanding(rated, 0, signals).tier;
+export function computeTier(signals: TasteSignals): RarityTier {
+  return tierStanding(signals).tier;
 }
 
 // ---------------------------------------------------------------------------

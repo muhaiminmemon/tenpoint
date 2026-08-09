@@ -40,6 +40,16 @@ export const users = pgTable("users", {
   tier: text("tier"),
   tierSeen: text("tier_seen"),
   /**
+   * The highest tier this account has ever earned.
+   *
+   * A rank already shown to somebody is not taken back. When the depth formula
+   * or its thresholds move, the effective tier is the greater of what the
+   * library computes now and what it once reached, so a redesign cannot demote
+   * anybody. The floor goes inert on its own: the moment the computed tier
+   * catches up it stops being the greater of the two and never applies again.
+   */
+  tierFloor: text("tier_floor"),
+  /**
    * Version stamp for the avatar, not the image itself. The bytes live in
    * `avatars`, so no query that joins `users` ever drags a blob along, and
    * `/api/avatar/[userId]?v=<stamp>` can be cached immutably forever: a new
@@ -538,6 +548,7 @@ export const safeUserColumns = {
   memberNumber: users.memberNumber,
   tier: users.tier,
   tierSeen: users.tierSeen,
+  tierFloor: users.tierFloor,
   avatarUpdatedAt: users.avatarUpdatedAt,
   emailVerifiedAt: users.emailVerifiedAt,
   privacy: users.privacy,

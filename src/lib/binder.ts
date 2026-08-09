@@ -37,6 +37,9 @@ import {
   type PersonalityAxis,
 } from "./taste";
 import { getHeldVariantNames } from "./variant-history";
+import { eq as eqOp } from "drizzle-orm";
+import { db } from "@/db";
+import { users as usersTable } from "@/db/schema";
 
 /** Yours right now, held at some point, or never held. */
 export type FinishState = "yours" | "held" | "unheld";
@@ -119,13 +122,22 @@ export async function loadBinder(
   const signals = await getTasteSignals(user.id, { includePrivate });
 
   const hasCard = taste.rated > 0;
-  const tier = hasCard
-    ? tierStanding(
-        taste.rated - signals.seasonCount - signals.wholeShowCount,
-        signals.seasonsCredited,
-        signals,
-      ).tier
-    : null;
+  const tier = hasCard ? tierStanding(signals).tier : null;
+
+  /**
+   * The highest tier this account ever reached.
+   *
+   * Rank is depth now, and depth can fall: delete a run of entries and the tier
+   * goes with them. Deriving "held" from the current tier alone would then quietly
+   * un-collect finishes somebody had genuinely earned, which is the one thing a
+   * binder must not do.
+   */
+  const floorRow = await db
+    .select({ tierFloor: usersTable.tierFloor })
+    .from(usersTable)
+    .where(eqOp(usersTable.id, user.id))
+    .limit(1);
+  const everReached = RARITY_TIERS.findIndex((t) => t.name === floorRow[0]?.tierFloor);
   const variant = computeVariant(
     signals,
     taste.topGenres[0]?.name,
@@ -164,7 +176,7 @@ export async function loadBinder(
         ? "unheld"
         : t.index === tier.index
           ? "yours"
-          : t.index < tier.index
+          : t.index < tier.index || t.index <= everReached
             ? "held"
             : "unheld",
   }));

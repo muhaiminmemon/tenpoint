@@ -520,8 +520,8 @@ export default function BinderShowcase({
                     </div>
                     <p className="mt-1 text-sm text-ash">
                       {row.tier.index === 0
-                        ? "Issued with the first film rated."
-                        : `Issued at ${row.tier.floor} films, or ${row.tier.seasonFloor} seasons, or any mix.`}{" "}
+                        ? "Issued with the first rating."
+                        : `Issued at ${row.tier.depth.toLocaleString()} points: a film is 1, a season is 4.`}{" "}
                       {row.tier.effect}
                     </p>
                   </div>

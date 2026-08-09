@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowsLeftRight } from "@phosphor-icons/react/ssr";
-import { Check } from "@phosphor-icons/react/ssr";
 import { usePresence } from "@/lib/usePresence";
 import AutoHeight from "./AutoHeight";
 import { useToast } from "./Toast";
@@ -227,76 +226,59 @@ function CardTab({ data, binderHref }: { data: HomeTasteCardData; binderHref?: s
             <span className="text-[10px] uppercase tracking-[.14em] text-ash">
               {data.tier.name} &rarr; {standing.next?.name}
             </span>
-            {standing.gate.kind === "milestones" && (
-              <span className="num text-[11px] text-beam">
-                {standing.gate.met} of {standing.gate.milestones.length} conditions
-              </span>
-            )}
+            <span className="num text-[11px] text-beam">
+              {standing.depth.toLocaleString()} / {standing.gate.need.toLocaleString()}
+            </span>
           </div>
 
-          {standing.gate.kind === "milestones" ? (
-            <>
-              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                {standing.gate.milestones.map((m) => (
-                  <div
-                    key={m.label}
-                    className="flex items-center gap-2.5 border-b border-[#1e1e24] py-1.5"
-                  >
-                    <span
-                      className={`flex size-4 shrink-0 items-center justify-center rounded-[5px] border ${
-                        m.met ? "border-gold bg-gold text-carbon" : "border-seam text-dim"
-                      }`}
-                    >
-                      {m.met && (
-                        <Check aria-hidden className="size-2.5" weight="bold" />
-                      )}
-                    </span>
-                    <span className={`flex-1 text-[12.5px] ${m.met ? "text-paper" : "text-dim"}`}>
-                      {m.label}
-                    </span>
-                    <span className={`num text-[10.5px] ${m.met ? "text-gold" : "text-[#5a5a62]"}`}>
-                      {m.detail}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 text-[12px] leading-relaxed text-dim">
-                {standing.next?.name} needs any {standing.gate.needed} of{" "}
-                {standing.gate.milestones.length}. The tier re-mints the moment a third one lands,
-                whichever it is.
-              </p>
-            </>
-          ) : (
-            /* Already lifted a rung by conditions. Saying "three of five" here
-               would promise a promotion that cannot happen: the lift is spent,
-               and only the film count moves the floor now. */
-            <>
-              <p className="text-[12.5px] leading-relaxed text-paper">
-                {data.tier.name} is already ahead of what you have watched, earned on breadth
-                rather than volume.
-              </p>
-              <p className="mt-2 text-[12px] leading-relaxed text-dim">
-                {standing.gate.filmsToNext > 0 ? (
-                  <>
-                    {data.tier.name} sits at{" "}
-                    <span className="num text-ash">{data.tier.floor}</span> films on their own, or{" "}
-                    <span className="num text-ash">{data.tier.seasonFloor}</span> seasons on their
-                    own. Your films are worth{" "}
-                    <span className="num text-ash">{standing.gate.filmPct}%</span> of that and your
-                    seasons <span className="num text-ash">{standing.gate.seasonPct}%</span>, which
-                    is <span className="num text-ash">{standing.gate.progressPct}%</span> together.
-                    The last{" "}
-                    <span className="num text-ash">{100 - standing.gate.progressPct}%</span> is{" "}
-                    <span className="num text-ash">{standing.gate.filmsToNext}</span> more films or{" "}
-                    <span className="num text-ash">{standing.gate.seasonsToNext}</span> more
-                    seasons, and reaching it is what puts {standing.next?.name} within reach.
-                  </>
-                ) : (
-                  <>The next tier opens from here.</>
-                )}
-              </p>
-            </>
-          )}
+          {/* The rung as a bar. Depth is one number, so this is one bar — the
+              two stacked percentages that used to be here were describing a
+              rule the ladder no longer uses. */}
+          <div className="h-1 overflow-hidden rounded-full bg-tray">
+            <span
+              className="block h-full rounded-full bg-beam transition-[width] duration-500"
+              style={{ width: `${standing.gate.progressPct}%` }}
+            />
+          </div>
+
+          {/* Where the number came from, with the arithmetic left in. The point
+              of one integer is that a reader can check it against their own
+              diary, and they can only do that if both halves are printed. */}
+          <dl className="mt-3">
+            {standing.lines
+              .filter((l) => l.points > 0)
+              .map((l) => (
+                <div
+                  key={l.key}
+                  className="flex items-baseline gap-2 border-t border-seam py-1 first:border-t-0"
+                >
+                  <dt className="num shrink-0 text-[11px] text-paper">
+                    {l.count.toLocaleString()}
+                  </dt>
+                  <span className="min-w-0 flex-1 truncate text-[11px] text-ash">{l.label}</span>
+                  <span className="num shrink-0 text-[11px] text-dim">
+                    {l.capped ? "capped" : `× ${l.per}`}
+                  </span>
+                  <dd className="num w-12 shrink-0 text-right text-[11px] text-paper">
+                    {l.points.toLocaleString()}
+                  </dd>
+                </div>
+              ))}
+            <div className="flex items-baseline gap-2 border-t border-edge pt-1.5">
+              <span className="flex-1 text-[11px] uppercase tracking-[0.12em] text-ash">
+                Library depth
+              </span>
+              <dd className="num w-12 shrink-0 text-right text-[13px] text-paper">
+                {standing.depth.toLocaleString()}
+              </dd>
+            </div>
+          </dl>
+
+          <p className="mt-3 text-[12px] leading-relaxed text-dim">
+            <span className="num text-ash">{standing.gate.toNext.toLocaleString()}</span> more
+            points reaches {standing.next?.name}. Rank is how deep the library is and nothing else
+            &mdash; it never changes your archetype, traits or signature titles.
+          </p>
         </div>
       )}
 
