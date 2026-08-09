@@ -123,7 +123,6 @@ export async function GET(
           username={profile.username}
           displayName={profile.displayName ?? profile.username}
           memberSince={profile.createdAt?.getFullYear() ?? new Date().getFullYear()}
-          avatarUrl={withImages ? avatarUrl : null}
           fmt={fmt}
           hideNums={hideNums}
           withImages={withImages}
@@ -167,7 +166,6 @@ function Poster({
   username,
   displayName,
   memberSince,
-  avatarUrl,
   fmt,
   hideNums,
   withImages = true,
@@ -176,7 +174,6 @@ function Poster({
   username: string;
   displayName: string;
   memberSince: number;
-  avatarUrl: string | null;
   fmt: ShareFmt;
   hideNums: boolean;
   /** false on the retry after a remote image refused to load */
@@ -194,15 +191,36 @@ function Poster({
     .slice(0, 3)
     .sort((a, b) => b.pct - a.pct);
 
-  // The card keeps its proportions on every canvas; only how much room is left
-  // around it changes. A story has height to spare, a wide frame does not.
-  //
-  // Height is left to the content rather than fixed: a card padded out to a
-  // chosen ratio ends in a band of empty ground under the posters, which is
-  // the one thing the card on screen never does.
+  /**
+   * One card, drawn twice.
+   *
+   * This image and the card on the homepage are two renderers of the same
+   * object, and they had drifted into two different designs: the score sat
+   * top-right here and centre there, the archetype was set in Grotesk here and
+   * in the serif there, the themes were still pills here after the card on
+   * screen had moved to a proportional band, and the handle was blue here after
+   * the card on screen had gone white. Somebody sharing their card was posting
+   * a picture of a card nobody has.
+   *
+   * So the layout below is `TasteCardFace` line for line, in the same order,
+   * with `u()` converting that component's pixel sizes onto this canvas: the
+   * face is authored against a 320px-wide card, so `u(n) = n * cardW / 320`
+   * reproduces its proportions at any share size. Change one, change both.
+   */
   const cardW = fmt === "story" ? 880 : fmt === "square" ? 700 : 620;
-  const scale = cardW / 760;
-  const px = (n: number) => Math.round(n * scale);
+  const u = (n: number) => Math.round((n * cardW) / 320);
+  const PAPER = "#eceae6";
+  const CARD_2 = "rgba(236,234,230,.78)";
+  const CARD_3 = "rgba(236,234,230,.62)";
+  // `ratingColor` returns a Tailwind class; this canvas needs the value behind it.
+  const scoreColor =
+    data.mean === null ? CARD_2 : data.mean >= 90 ? "#d9b25f" : data.mean >= 70 ? PAPER : "#9a9aa3";
+  const filled =
+    data.mean === null ? 0 : Math.max(1, Math.min(5, Math.round(data.mean / 20)));
+  const parts = (data.archetype ?? "").trim().split(/\s+/).filter(Boolean);
+  const qualifier = parts.length > 1 ? parts[0] : "";
+  const archetypeName = parts.length > 1 ? parts.slice(1).join(" ") : parts[0] ?? displayName;
+  const bandInk = ["rgba(236,234,230,.55)", "rgba(236,234,230,.35)", "rgba(236,234,230,.2)"];
 
   return (
     <div
@@ -233,11 +251,12 @@ function Poster({
         }}
       />
 
+      {/* The rim is the tier, exactly as on screen: 2px of metal at 320px wide. */}
       <div
         style={{
           width: cardW,
           display: "flex",
-          padding: px(5),
+          padding: u(2),
           background: tier.borderFlat ?? tier.border,
           position: "relative",
         }}
@@ -248,7 +267,7 @@ function Poster({
             display: "flex",
             flexDirection: "column",
             background: ground,
-            padding: px(38),
+            padding: `${u(18)}px ${u(16)}px ${u(16)}px`,
             position: "relative",
           }}
         >
@@ -257,101 +276,199 @@ function Poster({
             style={{
               position: "absolute",
               inset: 0,
-                background:
+              background:
                 "linear-gradient(112deg, rgba(255,255,255,0) 28%, rgba(255,255,255,.09) 44%," +
                 " rgba(255,255,255,.16) 50%, rgba(255,255,255,.07) 57%, rgba(255,255,255,0) 74%)",
               display: "flex",
             }}
           />
 
-          <Head
-            username={username}
-            displayName={displayName}
-            memberSince={memberSince}
-            avatarUrl={avatarUrl}
-            data={data}
-            hideNums={hideNums}
-            px={px}
-          />
+          {/* handle / since */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span
+              style={{
+                fontFamily: "Grotesk",
+                fontSize: u(9),
+                letterSpacing: u(9) * 0.06,
+                textTransform: "uppercase",
+                color: CARD_2,
+              }}
+            >
+              @{username}
+            </span>
+            <span
+              style={{
+                fontFamily: "Grotesk",
+                fontSize: u(9),
+                letterSpacing: u(9) * 0.14,
+                textTransform: "uppercase",
+                color: CARD_3,
+              }}
+            >
+              Since {memberSince}
+            </span>
+          </div>
 
-          <div style={{ display: "flex", flexDirection: "column", marginTop: px(44) }}>
+          {/* archetype: the tracked qualifier, then the name */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              marginTop: u(14),
+            }}
+          >
+            {qualifier && (
+              <span
+                style={{
+                  fontSize: u(13),
+                  letterSpacing: u(13) * 0.2,
+                  textTransform: "uppercase",
+                  color: PAPER,
+                  lineHeight: 1.1,
+                }}
+              >
+                {qualifier}
+              </span>
+            )}
+            <span
+              style={{
+                fontFamily: "Serif",
+                fontStyle: "italic",
+                fontSize: u(38),
+                lineHeight: 0.95,
+                letterSpacing: u(38) * -0.01,
+                color: PAPER,
+                marginTop: qualifier ? u(5) : 0,
+                textAlign: "center",
+              }}
+            >
+              {archetypeName}
+            </span>
+          </div>
+
+          {/* taste class */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "baseline",
+              gap: u(7),
+              marginTop: u(9),
+            }}
+          >
+            <span
+              style={{
+                fontSize: u(9),
+                letterSpacing: u(9) * 0.16,
+                textTransform: "uppercase",
+                color: CARD_2,
+              }}
+            >
+              Taste class
+            </span>
+            {variant.name && (
+              <span
+                style={{
+                  fontFamily: "Grotesk",
+                  fontSize: u(9),
+                  letterSpacing: u(9) * 0.16,
+                  textTransform: "uppercase",
+                  color: variant.accentColor,
+                }}
+              >
+                {variant.name}
+              </span>
+            )}
+          </div>
+
+          {/* the score leads; stars and tier demote beneath it, no rule */}
+          {data.mean !== null && (
             <div
               style={{
                 display: "flex",
-                justifyContent: "space-between",
-                alignItems: "baseline",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: u(6),
+                marginTop: u(16),
               }}
             >
               <span
                 style={{
-                  fontSize: px(19),
-                  letterSpacing: px(3),
-                  color: "#8a8a92",
-                  textTransform: "uppercase",
+                  fontFamily: "Grotesk",
+                  fontSize: u(30),
+                  lineHeight: 1,
+                  color: scoreColor,
+                  opacity: hideNums ? 0.12 : 1,
                 }}
               >
-                Taste class
+                {formatTenths(data.mean)}
               </span>
-              {variant.name && (
+              <div style={{ display: "flex", alignItems: "center", gap: u(8) }}>
+                <Stars filled={filled} size={u(10)} />
                 <span
                   style={{
-                    fontFamily: "Grotesk",
-                    fontSize: px(18),
-                    letterSpacing: px(1.4),
+                    fontSize: u(9),
+                    letterSpacing: u(9) * 0.1,
                     textTransform: "uppercase",
-                    color: variant.accentColor,
+                    color: tier.labelColor,
                   }}
                 >
-                  {variant.name}
+                  {tier.name}
                 </span>
-              )}
-            </div>
-            <span
-              style={{
-                fontFamily: "Grotesk",
-                fontWeight: 700,
-                fontSize: px(56),
-                lineHeight: 1.04,
-                color: "#eceae6",
-                marginTop: px(10),
-                textAlign: "center",
-              }}
-            >
-              {data.archetype ?? displayName}
-            </span>
-          </div>
-
-          {chips.length > 0 && (
-            <div style={{ display: "flex", justifyContent: "center", gap: px(10), marginTop: px(26) }}>
-              {chips.map((g) => (
-                <div
-                  key={g.name}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: px(9),
-                    borderRadius: px(999),
-                    border: "1px solid rgba(255,255,255,.1)",
-                    background: "rgba(255,255,255,.04)",
-                    padding: `${px(9)}px ${px(18)}px`,
-                    fontSize: px(21),
-                    color: "#eceae6",
-                  }}
-                >
-                  {g.name}
-                  <span style={{ fontFamily: "Grotesk", fontSize: px(18), color: "#8a8a92" }}>
-                    {g.pct}%
-                  </span>
-                </div>
-              ))}
+              </div>
             </div>
           )}
 
+          {/* themes as proportion, not as pills */}
+          {chips.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: u(8), marginTop: u(14) }}>
+              <div
+                style={{
+                  display: "flex",
+                  width: "100%",
+                  height: u(3),
+                  borderRadius: u(2),
+                  overflow: "hidden",
+                }}
+              >
+                {chips.map((g, i) => (
+                  <div
+                    key={g.name}
+                    style={{ display: "flex", flexGrow: g.pct, background: bandInk[i] ?? bandInk[2] }}
+                  />
+                ))}
+              </div>
+              {/* One third each, centred, name over figure — the same rule the
+                  face uses, so a long set of theme names cannot jam one edge
+                  here while wrapping neatly on screen. */}
+              <div style={{ display: "flex", gap: u(8) }}>
+                {chips.map((g) => (
+                  <div
+                    key={g.name}
+                    style={{
+                      display: "flex",
+                      flex: 1,
+                      flexDirection: "column",
+                      alignItems: "center",
+                      fontSize: u(9),
+                      letterSpacing: u(9) * 0.1,
+                      textTransform: "uppercase",
+                      color: CARD_2,
+                    }}
+                  >
+                    <span>{g.name}</span>
+                    <span style={{ fontFamily: "Grotesk", color: CARD_3 }}>{g.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {withImages && data.signatureFilms.length > 0 && (
-            <div style={{ display: "flex", gap: px(12), marginTop: px(30) }}>
+            <div style={{ display: "flex", gap: u(4), marginTop: u(14) }}>
               {data.signatureFilms.slice(0, 4).map((f) => {
-                const w = Math.round((cardW - px(76) - px(36)) / 4);
+                const w = Math.round((cardW - u(32) - u(12)) / 4);
                 return (
                   <div
                     key={f.slug}
@@ -359,10 +476,9 @@ function Poster({
                       width: w,
                       height: Math.round(w * 1.5),
                       display: "flex",
-                      borderRadius: px(9),
+                      borderRadius: u(4),
                       overflow: "hidden",
-                      border: "1px solid rgba(255,255,255,.08)",
-                      background: "#1a1a1f",
+                      background: "#1c1c21",
                     }}
                   >
                     {f.posterPath && (
@@ -380,32 +496,38 @@ function Poster({
             </div>
           )}
 
-          <div
-            style={{
-              display: "flex",
-              marginTop: px(30),
-              paddingTop: px(26),
-              borderTop: "1px solid rgba(255,255,255,.08)",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ fontFamily: "Grotesk", fontSize: px(20), color: "#d9b25f" }}>
-              {data.traitsHeldCount} traits
-            </span>
-            <span style={{ fontSize: px(19), color: "#8a8a92" }}>tenpoint.site/{username}</span>
-          </div>
+          {data.traitsHeldCount > 0 && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: u(10),
+                marginTop: u(12),
+                fontSize: u(10),
+              }}
+            >
+              <span style={{ fontFamily: "Grotesk", color: "#d9b25f" }}>
+                {data.traitsHeldCount} traits
+              </span>
+              {data.mix.shows > 0 && (
+                <span style={{ fontFamily: "Grotesk", color: CARD_3 }}>
+                  {data.mix.showShare}% series
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       <span
         style={{
           fontFamily: "Grotesk",
-          fontSize: px(22),
-          letterSpacing: px(9),
+          fontSize: u(9),
+          letterSpacing: u(9) * 0.4,
           textTransform: "uppercase",
           color: "#71717a",
-          marginTop: px(46),
+          marginTop: u(19),
         }}
       >
         Tenpoint
@@ -430,100 +552,3 @@ function Stars({ filled, size }: { filled: number; size: number }) {
   );
 }
 
-function Head({
-  username,
-  displayName,
-  memberSince,
-  avatarUrl,
-  data,
-  hideNums,
-  px,
-}: {
-  username: string;
-  displayName: string;
-  memberSince: number;
-  avatarUrl: string | null;
-  data: HomeTasteCardData;
-  hideNums: boolean;
-  px: (n: number) => number;
-}) {
-  const filled = data.mean === null ? 0 : Math.max(1, Math.min(5, Math.round(data.mean / 20)));
-
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: px(14) }}>
-        <div
-          style={{
-            width: px(52),
-            height: px(52),
-            borderRadius: px(999),
-            overflow: "hidden",
-            background: "#26262d",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontFamily: "Grotesk",
-            fontSize: px(24),
-            color: "#eceae6",
-          }}
-        >
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
-            <img src={avatarUrl} width={px(52)} height={px(52)} style={{ objectFit: "cover" }} />
-          ) : (
-            displayName.slice(0, 1).toUpperCase()
-          )}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <span style={{ fontFamily: "Grotesk", fontSize: px(26), color: "#9ab4cc" }}>
-            @{username}
-          </span>
-          <span
-            style={{
-              fontFamily: "Grotesk",
-              fontSize: px(17),
-              letterSpacing: px(2),
-              textTransform: "uppercase",
-              color: "#6a6a72",
-              marginTop: px(3),
-            }}
-          >
-            Since {memberSince}
-          </span>
-        </div>
-      </div>
-
-      {data.mean !== null && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-          <span
-            style={{
-              fontFamily: "Grotesk",
-              fontWeight: 700,
-              fontSize: px(66),
-              lineHeight: 1,
-              color: "#eceae6",
-              // The card still says a rating exists; it just does not say what
-              // it is. Blank space here would read as an unrated account.
-              opacity: hideNums ? 0.12 : 1,
-            }}
-          >
-            {hideNums ? "•••" : formatTenths(data.mean)}
-          </span>
-          <div style={{ display: "flex", alignItems: "center", gap: px(8), marginTop: px(10) }}>
-            <Stars filled={filled} size={px(20)} />
-            <span
-              style={{
-                fontSize: px(17),
-                letterSpacing: px(1.6),
-                textTransform: "uppercase",
-                color: data.tier.labelColor,
-              }}
-            >
-              {data.tier.name}
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}

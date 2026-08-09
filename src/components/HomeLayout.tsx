@@ -75,7 +75,11 @@ export default function HomeLayout({
               whole document scroll sideways: the card looked oversized and the
               page had to be zoomed out to read. `1fr` has the same failure, as
               its implied minimum is also auto. */}
-          <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-5 md:grid-cols-[220px_minmax(0,1fr)]">
+          {/* 264px, not 220. The card carries three theme names side by side and
+              220 left them 184px for a row that wants 261, so they wrapped and
+              jammed the edges. The extra 44px comes out of the viewings panel,
+              which has room to spare at every width the grid is two columns. */}
+          <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-5 md:grid-cols-[264px_minmax(0,1fr)]">
             <HomeTasteCard
               taste={taste}
               username={username}

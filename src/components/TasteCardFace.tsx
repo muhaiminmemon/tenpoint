@@ -217,13 +217,25 @@ export default function TasteCardFace({
                   />
                 ))}
               </span>
-              <span className="flex justify-between gap-2">
+              {/* One third of the row each, centred, name over figure.
+               *
+               * These sat on one line with `justify-between`, which needs 261px
+               * for a set like Vigilante / Contender / Journeyman and had 184,
+               * so every label wrapped and the outer two pressed into the card's
+               * edge. Widening alone cannot fix it: the longest theme here is
+               * "December Regular", and three of those beat any card width worth
+               * having. Giving each key its own third means the row costs the
+               * same whatever the names are, and centring means nothing ever
+               * touches an edge. A name too long for its third truncates, which
+               * is the one honest way to run out of room. */}
+              <span className="flex gap-2">
                 {chips.map((g) => (
                   <span
                     key={g.name}
-                    className="text-[9px] uppercase tracking-[0.1em] text-card-2"
+                    className="flex min-w-0 flex-1 flex-col items-center gap-px text-[9px] uppercase leading-[1.25] tracking-[0.1em] text-card-2"
                   >
-                    {g.name} <b className="num font-normal text-card-3">{g.pct}%</b>
+                    <span className="max-w-full truncate">{g.name}</span>
+                    <b className="num font-normal text-card-3">{g.pct}%</b>
                   </span>
                 ))}
               </span>
@@ -237,7 +249,7 @@ export default function TasteCardFace({
                 return (
                   <div
                     key={f.slug}
-                    className="relative overflow-hidden rounded-[4px] border border-seam bg-tray"
+                    className="relative overflow-hidden rounded-[4px] bg-tray"
                     style={{ aspectRatio: "2/3" }}
                   >
                     {poster ? (
