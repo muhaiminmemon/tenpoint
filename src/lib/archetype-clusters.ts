@@ -504,6 +504,36 @@ export const STOCK_BY_CLUSTER: Record<string, string> = {
 };
 
 /**
+ * The three clusters that describe how a thing was made, not what it is about.
+ *
+ * Every other cluster here answers "what is this film about" — witches,
+ * heists, courtrooms. These three answer "what form is it in": drawn rather
+ * than filmed, adapted from manga, animated for adults. That is a different
+ * question, and it is a far wider net, so it beats real themes on volume
+ * without saying anything comparable.
+ *
+ * Anime is the case that makes it obvious. It is not a genre, it is a medium
+ * with every genre inside it, so a shelf that is a third anime was being named
+ * for the medium and printed on its stock forever — while the tournaments, the
+ * ghost stories and the family dramas inside that anime, which are what the
+ * person actually watches, counted for nothing.
+ */
+export const FORMAT_CLUSTERS = new Set(["ink", "shounen", "adultanimation"]);
+
+/**
+ * How much of a shelf a format has to be before it is allowed to name it.
+ *
+ * Below this the format is treated as a fact about the shelf rather than the
+ * point of it, and the reading falls through to what those titles are about —
+ * which is always there: 97% of titles matching a format cluster also carry a
+ * real theme, and every title marked `form: anime` does.
+ *
+ * Above it the format is the honest answer. Somebody whose shelf is more than
+ * half anime is not a person who happens to watch some anime.
+ */
+export const FORMAT_LEAD_SHARE = 0.5;
+
+/**
  * What to call a theme when the subject is films rather than a person.
  *
  * A cluster carries two names for good reasons. `name` is a noun for a

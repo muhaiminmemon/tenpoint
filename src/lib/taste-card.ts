@@ -1,5 +1,12 @@
 import type { TasteSignals } from "./taste-card-signals";
-import { CLUSTERS, CLUSTER_PREVALENCE, STOCK_BY_CLUSTER, clusterLabel } from "./archetype-clusters";
+import {
+  CLUSTERS,
+  CLUSTER_PREVALENCE,
+  FORMAT_CLUSTERS,
+  FORMAT_LEAD_SHARE,
+  STOCK_BY_CLUSTER,
+  clusterLabel,
+} from "./archetype-clusters";
 
 // ---------------------------------------------------------------------------
 // LAYER 1 — LEVEL: films watched, mostly. Ticks up forever, no ceiling. Lives
@@ -1029,15 +1036,35 @@ function signatureClusters(counts: Record<string, number>, total: number) {
    * So within a tenth of the leader, the theme carrying more films wins. It is
    * the more substantial claim, and it is the one that stays put.
    */
-  const lead = ranked[0];
+  /**
+   * A format only leads a shelf it dominates.
+   *
+   * Anime, animation and adult cartoons are mediums rather than subjects, and
+   * a medium contains every subject there is. Left to compete on volume they
+   * won constantly: a shelf a third anime was named for the anime, printed on
+   * its stock, and stayed there — while the tournaments, ghost stories and
+   * family dramas inside it, which is what that person actually watches, never
+   * got a look in. Below the share where the format is genuinely the point,
+   * the reading falls through to what those titles are about. Above it the
+   * format is the honest answer and leads normally.
+   *
+   * Demoted rather than dropped: a format that cannot name somebody can still
+   * be a finish they hold, because they really do watch that much of it.
+   */
+  const leads = ranked.filter(
+    (r) => !FORMAT_CLUSTERS.has(r.cluster.key) || r.count / total >= FORMAT_LEAD_SHARE,
+  );
+  const demoted = ranked.filter((r) => !leads.includes(r));
+
+  const lead = leads[0];
   if (lead) {
-    const contenders = ranked.filter((r) => r.lift >= lead.lift * 0.9);
+    const contenders = leads.filter((r) => r.lift >= lead.lift * 0.9);
     const biggest = contenders.reduce((a, b) => (b.count > a.count ? b : a), lead);
     if (biggest !== lead) {
-      return [biggest, ...ranked.filter((r) => r !== biggest)];
+      return [biggest, ...leads.filter((r) => r !== biggest), ...demoted];
     }
   }
-  return ranked;
+  return [...leads, ...demoted];
 }
 
 /**
