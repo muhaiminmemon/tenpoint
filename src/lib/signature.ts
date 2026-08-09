@@ -179,7 +179,12 @@ async function loadCandidates(userId: string, privacy: SQL): Promise<Candidate[]
            coalesce(cr.n, 0) as crowd_n, cr.mean as crowd_mean,
            sh.slug as show_slug, sh.name as show_name, sh.poster_path as show_poster,
            sh.creators, sh.keywords as show_keywords, sh.first_air_year, sh.original_language as show_lang,
-           (select count(*)::int from films t where t.kind = 'season' and t.show_id = f.show_id) as total_seasons
+           -- Specials (season zero) are not seasons. Counting them would make a
+           -- series look unfinished for want of a Christmas one-off.
+           (select count(*)::int from films t
+            where t.kind = 'season' and t.show_id = f.show_id
+              and coalesce(t.season_number, 1) > 0) as total_seasons,
+           sh.status as show_status
     from cur c
     join films f on f.id = c.film_id
     left join spans s on s.film_id = c.film_id
@@ -213,7 +218,9 @@ async function loadCandidates(userId: string, privacy: SQL): Promise<Candidate[]
   const shows: Candidate[] = [];
   for (const [, rowsForShow] of byShow) {
     const whole = rowsForShow.find((r) => (r.kind as string) === "show");
-    const seasons = rowsForShow.filter((r) => (r.kind as string) === "season");
+    const seasons = rowsForShow.filter(
+      (r) => (r.kind as string) === "season" && Number(r.season_number ?? 1) > 0,
+    );
     const head = whole ?? seasons[0];
     if (!head) continue;
 
@@ -253,7 +260,10 @@ async function loadCandidates(userId: string, privacy: SQL): Promise<Candidate[]
     c.ratedSeasons = seasons.length;
     c.totalSeasons = (head.total_seasons as number) ?? seasons.length;
     c.seasonSpread = spread;
-    c.finished = (c.totalSeasons ?? 0) > 0 && seasons.length >= (c.totalSeasons ?? 0);
+    // Finished, not merely caught up: a returning series gains seasons, and a
+  // card that says "you finished this" must not be made false by an airdate.
+  const ended = ["Ended", "Canceled"].includes(String(head.show_status ?? ""));
+  c.finished = ended && (c.totalSeasons ?? 0) > 0 && seasons.length >= (c.totalSeasons ?? 0);
     c.crowdCount = rowsForShow.reduce((n, r) => n + (r.crowd_n as number), 0);
     const means = rowsForShow.map((r) => r.crowd_mean).filter((m): m is number => m !== null);
     c.crowdMean = means.length ? means.reduce((a, b) => a + b, 0) / means.length : null;

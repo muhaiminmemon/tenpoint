@@ -105,6 +105,12 @@ typography:
     fontWeight: 400
     lineHeight: 0.95
     letterSpacing: "-0.01em"
+  card-lead:
+    fontFamily: "Space Grotesk, sans-serif"
+    fontSize: "30px"
+    fontWeight: 500
+    lineHeight: 1
+    letterSpacing: "-0.02em"
   card-qualifier:
     fontFamily: "IBM Plex Sans, sans-serif"
     fontSize: "13px"

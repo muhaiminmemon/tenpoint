@@ -218,8 +218,16 @@ export async function getTasteSignals(
       from cur join films f on f.id = cur.film_id
     ),
     -- Television, which is the same rows filtered rather than a second query.
+    -- Specials are not seasons.
+    --
+    -- TMDB files extras, OVAs, recap episodes and Christmas one-offs as season
+    -- zero of the parent show. Counting them would credit four depth points for
+    -- a bundle of shorts and, worse, raise the bar for finishing a series by a
+    -- season nobody thinks of as one. The seeded catalogue has none, so this is
+    -- guarding against real data rather than fixing what is in front of us.
     seasons as (
-      select show_id, season_number, rating from cur_f where kind = 'season' and show_id is not null
+      select show_id, season_number, rating from cur_f
+      where kind = 'season' and show_id is not null and coalesce(season_number, 1) > 0
     ),
     per_show as (
       select s.show_id,
@@ -234,7 +242,9 @@ export async function getTasteSignals(
     ),
     show_totals as (
       select f.show_id, count(*)::int as total_seasons
-      from films f where f.kind = 'season' and f.show_id is not null group by f.show_id
+      from films f
+      where f.kind = 'season' and f.show_id is not null and coalesce(f.season_number, 1) > 0
+      group by f.show_id
     ),
     /*
      * What each series is worth, in seasons, without counting it twice.
@@ -422,7 +432,7 @@ export async function getTasteSignals(
       (select count(*) from cur_f where imdb_rating is not null)::int as imdb_known_count,
 
       -- television
-      (select count(*) from cur_f where kind = 'season')::int as season_count,
+      (select count(*) from cur_f where kind = 'season' and coalesce(season_number, 1) > 0)::int as season_count,
       (select count(*) from cur_f where kind = 'show')::int as whole_show_count,
       -- Series rated as a whole where no season of them was rated separately.
       -- Depth pays for the seasons line and this line, so they must not overlap:
@@ -446,8 +456,24 @@ export async function getTasteSignals(
       -- it. per_show sees only per-season rows, which meant somebody who
       -- rated Breaking Bad once had five seasons credited by the line above
       -- and had completed nothing according to this one.
-      (select count(*) from show_credit c join show_totals t on t.show_id = c.show_id
-        where c.seasons_credited >= t.total_seasons and t.total_seasons >= 2)::int as completed_shows,
+      /*
+       * Finished means finished: every aired season rated, on a series that has
+       * actually ended.
+       *
+       * Two provider facts made the old rule wrong in opposite directions. It
+       * required two or more seasons, so a limited series watched end to end
+       * could never be finished — and a limited series is the one format that is
+       * definitionally complete. And it ignored status, so rating every season
+       * of a returning show read as finished until the next season aired and
+       * silently took it away, which is the exact thing SeriesState was
+       * written to prevent and this counter never honoured.
+       */
+      (select count(*) from show_credit c
+        join show_totals t on t.show_id = c.show_id
+        join shows sh on sh.id = c.show_id
+        where c.seasons_credited >= t.total_seasons
+          and t.total_seasons >= 1
+          and sh.status in ('Ended', 'Canceled'))::int as completed_shows,
       -- The same question, answered only from seasons actually rated.
       --
       -- completed_shows counts a series as finished on a whole-series rating,
@@ -456,10 +482,12 @@ export async function getTasteSignals(
       -- whole-series rating has already been paid for once. Depth reads this
       -- instead, so finishing a show season by season is what earns the bonus.
       (select count(*) from (
-        select rs.show_id, rs.n, t.total_seasons
+        select rs.show_id, rs.n, t.total_seasons, sh.status
         from (select show_id, count(*)::int as n from seasons group by show_id) rs
         join show_totals t on t.show_id = rs.show_id
-      ) z where z.n >= z.total_seasons and z.total_seasons >= 2)::int as completed_by_seasons,
+        join shows sh on sh.id = rs.show_id
+      ) z where z.n >= z.total_seasons and z.total_seasons >= 1
+          and z.status in ('Ended', 'Canceled'))::int as completed_by_seasons,
       -- A show that lost you: an opener rated well and a later season three
       -- points below it.
       (select count(*) from per_show where rated_seasons >= 2 and opener - closer >= 30)::int as fell_off_count,
