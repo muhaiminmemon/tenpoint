@@ -86,8 +86,25 @@ function VariantSpecimen({ stock, held }: { stock: StockDef; held: boolean }) {
 }
 
 /** The mark on a finish that is yours or was. Never a badge, never a count. */
-function StateMark({ state }: { state: FinishState }) {
+function StateMark({
+  state,
+  markPast = true,
+}: {
+  state: FinishState;
+  /**
+   * Whether a finish held earlier still prints its own mark.
+   *
+   * The tier list turns this off. A rank you have passed through is already
+   * legible there without a word for it: the specimen beside it still catches
+   * the light, where one never held stands still, and the rung you hold now
+   * says so in gold. Printing "Held" down the rest of the ladder marked almost
+   * every row and left the one that matters competing with its own history.
+   */
+  markPast?: boolean;
+}) {
   if (state === "unheld") return <span className="sr-only">Not held</span>;
+  // Announced but not drawn, the same way an unheld finish is.
+  if (state === "held" && !markPast) return <span className="sr-only">Held before</span>;
   return (
     <span
       className={`display text-2xs uppercase tracking-[0.12em] ${
@@ -564,7 +581,7 @@ export default function BinderShowcase({
                       {row.tier.effect}
                     </p>
                   </div>
-                  <StateMark state={row.state} />
+                  <StateMark state={row.state} markPast={false} />
                 </div>
               </li>
             );
