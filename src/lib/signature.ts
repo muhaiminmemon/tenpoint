@@ -689,11 +689,49 @@ function chooseQuartet(
  * are correct. So a title whose best angle is spoken for falls through to its
  * next strongest, which is always a true statement about it either way.
  */
+/**
+ * What the rest of the shelf does, so a claim about rarity can be checked.
+ *
+ * The attachment lines used to assert their own comparison — "almost nothing
+ * else here gets finished" — without ever counting. It read as a dig at the
+ * reader, and on a shelf where six series were finished it was simply untrue.
+ * A comparison is worth making and worth making honestly, so it is counted
+ * first and only said when the count supports it.
+ */
+type Shelf = {
+  finishedShows: number;
+  revisitedTitles: number;
+  mostRatedSeasons: number;
+};
+
+/**
+ * The rarity clause, or nothing at all.
+ *
+ * Being one of two is worth saying. Being one of nine is not rare, and saying
+ * it anyway is how a caption starts sounding like it is reaching. Past a
+ * handful the sentence simply ends after the fact, which is still a complete
+ * reason for the title being here.
+ */
+function rarity(count: number, only: string, few: (n: number) => string): string {
+  if (count === 1) return ` — ${only}`;
+  if (count > 1 && count <= 4) return ` — ${few(count)}`;
+  return "";
+}
+
+function shelfFacts(all: ScoredCandidate[]): Shelf {
+  return {
+    finishedShows: all.filter((c) => c.unit === "show" && c.finished).length,
+    revisitedTitles: all.filter((c) => c.viewings > 1).length,
+    mostRatedSeasons: all.reduce((max, c) => Math.max(max, c.ratedSeasons ?? 0), 0),
+  };
+}
+
 function explain(
   c: ScoredCandidate,
   profile: PreferenceProfile,
   lead: string,
   profileMean: number,
+  shelf: Shelf,
 ): { label: string; reason: string; supporting: string[]; angle: string } {
   /**
    * The one theme this title shares most strongly with the profile.
@@ -782,10 +820,30 @@ function explain(
           // rated, so a show in this slot for any other reason was told it had
           // been completed when it had not.
           c.unit === "show" && c.finished && c.totalSeasons
-            ? `You rated all ${c.totalSeasons} seasons. Almost nothing else here gets finished.`
+            ? `${
+                c.totalSeasons === 1
+                  ? "You rated its only season"
+                  : `You rated all ${c.totalSeasons} seasons`
+              }${rarity(
+                shelf.finishedShows,
+                "the only series you have finished",
+                (n) => `one of ${n} series you have finished`,
+              )}.`
             : c.unit === "show" && c.ratedSeasons
-              ? `You have rated ${c.ratedSeasons} seasons of it. Almost nothing else here gets that many.`
-              : `You have watched this ${c.viewings} times. Nearly everything else you rate, you rate once.`,
+              ? `You have rated ${
+                  c.ratedSeasons === 1 ? "a season" : `${c.ratedSeasons} seasons`
+                } of it${
+                  c.ratedSeasons === shelf.mostRatedSeasons && shelf.mostRatedSeasons > 1
+                    ? ", more than any other series here"
+                    : ""
+                }.`
+              : `You have watched this ${
+                  c.viewings === 2 ? "twice" : `${c.viewings} times`
+                }${rarity(
+                  shelf.revisitedTitles,
+                  "the only title you have gone back to",
+                  (n) => `one of ${n} titles you have gone back to`,
+                )}.`,
         supporting,
         angle,
       };
@@ -981,8 +1039,11 @@ export function selectFromCandidates(
   }
 
   const quartet = chooseQuartet(pool, profile);
+  // Counted over everything loaded rather than over the four that were chosen:
+  // the claim is about the shelf, so it has to be measured against the shelf.
+  const shelf = shelfFacts(scored);
   const titles = assignAngles(quartet).map(({ c, lead }) =>
-    toTitle(c, explain(c, profile, lead, mean)),
+    toTitle(c, explain(c, profile, lead, mean, shelf)),
   );
 
   return {
