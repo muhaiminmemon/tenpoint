@@ -9,14 +9,22 @@
 // Idempotent: re-running wipes the demo account's diary and rebuilds it, so it
 // tracks the catalogue as the catalogue grows.
 //
+// The password is generated and printed once, never written down here. A
+// literal default in this file is a credential committed to the repository,
+// which is what it looks like to a secret scanner because that is what it is:
+// anybody reading the source would know how to sign in as the demo account on
+// any deployment that ran this.
+//
 // Usage:
 //   npx tsx scripts/seed-toptier-demo.ts
-//   npx tsx scripts/seed-toptier-demo.ts --username mythicdemo --password hunter2
+//   npx tsx scripts/seed-toptier-demo.ts --username mythicdemo
+//   DEMO_PASSWORD=... npx tsx scripts/seed-toptier-demo.ts   # to choose one
 //
 // Reads DATABASE_URL from .env.local.
 
 import "./load-env.mjs";
-import { eq, inArray, sql } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../src/db";
 import { users, films, diaryEntries } from "../src/db/schema";
 import { hashPassword } from "../src/lib/auth";
@@ -31,7 +39,9 @@ const arg = (name: string, fallback: string) => {
 
 async function main() {
   const username = arg("username", "topdemo");
-  const password = arg("password", "demo-card-2026");
+  // Taken from the environment if somebody wants a specific one, otherwise
+  // fresh every run. Not a CLI flag: an argument lands in shell history.
+  const password = process.env.DEMO_PASSWORD || randomBytes(12).toString("base64url");
   const email = `${username}@example.invalid`;
 
   const existing = await db.select({ id: users.id }).from(users).where(eq(users.username, username));
