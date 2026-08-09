@@ -28,7 +28,8 @@ import {
   type StockDef,
 } from "./taste-card";
 import { getTasteSignals } from "./taste-card-signals";
-import { pickSignatureFilms, type SignatureFilm } from "./signature-films";
+import { pickSignatureTitles, type SignatureTitle } from "./signature";
+import { stabilise } from "./signature-stability";
 import { inThirdPerson } from "./voice";
 import {
   CLASS_THRESHOLD,
@@ -88,7 +89,7 @@ export type Binder = {
   /** the themes this library actually runs on, and what each one means */
   themes: ThemeReading[];
   /** the four films on the card, and the job each one is doing */
-  signature: SignatureFilm[];
+  signature: SignatureTitle[];
   /** null before anything is rated: no finish is in force yet */
   yoursVariant: string | null;
   yoursTier: RarityTier | null;
@@ -198,10 +199,25 @@ export async function loadBinder(
     ),
     themes: themeReadings(signals, 6),
     signature: (
-      await pickSignatureFilms(user.id, signals, archetype?.themeKey ?? null, {
-        includePrivate,
-      })
-    ).map((f) => (thirdPerson ? { ...f, reason: inThirdPerson(f.reason) } : f)),
+      await stabilise(
+        user.id,
+        (await pickSignatureTitles(user.id, signals, { includePrivate })).titles,
+        // A friend's view is scoped to public entries; persisting it would let
+        // their visit rewrite the owner's incumbent quartet.
+        { persist: includePrivate },
+      )
+    ).titles.map((f) =>
+      thirdPerson
+        ? {
+            ...f,
+            reason: inThirdPerson(f.reason),
+            // The supporting lines are written in the second person too, and
+            // reading "You have been back to it 3 times" on somebody else's
+            // binder is the same bug the reason line already had fixed.
+            supportingReasons: f.supportingReasons.map(inThirdPerson),
+          }
+        : f,
+    ),
     yoursVariant,
     yoursTier: tier,
     archetype,

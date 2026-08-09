@@ -571,6 +571,45 @@ export const safeUserColumns = {
  * same pass that builds the card, which is the cheapest place that already
  * knows the answer.
  */
+/**
+ * The signature quartet as it currently stands, and when it last changed.
+ *
+ * Two jobs, which is why it is one row per user rather than an event log. It is
+ * the incumbent the next computation is compared against, so a title cannot be
+ * knocked off the card by a challenger that beats it by a hair; and it is the
+ * record of what the card used to say, which is the only way a change can ever
+ * be shown to somebody as a change.
+ *
+ * Only meaningful changes are written. Recomputing on every page view and
+ * saving each result would turn a history into a log of nothing.
+ */
+export const signatureSets = pgTable("signature_sets", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** the four slugs in order, and the score each held when it was chosen */
+  titles: jsonb("titles").$type<{ slug: string; score: number }[]>().notNull(),
+  /** what the set as a whole was worth, for comparing against a challenger set */
+  setScore: doublePrecision("set_score").notNull(),
+  changedAt: timestamp("changed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One entry per genuine change, so the binder can show what moved and when. */
+export const signatureHistory = pgTable(
+  "signature_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** slugs that left the card, and the ones that took their places */
+    removed: jsonb("removed").$type<string[]>().notNull(),
+    added: jsonb("added").$type<string[]>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("signature_history_user_idx").on(t.userId, t.createdAt)],
+);
+
 export const heldVariants = pgTable(
   "held_variants",
   {

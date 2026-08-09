@@ -235,11 +235,21 @@ export function libraryDepth(signals: TasteSignals): LibraryDepth {
       1,
     ),
     line("seasons", "seasons", signals.seasonCount, SEASON_WEIGHT),
-    line("shows", "whole series", signals.wholeShowCount, SEASON_WEIGHT),
+    /**
+     * Only series with no season of their own rated.
+     *
+     * A card in the wild showed "8 seasons" beside "32 whole series" and "24
+     * series finished", which no reader could reconcile — and underneath the
+     * confusion the ladder really was being paid two and three times for one
+     * series. A show rated whole *and* season by season is already counted by
+     * the seasons line; a show rated whole is already counted here. Neither may
+     * also collect the completion bonus below.
+     */
+    line("shows", "whole series", signals.wholeShowOnlyCount, SEASON_WEIGHT),
     line(
       "completed",
-      "series finished",
-      signals.completedShows,
+      "series finished season by season",
+      signals.completedBySeasons,
       COMPLETED_SHOW_POINTS,
       COMPLETED_SHOW_CAP,
     ),

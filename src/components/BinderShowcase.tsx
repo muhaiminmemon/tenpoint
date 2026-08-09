@@ -196,9 +196,15 @@ function segmentOpacity(i: number, total: number) {
  * The four posters on the card, and the job each one is doing.
  *
  * Four unlabelled posters cannot explain themselves, and the selection is the
- * least visible clever thing on the card: without this section nobody would
- * ever learn that one of them is there because they rate it three points above
+ * least visible clever thing on the card: without this section nobody would ever
+ * learn that one of them is there because they rate it three points above
  * everyone else.
+ *
+ * So this is the one place that states the whole basis — what makes a title
+ * signature-worthy, then the evidence behind each of the four, in facts a reader
+ * can check against their own diary. It deliberately never prints a component
+ * score: "affection 0.42" explains the algorithm rather than the film, and a
+ * number nobody can verify is worse than a sentence they can.
  */
 function SignatureSection({ films, person }: { films: Binder["signature"]; person?: string }) {
   if (films.length === 0) return null;
@@ -214,15 +220,32 @@ function SignatureSection({ films, person }: { films: Binder["signature"]; perso
           Signature
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-ash">
-          Every one of these is from {person ? "their" : "your"} top tenth, so nothing is here
-          that {person ? "they" : "you"} merely tolerated. The first is the one with the
-          strongest claim on its own. The other three are chosen from the rest of{" "}
-          {person ? "their" : "your"} favourites for how much ground the four cover together:
-          different themes, different decades, different languages, films everybody has seen
-          next to films almost nobody has. That is why this is not simply the four highest
-          ratings, which on most shelves would be four versions of the same film. Rewatching
-          something counts for more than rating it, once{" "}
-          {person ? "they have" : "you have"} started going back to things.
+          Not the four highest ratings. On most shelves those are four versions of the same
+          film, and the top of everybody&rsquo;s list is the same canon. These four are chosen
+          to <em className="not-italic text-paper">prove a taste</em>, and each one has to earn
+          its place on its own before the set is considered at all.
+        </p>
+        <dl className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+          {[
+            ["Loved", `Rated well against ${person ? "their" : "your"} own scale, not a general one.`],
+            ["Telling", `It expresses what ${person ? "their" : "your"} shelf keeps returning to.`],
+            ["Particular", "Loving it says something a similar viewer’s card would not say."],
+            ["Settled", "The opinion has held, rather than being a first impression."],
+            ["Returned to", "Rewatched, written about, finished, or ranked by hand."],
+          ].map(([term, detail]) => (
+            <div key={term} className="flex items-baseline gap-2 border-t border-seam pt-2">
+              <dt className="shrink-0 text-[10px] uppercase tracking-[.14em] text-paper">
+                {term}
+              </dt>
+              <dd className="text-[13px] leading-snug text-ash">{detail}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-4 text-sm leading-relaxed text-ash">
+          A series counts as one work here, with its seasons as the evidence behind it &mdash;
+          a single season proves nothing to a reader, but the show does. Repetition is
+          discouraged and never forbidden: if four paranoid thrillers genuinely are the answer,
+          all four stay.
         </p>
       </div>
 
@@ -259,6 +282,30 @@ function SignatureSection({ films, person }: { films: Binder["signature"]; perso
                   {f.title}
                 </Link>
                 <p className="mt-1 max-w-[52ch] text-sm leading-relaxed text-ash">{f.reason}</p>
+
+                {/* The evidence, as facts rather than scores. A reader can check
+                    every one of these against their own diary, which is the only
+                    thing that makes the selection trustworthy rather than
+                    mysterious. */}
+                {f.supportingReasons.length > 0 && (
+                  <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                    {f.supportingReasons.map((s) => (
+                      <li key={s} className="text-[11px] leading-snug text-dim">
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* Said out loud only when it is low. Metadata arrives lazily, and
+                    a title chosen on thin information should admit it rather than
+                    let the sentence above sound equally certain either way. */}
+                {f.confidence < 0.6 && (
+                  <p className="mt-2 text-[11px] leading-snug text-dim">
+                    Chosen on limited information &mdash; some of this title&rsquo;s details
+                    have not been filled in yet.
+                  </p>
+                )}
               </div>
               <span className={`num shrink-0 text-[17px] ${ratingColor(f.rating)}`}>
                 {formatTenths(f.rating)}

@@ -1,0 +1,862 @@
+import { sql, type SQL } from "drizzle-orm";
+import { db } from "@/db";
+import { CLUSTERS } from "./archetype-clusters";
+import {
+  buildPreferenceProfile,
+  primaryThemeFor,
+  representation,
+  themesFor,
+  type PreferenceProfile,
+  type ProfileInput,
+} from "./preference-profile";
+import type { TasteSignals } from "./taste-card-signals";
+
+/**
+ * The four works that best prove what somebody's taste is.
+ *
+ * The question this answers changed. The old algorithm asked which four titles
+ * best *reproduce the demographics of a shelf* — it built a target vector out of
+ * era, popularity and language, then chose the four whose average landed nearest
+ * it. Era, reach and language carried eight times the weight of every theme
+ * combined, so the quartet was chosen mostly on when things were made and how
+ * famous they were, and the result read like a census rather than a portrait.
+ *
+ * This asks which four best *prove a taste*. A title earns its place by being
+ * loved, by expressing what this person's preference profile actually is, and by
+ * saying something about them that a similar viewer's card would not say.
+ */
+
+export type SignatureUnit = "movie" | "show";
+
+export type SignatureReason = {
+  /** the component that put it here */
+  kind: string;
+  /** a sentence a person would say */
+  text: string;
+};
+
+export type SignatureTitle = {
+  slug: string;
+  title: string;
+  posterPath: string | null;
+  rating: number;
+  unit: SignatureUnit;
+  /** 0-1 signature strength, for ordering and for hysteresis */
+  score: number;
+  /** 0-1, how much evidence stands behind the score */
+  confidence: number;
+  /** the short name of what this title is doing on the card */
+  label: string;
+  /** the one line that says why this title and not another */
+  reason: string;
+  supportingReasons: string[];
+  /** the raw facts the sentences were written from */
+  evidence: {
+    ratingZ: number;
+    representation: number;
+    distinctiveness: number;
+    stability: number;
+    attachment: number;
+    influence: number;
+    viewings: number;
+    reviews: number;
+    ratedSeasons?: number;
+    totalSeasons?: number;
+  };
+};
+
+/**
+ * The weights, stated rather than tuned into a corner.
+ *
+ * Affection leads because a signature that somebody does not love is not a
+ * signature at all. Representation is second because the card is a portrait, not
+ * a favourites list. Everything below fifteen percent is a tiebreak between
+ * titles that already deserve to be there.
+ */
+const WEIGHTS = {
+  affection: 0.35,
+  representation: 0.25,
+  distinctiveness: 0.15,
+  stability: 0.1,
+  attachment: 0.1,
+  influence: 0.05,
+} as const;
+
+type Candidate = {
+  slug: string;
+  title: string;
+  unit: SignatureUnit;
+  posterPath: string | null;
+  rating: number;
+  director: string | null;
+  keywords: string[] | null;
+  themes: Set<string>;
+  primaryTheme: string | null;
+  year: number | null;
+  language: string | null;
+  reach: number | null;
+  embedding: number[] | null;
+  viewings: number;
+  reviews: number;
+  /** days between the first and most recent time this was logged */
+  heldDays: number;
+  /** manual position among rating ties, when the user has dragged one */
+  ranked: boolean;
+  /** shows only */
+  ratedSeasons?: number;
+  totalSeasons?: number;
+  seasonSpread?: number;
+  finished?: boolean;
+  /** how many people here have rated it, and what they gave it */
+  crowdCount: number;
+  crowdMean: number | null;
+};
+
+/**
+ * Every unit that may appear on the Master Card.
+ *
+ * A season is never one. Seasons are how somebody records an opinion about
+ * television, but "season three of a show you have not heard of" proves nothing
+ * about a person to anybody reading their card; the series does. So seasons are
+ * collapsed into the show they belong to and become its evidence.
+ *
+ * A show qualifies on a whole-series rating when there is one, and otherwise on
+ * the seasons that were rated. That fallback is load-bearing rather than
+ * defensive: no account in the database has ever rated a series whole, so a
+ * strict reading of "whole show" would delete television from every card in the
+ * product.
+ */
+async function loadCandidates(userId: string, privacy: SQL): Promise<Candidate[]> {
+  const rows = await db.execute(sql`
+    with cur as (
+      select distinct on (d.film_id) d.film_id, d.rating, d.watched_on, d.created_at
+      from diary_entries d
+      where d.user_id = ${userId} and d.rating is not null and ${privacy}
+      order by d.film_id, d.watched_on desc nulls last, d.created_at desc
+    ),
+    spans as (
+      select film_id,
+             count(*)::int as n,
+             count(*) filter (where review is not null and length(trim(review)) > 0)::int as reviews,
+             extract(epoch from (max(coalesce(watched_on::timestamptz, created_at))
+                              - min(coalesce(watched_on::timestamptz, created_at)))) / 86400 as held_days
+      from diary_entries
+      where user_id = ${userId} and ${privacy}
+      group by film_id
+    ),
+    -- What everyone else here thinks, for distinctiveness. Private entries are
+    -- excluded from the crowd whatever the viewer is allowed to see of their own.
+    crowd as (
+      select film_id, count(*)::int as n, avg(rating)::float as mean
+      from (
+        select distinct on (d.user_id, d.film_id) d.user_id, d.film_id, d.rating
+        from diary_entries d
+        where d.rating is not null and d.private = false
+        order by d.user_id, d.film_id, d.watched_on desc nulls last, d.created_at desc
+      ) z group by film_id
+    )
+    select f.id, f.slug, f.title, f.kind, f.show_id, f.season_number, f.poster_path,
+           f.director, f.keywords, f.year, f.original_language, f.embedding,
+           coalesce(f.imdb_votes, f.vote_count * 50) as reach,
+           c.rating,
+           coalesce(s.n, 1) as viewings,
+           coalesce(s.reviews, 0) as reviews,
+           coalesce(s.held_days, 0) as held_days,
+           (lo.film_id is not null) as ranked,
+           coalesce(cr.n, 0) as crowd_n, cr.mean as crowd_mean,
+           sh.slug as show_slug, sh.name as show_name, sh.poster_path as show_poster,
+           sh.creators, sh.keywords as show_keywords, sh.first_air_year, sh.original_language as show_lang,
+           (select count(*)::int from films t where t.kind = 'season' and t.show_id = f.show_id) as total_seasons
+    from cur c
+    join films f on f.id = c.film_id
+    left join spans s on s.film_id = c.film_id
+    left join crowd cr on cr.film_id = c.film_id
+    left join library_order lo on lo.film_id = c.film_id and lo.user_id = ${userId}
+    left join shows sh on sh.id = f.show_id
+    -- Deterministic. Identity must not depend on the order Postgres happens to
+    -- return rows in; the old query had no ordering at all and its theme space
+    -- was built from whichever twenty-four themes arrived first.
+    order by f.slug
+  `);
+
+  const raw = rows as unknown as Record<string, unknown>[];
+  const movies: Candidate[] = [];
+  /** show_id → the rows that speak for it */
+  const byShow = new Map<string, Record<string, unknown>[]>();
+
+  for (const r of raw) {
+    const kind = r.kind as string;
+    if (kind === "movie") {
+      movies.push(toCandidate(r, "movie"));
+      continue;
+    }
+    const showId = r.show_id as string | null;
+    if (!showId) continue;
+    const list = byShow.get(showId) ?? [];
+    list.push(r);
+    byShow.set(showId, list);
+  }
+
+  const shows: Candidate[] = [];
+  for (const [, rowsForShow] of byShow) {
+    const whole = rowsForShow.find((r) => (r.kind as string) === "show");
+    const seasons = rowsForShow.filter((r) => (r.kind as string) === "season");
+    const head = whole ?? seasons[0];
+    if (!head) continue;
+
+    const seasonRatings = seasons.map((r) => r.rating as number);
+    // A whole-series rating is the person's own summary and outranks the
+    // arithmetic; without one, the seasons average into a verdict.
+    const rating =
+      whole !== undefined
+        ? (whole.rating as number)
+        : Math.round(seasonRatings.reduce((a, b) => a + b, 0) / Math.max(1, seasonRatings.length));
+
+    const spread =
+      seasonRatings.length > 1
+        ? Math.max(...seasonRatings) - Math.min(...seasonRatings)
+        : 0;
+
+    const c = toCandidate(head, "show");
+    c.slug = (head.show_slug as string) ?? c.slug;
+    c.title = (head.show_name as string) ?? c.title;
+    c.posterPath = (head.show_poster as string) ?? c.posterPath;
+    c.rating = rating;
+    c.director = firstOf(head.creators) ?? c.director;
+    c.year = (head.first_air_year as number) ?? c.year;
+    c.language = (head.show_lang as string) ?? c.language;
+    // Series keywords when the show carries them; otherwise the season's, which
+    // are copied down from the series anyway.
+    const showKeywords = Array.isArray(head.show_keywords) ? (head.show_keywords as string[]) : null;
+    if (showKeywords && showKeywords.length > 0) {
+      c.keywords = showKeywords;
+      c.themes = themesFor(showKeywords);
+      c.primaryTheme = primaryThemeFor(showKeywords);
+    }
+    c.viewings = seasons.reduce((n, r) => n + (r.viewings as number), 0) || c.viewings;
+    c.reviews = rowsForShow.reduce((n, r) => n + (r.reviews as number), 0);
+    c.heldDays = Math.max(...rowsForShow.map((r) => Number(r.held_days ?? 0)));
+    c.ranked = rowsForShow.some((r) => r.ranked === true);
+    c.ratedSeasons = seasons.length;
+    c.totalSeasons = (head.total_seasons as number) ?? seasons.length;
+    c.seasonSpread = spread;
+    c.finished = (c.totalSeasons ?? 0) > 0 && seasons.length >= (c.totalSeasons ?? 0);
+    c.crowdCount = rowsForShow.reduce((n, r) => n + (r.crowd_n as number), 0);
+    const means = rowsForShow.map((r) => r.crowd_mean).filter((m): m is number => m !== null);
+    c.crowdMean = means.length ? means.reduce((a, b) => a + b, 0) / means.length : null;
+    shows.push(c);
+  }
+
+  return [...movies, ...shows];
+}
+
+function firstOf(v: unknown): string | null {
+  return Array.isArray(v) && v.length > 0 ? String(v[0]) : null;
+}
+
+function toCandidate(r: Record<string, unknown>, unit: SignatureUnit): Candidate {
+  const keywords = Array.isArray(r.keywords) ? (r.keywords as string[]) : null;
+  return {
+    slug: r.slug as string,
+    title: r.title as string,
+    unit,
+    // Poster availability is a rendering fact, not an identity fact. The old
+    // query excluded posterless titles outright, so a missing image could
+    // silently disqualify somebody's favourite film from being who they are.
+    posterPath: (r.poster_path as string) ?? null,
+    rating: r.rating as number,
+    director: (r.director as string) ?? null,
+    keywords,
+    themes: themesFor(keywords),
+    primaryTheme: primaryThemeFor(keywords),
+    year: (r.year as number) ?? null,
+    language: (r.original_language as string) ?? null,
+    reach: r.reach === null || r.reach === undefined ? null : Number(r.reach),
+    embedding: Array.isArray(r.embedding) ? (r.embedding as number[]) : null,
+    viewings: Number(r.viewings ?? 1),
+    reviews: Number(r.reviews ?? 0),
+    heldDays: Number(r.held_days ?? 0),
+    ranked: r.ranked === true,
+    crowdCount: Number(r.crowd_n ?? 0),
+    crowdMean: r.crowd_mean === null || r.crowd_mean === undefined ? null : Number(r.crowd_mean),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The six components. Each returns 0-1 and knows nothing about the others.
+
+/**
+ * How much this person loves this title, on their own scale.
+ *
+ * Per title, never per library. The old version decided once for the whole
+ * shelf whether rewatches counted, so a single rewatch anywhere switched the
+ * rewatch term on for every other title and quietly re-scored the lot. Here a
+ * title is judged on the evidence it personally carries: conviction always,
+ * plus returning and writing when this title has them.
+ */
+function affection(c: Candidate, mean: number, sd: number): number {
+  const z = (c.rating - mean) / sd;
+  const conviction = Math.max(0, Math.min(1, z / 2));
+
+  let score = conviction;
+  let weight = 1;
+  if (c.viewings >= 2) {
+    score += 0.5 * Math.min(1, (c.viewings - 1) / 2);
+    weight += 0.5;
+  }
+  if (c.reviews > 0) {
+    score += 0.25;
+    weight += 0.25;
+  }
+  return Math.max(0, Math.min(1, score / weight));
+}
+
+/**
+ * Whether loving this says anything particular about this person.
+ *
+ * Two halves, and the second gates the first. Rarity alone rewards anybody who
+ * rates obscure things highly, which is a contrarian detector rather than a
+ * taste one. So an unusual opinion only counts when the rest of the library
+ * supports it: the title has to sit in a theme this person is genuinely
+ * unusual for.
+ */
+function distinctiveness(c: Candidate, profile: PreferenceProfile): number {
+  const patternSupport = Math.max(
+    0,
+    ...[...c.themes].map((k) => Math.min(1, ((profile.lift[k] ?? 1) - 1) / 2)),
+  );
+
+  // Against the crowd here, when enough of the crowd has an opinion.
+  let againstCrowd = 0;
+  if (c.crowdCount >= 5 && c.crowdMean !== null) {
+    againstCrowd = Math.max(0, Math.min(1, (c.rating - c.crowdMean) / 20));
+  }
+
+  // Few people having rated it at all is weak evidence on its own.
+  const rarity = c.reach === null ? 0 : Math.max(0, Math.min(1, 1 - c.reach / 200_000));
+
+  return Math.max(0, Math.min(1, patternSupport * (0.6 * againstCrowd + 0.4 * rarity)));
+}
+
+/**
+ * Whether the opinion has held.
+ *
+ * A rating given once last week is a first impression. One that has survived a
+ * year, or a rewatch, or a whole series without falling apart, is a position.
+ */
+function stability(c: Candidate): number {
+  const age = Math.max(0, Math.min(1, c.heldDays / 365));
+  const repeated = c.viewings >= 2 ? 1 : 0;
+  // For a series, agreeing with yourself across seasons is the evidence.
+  const consistent =
+    c.seasonSpread === undefined
+      ? 0
+      : Math.max(0, Math.min(1, 1 - c.seasonSpread / 30));
+  const parts = c.seasonSpread === undefined ? [age, repeated] : [age, repeated, consistent];
+  return parts.reduce((a, b) => a + b, 0) / parts.length;
+}
+
+/** What somebody has actually done about a title beyond rating it. */
+function attachment(c: Candidate): number {
+  let score = 0;
+  if (c.viewings >= 2) score += 0.35;
+  if (c.viewings >= 3) score += 0.15;
+  if (c.reviews > 0) score += 0.2;
+  if (c.ranked) score += 0.15;
+  if (c.finished) score += 0.15;
+  return Math.max(0, Math.min(1, score));
+}
+
+/**
+ * Whether a title looks like it opened a door.
+ *
+ * The weakest signal here and treated as such at five percent. It asks only
+ * whether this person went on to rate more of the same director or theme
+ * *after* this one, which is association and not causation; the explanations
+ * never claim otherwise.
+ */
+function influence(c: Candidate, all: Candidate[]): number {
+  if (!c.director && !c.primaryTheme) return 0;
+  const sameDirector = c.director
+    ? all.filter((o) => o.slug !== c.slug && o.director === c.director).length
+    : 0;
+  const sameTheme = c.primaryTheme
+    ? all.filter((o) => o.slug !== c.slug && o.primaryTheme === c.primaryTheme).length
+    : 0;
+  return Math.max(0, Math.min(1, (sameDirector / 4) * 0.6 + (sameTheme / 8) * 0.4));
+}
+
+/** How much of the metadata this score actually rested on. */
+function confidenceFor(c: Candidate, profile: PreferenceProfile): number {
+  let known = 0;
+  let total = 0;
+  const has = (ok: boolean, weight = 1) => {
+    total += weight;
+    if (ok) known += weight;
+  };
+  has(c.themes.size > 0, 2);
+  has(c.reach !== null);
+  has(c.embedding !== null);
+  has(c.year !== null);
+  has(c.crowdCount >= 5);
+  // A title cannot be more certain than the profile it was measured against.
+  return Math.max(0, Math.min(1, (known / total) * (0.5 + 0.5 * profile.confidence)));
+}
+
+// ---------------------------------------------------------------------------
+
+export type ScoredCandidate = Candidate & {
+  score: number;
+  confidence: number;
+  parts: {
+    affection: number;
+    representation: number;
+    distinctiveness: number;
+    stability: number;
+    attachment: number;
+    influence: number;
+  };
+};
+
+function scoreAll(
+  candidates: Candidate[],
+  profile: PreferenceProfile,
+  mean: number,
+  sd: number,
+): ScoredCandidate[] {
+  return candidates.map((c) => {
+    const parts = {
+      affection: affection(c, mean, sd),
+      representation: representation(profile, c.keywords),
+      distinctiveness: distinctiveness(c, profile),
+      stability: stability(c),
+      attachment: attachment(c),
+      influence: influence(c, candidates),
+    };
+    const score =
+      parts.affection * WEIGHTS.affection +
+      parts.representation * WEIGHTS.representation +
+      parts.distinctiveness * WEIGHTS.distinctiveness +
+      parts.stability * WEIGHTS.stability +
+      parts.attachment * WEIGHTS.attachment +
+      parts.influence * WEIGHTS.influence;
+    return { ...c, score, confidence: confidenceFor(c, profile), parts };
+  });
+}
+
+/**
+ * The bar a title clears before it may represent somebody at all.
+ *
+ * Coverage cannot buy a slot. The old objective let a merely tolerated film in
+ * because it conveniently filled an era, which is how a card ended up proving a
+ * taste with something its owner shrugged at.
+ */
+function eligible(c: ScoredCandidate, mean: number, sd: number, decile: number): boolean {
+  const z = (c.rating - mean) / sd;
+  if (c.rating >= decile) return true;
+  if (z >= 1) return true;
+  // Returning to something repeatedly is its own argument, provided the rating
+  // agrees.
+  if (c.viewings >= 3 && z >= 0.5) return true;
+  // A series carried all the way through, rated well, has earned it.
+  if (c.finished && z >= 0.5) return true;
+  return false;
+}
+
+const NEAR_DUPLICATE = 0.75;
+
+function cosine(a: number[] | null, b: number[] | null): number {
+  if (!a || !b || a.length !== b.length) return 0;
+  let dot = 0;
+  for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
+  return dot;
+}
+
+/**
+ * Redundancy, discouraged rather than banned.
+ *
+ * Somebody whose four defining works are all paranoid thrillers is allowed four
+ * paranoid thrillers; refusing the second makes the card more varied and less
+ * true. Every penalty here is soft.
+ */
+function redundancy(c: ScoredCandidate, chosen: ScoredCandidate[]): number {
+  let penalty = 0;
+  for (const p of chosen) {
+    if (c.director && p.director === c.director) penalty += 0.12;
+    if (c.primaryTheme && p.primaryTheme === c.primaryTheme) penalty += 0.1;
+    const near = cosine(c.embedding, p.embedding);
+    // Franchise protection. Titles the nightly job has not embedded skip this
+    // check, which is why the miss is recorded in confidence rather than hidden.
+    if (near >= NEAR_DUPLICATE) penalty += 0.3 * near;
+  }
+  return penalty;
+}
+
+/** How much of the profile's strongest dimensions a set covers between them. */
+function coverage(set: ScoredCandidate[], profile: PreferenceProfile): number {
+  if (profile.top.length === 0) return 0;
+  const held = new Set(set.flatMap((c) => [...c.themes]));
+  let covered = 0;
+  let total = 0;
+  for (const dim of profile.top.slice(0, 5)) {
+    total += dim.share;
+    if (held.has(dim.key)) covered += dim.share;
+  }
+  return total > 0 ? covered / total : 0;
+}
+
+const COVERAGE_WEIGHT = 0.35;
+const FORMAT_BONUS = 0.04;
+
+/**
+ * The quartet, chosen as a set.
+ *
+ * Not the top four scores: four titles that each prove the same one thing prove
+ * it four times and prove nothing else. The set is grown greedily on its own
+ * value — the strength it contains, plus how much of the profile it covers
+ * between its members, minus how much its members repeat each other.
+ *
+ * There is no reserved first slot. The old anchor handed slot one to the
+ * highest-rated title and broke ties on fame, which put the same canonical
+ * films on every card that had them. Which member becomes the hero tile is a
+ * layout decision, made after the set exists.
+ */
+function chooseQuartet(
+  pool: ScoredCandidate[],
+  profile: PreferenceProfile,
+): ScoredCandidate[] {
+  const chosen: ScoredCandidate[] = [];
+  const taken = new Set<string>();
+
+  while (chosen.length < 4) {
+    let best: ScoredCandidate | undefined;
+    let bestValue = -Infinity;
+
+    for (const c of pool) {
+      if (taken.has(c.slug)) continue;
+      const trial = [...chosen, c];
+      const value =
+        trial.reduce((sum, t) => sum + t.score, 0) +
+        COVERAGE_WEIGHT * coverage(trial, profile) -
+        redundancy(c, chosen) +
+        // A small nudge only. Never a quota: a film-only shelf keeps four films.
+        (chosen.length > 0 && chosen.every((p) => p.unit === c.unit) ? 0 : FORMAT_BONUS);
+      if (value > bestValue) {
+        bestValue = value;
+        best = c;
+      }
+    }
+    if (!best) break;
+    taken.add(best.slug);
+    chosen.push(best);
+  }
+
+  return chosen.sort((a, b) => b.score - a.score);
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Which component put this title here, said the way a person would say it.
+ *
+ * `used` carries the angles the other three have already taken. Repetition in
+ * the *selection* is allowed on purpose — four paranoid thrillers can genuinely
+ * be the answer — but repetition in the *sentences* is never right: two titles
+ * printing "the clearest intersection of your taste for revenge, vigilantes and
+ * hired killers" word for word reads as a broken template even when both picks
+ * are correct. So a title whose best angle is spoken for falls through to its
+ * next strongest, which is always a true statement about it either way.
+ */
+function explain(
+  c: ScoredCandidate,
+  profile: PreferenceProfile,
+  lead: string,
+  profileMean: number,
+): { label: string; reason: string; supporting: string[]; angle: string } {
+  /**
+   * The one theme this title shares most strongly with the profile.
+   *
+   * One, not two. Joining the two strongest with "and" produced sentences that
+   * were long and sometimes plainly wrong about the film — Wreck-It Ralph came
+   * out as "growing up, school and first love and prison, escape and captivity",
+   * because the second theme was the profile's, not the title's. A caption that
+   * describes the wrong film is worse than a shorter one.
+   */
+  const themeNames = [...c.themes]
+    .map((k) => profile.top.find((t) => t.key === k))
+    .filter((t): t is NonNullable<typeof t> => Boolean(t))
+    .sort((a, b) => b.share * b.lift - a.share * a.lift);
+
+  const supporting: string[] = [];
+  if (c.viewings >= 3) supporting.push(`You have been back to it ${c.viewings} times.`);
+  else if (c.viewings === 2) supporting.push("You have watched it twice.");
+  if (c.reviews > 0) supporting.push("You stopped to write something down after it.");
+  if (c.finished && c.totalSeasons)
+    supporting.push(`You watched all ${c.totalSeasons} seasons.`);
+  if (c.heldDays > 365) supporting.push("You have rated it this highly for over a year.");
+
+  /**
+   * The theme, as a noun phrase that can follow "your taste for".
+   *
+   * A cluster's `note` is written to slot into "your films are about ___", so it
+   * reads as a list of subjects: "revenge, vigilantes and hired killers". Every
+   * sentence below has to supply its own preposition around that, and one of
+   * them did not — "a defining example of your revenge, vigilantes and hired
+   * killers" was missing the two words that make it a sentence.
+   */
+  const theme = themeNames[0]?.note ?? null;
+  const angle = lead;
+
+  switch (lead) {
+    case "representation":
+      return {
+        label: "The clearest example",
+        reason: theme
+          ? `The clearest intersection of your taste for ${theme}.`
+          : "The closest thing on your shelf to what you keep returning to.",
+        supporting,
+        angle,
+      };
+    case "distinctiveness":
+      return {
+        label: "The one that sets you apart",
+        reason: theme
+          ? `One of the works that most distinguishes your taste from otherwise similar viewers, and a defining example of your taste for ${theme}.`
+          : "One of the works that most distinguishes your taste from otherwise similar viewers.",
+        supporting,
+        angle,
+      };
+    case "attachment":
+      return {
+        label: c.unit === "show" ? "Your longest attachment" : "The one you go back to",
+        reason:
+          c.unit === "show"
+            ? "Your strongest long-form attachment and one of your most consistently high-rated series."
+            : "You have returned to this more than almost anything else you rate this highly.",
+        supporting,
+        angle,
+      };
+    case "stability":
+      return {
+        label: "The one that stuck",
+        reason: "An opinion that has held: rated highly, and it has stayed there.",
+        supporting,
+        angle,
+      };
+    case "influence":
+      return {
+        label: "The one that opened a door",
+        reason: c.director
+          ? `You went on to watch more of ${c.director} after this one.`
+          : "You went on to watch more like this one.",
+        supporting,
+        angle,
+      };
+    default:
+      /**
+       * Affection, said as conviction rather than as a ranking.
+       *
+       * This label used to read "One of your highest", which was both the
+       * commonest outcome and a direct contradiction of the sentence at the top
+       * of the section — the panel opens by saying these are *not* the four
+       * highest ratings and then labelled three of them that way. Conviction
+       * against somebody's own scale is the true statement and the interesting
+       * one: a hard marker's 8.5 belongs here for the same reason a generous
+       * one's 10.0 does.
+       */
+      return {
+        label: "The one you are surest about",
+        reason: theme
+          ? `You rate this well above your own average, and a defining example of your taste for ${theme}.`
+          : `Rated ${(c.rating / 10).toFixed(1)} against an average of ${(profileMean / 10).toFixed(1)} — one of the few you are this certain about.`,
+        supporting,
+        angle,
+      };
+  }
+}
+
+/**
+ * Which angle each member of the quartet gets to speak from.
+ *
+ * Picking each title's highest-scoring component independently does not work,
+ * and the failure is visible rather than theoretical: affection carries the
+ * largest weight and every member of a quartet is, by construction, something
+ * the person loves — so affection led on three of four and the panel printed
+ * "One of your highest" three times under a heading that opens "not the four
+ * highest ratings".
+ *
+ * What matters is not how high a component scores but how much a title stands
+ * out on it *compared to the other three*. A title that is merely as loved as
+ * its neighbours is not interesting for being loved; the one that is far more
+ * rewatched than the rest is interesting for that. So each component is centred
+ * on the set, and the four take turns claiming the angle they are most above
+ * average on, strongest claim first.
+ */
+function assignAngles(
+  quartet: ScoredCandidate[],
+): { c: ScoredCandidate; lead: string }[] {
+  const kinds = ["affection", "representation", "distinctiveness", "stability", "attachment", "influence"] as const;
+  const mean: Record<string, number> = {};
+  for (const k of kinds) {
+    mean[k] = quartet.reduce((sum, c) => sum + c.parts[k], 0) / Math.max(1, quartet.length);
+  }
+
+  const claims = quartet.flatMap((c, i) =>
+    kinds.map((k) => ({ i, kind: k as string, edge: c.parts[k] - mean[k] })),
+  );
+  claims.sort((a, b) => b.edge - a.edge);
+
+  const leadFor = new Array<string | null>(quartet.length).fill(null);
+  const usedKind = new Set<string>();
+  for (const claim of claims) {
+    if (leadFor[claim.i] !== null || usedKind.has(claim.kind)) continue;
+    leadFor[claim.i] = claim.kind;
+    usedKind.add(claim.kind);
+  }
+  // Six components and four slots, so this only fires if two titles are
+  // identical across every axis.
+  return quartet.map((c, i) => ({ c, lead: leadFor[i] ?? "affection" }));
+}
+
+export type SignatureResult = {
+  titles: SignatureTitle[];
+  /** "ok" once there is enough to choose from; "provisional" below that */
+  status: "ok" | "provisional";
+  /** 0-1 for the set as a whole */
+  confidence: number;
+  profile: PreferenceProfile;
+};
+
+/** Below this there is nothing to choose between and saying so is the honest answer. */
+const ENOUGH_TO_CHOOSE = 10;
+
+export async function pickSignatureTitles(
+  userId: string,
+  signals: TasteSignals,
+  { includePrivate = false }: { includePrivate?: boolean } = {},
+): Promise<SignatureResult> {
+  const privacy: SQL = includePrivate ? sql`true` : sql`private = false`;
+  const candidates = await loadCandidates(userId, privacy);
+  return selectFromCandidates(
+    candidates,
+    signals.mean ?? 70,
+    signals.ratingStdDev && signals.ratingStdDev > 3 ? signals.ratingStdDev : 10,
+  );
+}
+
+/** A candidate as the selector needs it, for callers that build their own. */
+export type SignatureCandidate = Candidate;
+
+/**
+ * Everything after the database: profile, scoring, eligibility, quartet.
+ *
+ * Split out so the selection can be exercised without Postgres. A library that
+ * is "a harsh rater with four hundred films" or "anime only" is ten lines of
+ * fixture here and a seeding script otherwise, and the part worth testing is
+ * this half — the query is deterministic and the rest is arithmetic.
+ */
+export function selectFromCandidates(
+  candidates: Candidate[],
+  mean: number,
+  sd: number,
+): SignatureResult {
+  // The profile is built from the whole library weighted by love, and the same
+  // profile is what candidates are then measured against. The old version built
+  // its target from everything and then only allowed the top decile to compete,
+  // so it asked a shelf of favourites to reproduce the shape of a shelf that
+  // included everything somebody merely tolerated.
+  const inputs: ProfileInput[] = candidates.map((c) => ({
+    keywords: c.keywords,
+    year: c.year,
+    language: c.language,
+    reach: c.reach,
+    affection: affection(c, mean, sd),
+  }));
+  const profile = buildPreferenceProfile(inputs);
+
+  if (candidates.length === 0) {
+    return { titles: [], status: "provisional", confidence: 0, profile };
+  }
+
+  const scored = scoreAll(candidates, profile, mean, sd);
+
+  if (candidates.length < ENOUGH_TO_CHOOSE) {
+    // Not a portrait, and it does not pretend to be one. Each line still says
+    // something true about the specific title rather than four identical
+    // sentences apologising for the sample size.
+    const titles = [...scored]
+      .sort((a, b) => b.rating - a.rating || a.title.localeCompare(b.title))
+      .slice(0, 4)
+      .map((c) => toTitle(c, {
+        label: "One of your best so far",
+        reason: `Rated ${(c.rating / 10).toFixed(1)}. With a few more rated, these start being chosen on what they say about you.`,
+        supporting: [],
+      }));
+    return {
+      titles,
+      status: "provisional",
+      confidence: Math.min(0.35, candidates.length / ENOUGH_TO_CHOOSE),
+      profile,
+    };
+  }
+
+  const ratings = scored.map((c) => c.rating).sort((a, b) => a - b);
+  const decile = ratings[Math.floor(ratings.length * 0.9)] ?? ratings[ratings.length - 1];
+
+  let pool = scored.filter((c) => eligible(c, mean, sd, decile));
+  // Never fewer than four to choose from; relax to the best available rather
+  // than return a short card.
+  if (pool.length < 4) {
+    pool = [...scored].sort((a, b) => b.score - a.score).slice(0, Math.max(4, pool.length));
+  }
+
+  const quartet = chooseQuartet(pool, profile);
+  const titles = assignAngles(quartet).map(({ c, lead }) =>
+    toTitle(c, explain(c, profile, lead, mean)),
+  );
+
+  return {
+    titles,
+    status: "ok",
+    confidence:
+      titles.length > 0
+        ? titles.reduce((sum, t) => sum + t.confidence, 0) / titles.length
+        : 0,
+    profile,
+  };
+}
+
+function toTitle(
+  c: ScoredCandidate,
+  said: { label: string; reason: string; supporting: string[] },
+): SignatureTitle {
+  return {
+    slug: c.slug,
+    title: c.title,
+    posterPath: c.posterPath,
+    rating: c.rating,
+    unit: c.unit,
+    score: c.score,
+    confidence: c.confidence,
+    label: said.label,
+    reason: said.reason,
+    supportingReasons: said.supporting,
+    evidence: {
+      ratingZ: c.parts.affection,
+      representation: c.parts.representation,
+      distinctiveness: c.parts.distinctiveness,
+      stability: c.parts.stability,
+      attachment: c.parts.attachment,
+      influence: c.parts.influence,
+      viewings: c.viewings,
+      reviews: c.reviews,
+      ratedSeasons: c.ratedSeasons,
+      totalSeasons: c.totalSeasons,
+    },
+  };
+}
+
+/** The theme names a profile is built on, for anything that wants to name them. */
+export function profileThemeNames(profile: PreferenceProfile): string[] {
+  return profile.top.map((t) => t.name).filter((n) => CLUSTERS.some((c) => c.name === n));
+}

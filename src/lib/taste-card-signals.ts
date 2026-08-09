@@ -124,6 +124,8 @@ export type TasteSignals = {
    */
   seasonCount: number;
   wholeShowCount: number;
+  /** series rated whole with no season of them rated separately */
+  wholeShowOnlyCount: number;
   /**
    * Seasons of viewing this library represents, however it was recorded.
    *
@@ -136,6 +138,8 @@ export type TasteSignals = {
   showsTouched: number;
   longestRun: number;
   completedShows: number;
+  /** series finished by rating every season, which is what depth rewards */
+  completedBySeasons: number;
   fellOffCount: number;
   grewCount: number;
   animeSeasonCount: number;
@@ -420,6 +424,17 @@ export async function getTasteSignals(
       -- television
       (select count(*) from cur_f where kind = 'season')::int as season_count,
       (select count(*) from cur_f where kind = 'show')::int as whole_show_count,
+      -- Series rated as a whole where no season of them was rated separately.
+      -- Depth pays for the seasons line and this line, so they must not overlap:
+      -- a show with three rated seasons *and* a whole-series verdict is already
+      -- paid for three times over by the seasons, and counting it here again
+      -- would charge the ladder twice for one series.
+      (select count(*) from (
+        select w.show_id from (select show_id from cur_f where kind = 'show') w
+        left join (select show_id, count(*)::int as n from seasons group by show_id) rs
+          on rs.show_id = w.show_id
+        where coalesce(rs.n, 0) = 0
+      ) z)::int as whole_show_only_count,
       (select coalesce(sum(seasons_credited), 0) from show_credit)::int as seasons_credited,
       -- Every series this library has an opinion about, counted once whether
       -- that opinion is on the whole thing, on its seasons, or on both.
@@ -433,6 +448,18 @@ export async function getTasteSignals(
       -- and had completed nothing according to this one.
       (select count(*) from show_credit c join show_totals t on t.show_id = c.show_id
         where c.seasons_credited >= t.total_seasons and t.total_seasons >= 2)::int as completed_shows,
+      -- The same question, answered only from seasons actually rated.
+      --
+      -- completed_shows counts a series as finished on a whole-series rating,
+      -- which is right for the shelf: somebody who rates Breaking Bad as a whole
+      -- has finished Breaking Bad. It is wrong as a *reward*, because the
+      -- whole-series rating has already been paid for once. Depth reads this
+      -- instead, so finishing a show season by season is what earns the bonus.
+      (select count(*) from (
+        select rs.show_id, rs.n, t.total_seasons
+        from (select show_id, count(*)::int as n from seasons group by show_id) rs
+        join show_totals t on t.show_id = rs.show_id
+      ) z where z.n >= z.total_seasons and z.total_seasons >= 2)::int as completed_by_seasons,
       -- A show that lost you: an opener rated well and a later season three
       -- points below it.
       (select count(*) from per_show where rated_seasons >= 2 and opener - closer >= 30)::int as fell_off_count,
@@ -508,10 +535,12 @@ export async function getTasteSignals(
     imdbKnownCount: num(r, "imdb_known_count"),
     seasonCount: num(r, "season_count"),
     wholeShowCount: num(r, "whole_show_count"),
+    wholeShowOnlyCount: num(r, "whole_show_only_count"),
     seasonsCredited: num(r, "seasons_credited"),
     showsTouched: num(r, "shows_touched"),
     longestRun: num(r, "longest_run"),
     completedShows: num(r, "completed_shows"),
+    completedBySeasons: num(r, "completed_by_seasons"),
     fellOffCount: num(r, "fell_off_count"),
     grewCount: num(r, "grew_count"),
     animeSeasonCount: num(r, "anime_season_count"),

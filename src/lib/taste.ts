@@ -4,7 +4,8 @@ import { users } from "@/db/schema";
 import type { LibraryFilm } from "@/lib/library";
 import { decadeLabel, formatTenths } from "@/lib/format";
 import { CLUSTERS, CLUSTER_PREVALENCE } from "@/lib/archetype-clusters";
-import { pickSignatureFilms } from "@/lib/signature-films";
+import { pickSignatureTitles } from "@/lib/signature";
+import { stabilise } from "@/lib/signature-stability";
 import {
   readArchetype,
   themeDNA,
@@ -382,8 +383,8 @@ function cosine(a: Record<string, number>, b: Record<string, number>): number {
 // is no separate "game state" table to keep in sync, except the once-a-season
 // binder stamp, which is a snapshot of this same derivation.
 
-export type { SignatureFilm } from "./signature-films";
-import type { SignatureFilm } from "./signature-films";
+export type { SignatureTitle } from "./signature";
+import type { SignatureTitle } from "./signature";
 
 export type DecadeShare = { decade: number; count: number; pct: number };
 export type Stat = { label: string; value: string };
@@ -580,7 +581,7 @@ export type HomeTasteCardData = TasteProfile & {
   traitsHeldCount: number;
   traitsTotal: number;
   traitsHidden: number;
-  signatureFilms: SignatureFilm[];
+  signatureFilms: SignatureTitle[];
   decadeBreakdown: DecadeShare[];
   /** every rated tenths value, for the rating-fingerprint histogram on the back */
   ratings: number[];
@@ -733,9 +734,22 @@ export async function buildHomeTasteCard(
   // Picked after the signals, because every slot needs them: conviction is
   // measured against this person's own mean and spread, and the last slot
   // falls back to the theme the title is named after.
-  const signatureFilms = await pickSignatureFilms(userId, signals, read.themeKey, {
-    includePrivate,
-  });
+  // The quartet is chosen against the canonical preference profile, which is
+  // built inside this call from the same library. Nothing about the archetype is
+  // passed in: the two used to share a `themeKey` argument that the callee
+  // ignored, which let the title and the posters tell different stories while
+  // the comment here claimed they agreed.
+  const signature = await pickSignatureTitles(userId, signals, { includePrivate });
+  /**
+   * Held steady unless a challenger clearly wins.
+   *
+   * Only persisted when this is the owner's own full view. A card built for a
+   * visitor is scoped to public entries, so writing that as the incumbent would
+   * let somebody else's page quietly rewrite the owner's quartet to the smaller
+   * one a stranger is allowed to see.
+   */
+  const stable = await stabilise(userId, signature.titles, { persist: includePrivate });
+  const signatureFilms = stable.titles;
 
   const traits = evaluateTraits(signals);
   const heldTraits = traits.filter((t) => t.held);

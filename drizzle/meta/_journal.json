@@ -127,6 +127,13 @@
       "when": 1786231904839,
       "tag": "0018_tier_floor",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786235091624,
+      "tag": "0019_signature_history",
+      "breakpoints": true
     }
   ]
 }
