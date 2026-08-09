@@ -140,8 +140,29 @@ export default function SeriesSheet({
         onClose={onClose}
         title={series.name}
         subtitle={
-          <div className="flex items-start gap-5">
-            <div className="min-w-0 flex-1">
+          /**
+           * The verdict leads, at full width.
+           *
+           * It used to sit in the header's right corner, which put a second
+           * right edge directly above the column of season ratings — two
+           * figure columns a few pixels apart that the eye keeps trying to
+           * reconcile. Nothing lines up with it because nothing can: it is a
+           * 26px number and they are 19px ones. Moving it out of the corner
+           * removes the comparison rather than trying to win it.
+           */
+          <div className="flex flex-col gap-3">
+            {score && (
+              <div className="flex items-baseline gap-2.5">
+                <div className={`num text-[26px] leading-none ${ratingColor(score.value)}`}>
+                  {formatTenths(score.value)}
+                </div>
+                {/* Which of the two readings this is. One number over five
+                    seasons is either a verdict somebody typed or arithmetic
+                    over the ones they did, and those are not the same claim. */}
+                <div className="text-[11px] leading-tight text-ash">{score.source}</div>
+              </div>
+            )}
+            <div className="min-w-0">
               <p className="num text-[12.5px] text-ash">
                 {[
                   seriesStanding(series),
@@ -157,7 +178,11 @@ export default function SeriesSheet({
               {series.credited > 0 && (
                 <span
                   aria-hidden
-                  className="mt-2.5 block h-[3px] w-full max-w-48 overflow-hidden rounded-sm bg-seam"
+                  // Full width, not a capped 192px. A track that stops two
+                  // thirds of the way across its own column reads as a
+                  // part-filled bar even when it is at 100%, which is the
+                  // reading it exists to prevent.
+                  className="mt-2.5 block h-[3px] w-full overflow-hidden rounded-sm bg-dim"
                 >
                   <span
                     className="block h-full rounded-sm bg-beam transition-[width] duration-500"
@@ -166,20 +191,6 @@ export default function SeriesSheet({
                 </span>
               )}
             </div>
-
-            {score && (
-              <div className="shrink-0 text-right">
-                <div className={`num text-[26px] leading-none ${ratingColor(score.value)}`}>
-                  {formatTenths(score.value)}
-                </div>
-                {/* Which of the two readings this is. One number over five
-                    seasons is either a verdict somebody typed or arithmetic
-                    over the ones they did, and those are not the same claim. */}
-                <div className="mt-1.5 max-w-[15ch] text-balance text-[10px] leading-tight text-dim">
-                  {score.source}
-                </div>
-              </div>
-            )}
           </div>
         }
       >
@@ -262,17 +273,18 @@ function SeasonRow({
 
   const body = (
     <>
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0">
         <span className="block truncate text-[14.5px] text-paper">{season.label}</span>
         <span className="num mt-0.5 block truncate text-[11.5px] text-ash">{meta}</span>
       </span>
       {/* The crowd first, then you, in the order every other surface prints
-          them, so the eye learns one place to look for each. */}
-      <span className="num w-8 shrink-0 text-right text-[12px] text-dim">
+          them, so the eye learns one place to look for each. `dim` measured
+          3.6:1 on this ground, and this is a figure people read. */}
+      <span className="num text-right text-[13px] text-ash">
         {season.audience !== null ? formatTenths(season.audience) : ""}
       </span>
       {season.rating !== null ? (
-        <span className={`num w-11 shrink-0 text-right text-[19px] ${ratingColor(season.rating)}`}>
+        <span className={`num text-right text-[19px] ${ratingColor(season.rating)}`}>
           {formatTenths(season.rating)}
         </span>
       ) : (
@@ -281,21 +293,30 @@ function SeasonRow({
         // fact and an invitation. On somebody else's shelf there is no
         // invitation, so the column is simply empty, the way an unrated film
         // is empty in the ledger.
-        <span className="w-11 shrink-0 text-right text-[12px] text-beam">
+        <span className="text-right text-[12px] text-beam">
           {editable ? "Rate" : ""}
         </span>
       )}
     </>
   );
 
+  /**
+   * Real columns, not three flex items that happened to agree.
+   *
+   * The figures lined up only while every row held the same children, and one
+   * row never does: an unrated season has no Remove button, so its row ran
+   * 64px wider and its "Rate" missed the column of ratings above it by
+   * exactly that. Declaring the tracks once puts every figure on a column
+   * whatever the row contains.
+   */
+  const COLS = "grid grid-cols-[minmax(0,1fr)_40px_56px] items-center gap-x-3.5";
+
   if (!editable) {
-    return (
-      <li className="flex items-center gap-3.5 border-t border-seam py-3">{body}</li>
-    );
+    return <li className={`${COLS} border-t border-seam py-3`}>{body}</li>;
   }
 
   return (
-    <li className="group flex items-center border-t border-seam">
+    <li className="group grid grid-cols-[minmax(0,1fr)_64px] items-center border-t border-seam">
       <button
         type="button"
         onClick={onRate}
@@ -305,18 +326,21 @@ function SeasonRow({
             ? `Change your rating of ${season.label}`
             : `Rate ${season.label}`
         }
-        className="flex min-w-0 flex-1 items-center gap-3.5 py-3 pr-1 text-left transition-colors hover:bg-tray focus-visible:bg-tray focus-visible:outline-none disabled:pointer-events-none disabled:opacity-45"
+        className={`${COLS} min-w-0 py-3 text-left transition-colors hover:bg-tray focus-visible:bg-tray focus-visible:outline-none disabled:pointer-events-none disabled:opacity-45`}
       >
         {body}
       </button>
-      {season.rating !== null && (
+      {season.rating !== null ? (
         <button
           type="button"
           onClick={onRemove}
-          className="shrink-0 rounded-card px-2 py-1 text-[11.5px] text-dim opacity-0 transition-opacity hover:text-paper focus-visible:text-paper focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100 sm:opacity-0"
+          className="rounded-card px-2 py-1 text-right text-[11.5px] text-ash opacity-0 transition-opacity hover:text-paper focus-visible:text-paper focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100 sm:opacity-0"
         >
           Remove
         </button>
+      ) : (
+        // The column is spent whether or not there is a rating to remove.
+        <span aria-hidden />
       )}
     </li>
   );

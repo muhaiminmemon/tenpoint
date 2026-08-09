@@ -4,7 +4,7 @@ import { FULL_CARD_THRESHOLD, type HomeTasteCardData } from "@/lib/taste";
 
 function ProgressBar({ pct }: { pct: number }) {
   return (
-    <span className="block h-1.5 overflow-hidden rounded-full bg-tray-2">
+    <span className="block h-1.5 overflow-hidden rounded-full bg-dim">
       <span
         className="block h-full rounded-full bg-gradient-to-r from-beam to-gold"
         style={{ width: `${Math.min(100, Math.max(4, pct))}%` }}

@@ -596,25 +596,41 @@ function ShelfTile({ film }: { film: LibraryFilm }) {
   const content = (
     <>
       <span className="relative block">
+        {/* Two tonal edges behind the poster's right side.
+         *
+         * A series is a stack of things, so the tile is a stack of things.
+         * The count used to be a nine-character string set at 10px — the floor
+         * of the page ramp, unadorned, over artwork — because a chip that says
+         * "6 seasons" has to stay small to keep out of the poster's way. Once
+         * the shape says "series", the numeral is free to be a numeral and the
+         * word demotes to a label. */}
+        {series && series.totalSeasons > 1 && (
+          <>
+            <span aria-hidden className="absolute inset-y-2 right-[-3px] w-[3px] rounded-r-card bg-tray-2" />
+            <span aria-hidden className="absolute inset-y-4 right-[-6px] w-[3px] rounded-r-card bg-seam" />
+          </>
+        )}
         {poster ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={poster}
             alt={`Poster for ${film.title}`}
             loading="lazy"
-            className="aspect-[2/3] w-full rounded-card bg-tray object-cover"
+            className="relative aspect-[2/3] w-full rounded-card bg-tray object-cover"
           />
         ) : (
-          <span className="flex aspect-[2/3] w-full items-center justify-center rounded-card bg-tray p-2 text-center text-sm text-ash">
+          <span className="relative flex aspect-[2/3] w-full items-center justify-center rounded-card bg-tray p-2 text-center text-sm text-ash">
             {film.title}
           </span>
         )}
-        {/* A poster that opens rather than navigates should say so, and the
-            useful way to say it is with the count: this is one work, and it is
-            this many seasons deep. */}
         {series && series.totalSeasons > 0 && (
-          <span className="num absolute bottom-1.5 left-1.5 rounded-[3px] bg-[rgba(14,14,16,.82)] px-1.5 py-0.5 text-[10px] text-paper">
-            {series.totalSeasons} {series.totalSeasons === 1 ? "season" : "seasons"}
+          <span className="absolute inset-x-0 bottom-0 flex items-end rounded-b-card bg-gradient-to-t from-[rgba(14,14,16,.92)] via-[rgba(14,14,16,.5)] to-transparent px-2 pb-1.5 pt-7">
+            <span className="num text-[22px] leading-none text-paper">
+              {series.totalSeasons}
+            </span>
+            <span className="mb-[3px] ml-1.5 text-[10px] uppercase leading-none tracking-[.14em] text-ash">
+              {series.totalSeasons === 1 ? "season" : "seasons"}
+            </span>
           </span>
         )}
       </span>

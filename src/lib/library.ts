@@ -327,8 +327,20 @@ async function foldSeries(
       ratedWhole: p?.ratedWhole ?? false,
       credited: p?.credited ?? 0,
       state: p?.state ?? "unfinished",
-      nextSeason:
-        p?.nextSeason ?? seasonList.find((s) => s.rating === null)?.seasonNumber ?? null,
+      /**
+       * `null` from progress is an answer, not a gap.
+       *
+       * A complete series deliberately has no next season, and `??` read that
+       * deliberate null as "missing" and recomputed it off the season list —
+       * which for a series rated whole has every season individually unrated.
+       * The sheet said "Finished · next up season 6" about the same show, in
+       * the same line. Only fall back when there is no progress row at all,
+       * which is the case this fallback was written for: a season logged
+       * without a rating puts a series on the shelf and in no other query.
+       */
+      nextSeason: p
+        ? p.nextSeason
+        : (seasonList.find((s) => s.rating === null && !s.unaired)?.seasonNumber ?? null),
       ended: p?.ended ?? false,
       wholeRating: p?.wholeRating ?? null,
       meanRating: p?.meanRating ?? null,

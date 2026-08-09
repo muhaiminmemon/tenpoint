@@ -32,6 +32,18 @@
    */
   --color-card-2: rgba(236, 234, 230, 0.78);
   --color-card-3: rgba(236, 234, 230, 0.62);
+  /**
+   * The unfilled part of a bar printed on a card.
+   *
+   * A track is only readable as a proportion if the part that is *not* filled
+   * can be seen. Every track in the product was a near-black one step off its
+   * own ground — 1.27:1 in the series sheet, 1.17:1 on the developing card —
+   * so a bar at 100% and a bar at 40% both read as a short stub floating in
+   * the dark. White at alpha for the same reason `card-2` is: it takes the hue
+   * of whatever stock it is printed on, and cannot go muddy on a ground that
+   * does not exist yet.
+   */
+  --color-card-track: rgba(236, 234, 230, 0.3);
   --color-beam: #8faecc;
   --color-beam-edge: #34506a;
   --color-gold: #d9b25f;

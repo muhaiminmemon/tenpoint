@@ -4,10 +4,11 @@ import { and, desc, eq, inArray, or, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { comments, diaryEntries, films, users, type SessionUser } from "@/db/schema";
 import { blockedIdsFor, friendIdsOf } from "@/lib/social";
-import { formatTenths, ratingColor } from "@/lib/format";
+import { formatTenths } from "@/lib/format";
 import { avatarSrc } from "@/lib/avatar";
-import Avatar from "./Avatar";
 import ReviewCard, { type ReviewData } from "./ReviewCard";
+import RatingChips from "./RatingChips";
+import ShowMore from "./ShowMore";
 
 type Props = {
   /**
@@ -106,8 +107,14 @@ export default async function ReviewsSection({ filmIds, basePath, viewer, tab }:
         .orderBy(comments.createdAt)
     : [];
 
-  // a row with review text renders as a full ReviewCard; a bare rating gets a
-  // one-line activity row instead, so a silent 9/10 still shows up here
+  /** the same part as a sort key: the season number, 0 for specials, -1 for the whole series */
+  const partOrder = (kind: string | null, season: number | null): number | null => {
+    if (filmIds.length < 2) return null;
+    return kind === "season" ? (season ?? 0) : -1;
+  };
+
+  // a row with review text renders as a full ReviewCard; a bare rating joins the
+  // run of chips instead, so a silent 9/10 still shows up here
   type FeedRow =
     | { kind: "review"; data: ReviewData }
     | {
@@ -119,6 +126,7 @@ export default async function ReviewsSection({ filmIds, basePath, viewer, tab }:
         displayName: string | null;
         avatarUrl: string | null;
         part: string | null;
+        partSort: number | null;
       };
 
   const feed: FeedRow[] = shown.map((r) => {
@@ -158,8 +166,18 @@ export default async function ReviewsSection({ filmIds, basePath, viewer, tab }:
       displayName: r.displayName,
       avatarUrl,
       part,
+      partSort: partOrder(r.partKind, r.partSeason),
     };
   });
+
+  // the two halves read differently and are revealed differently: a bare score
+  // is a chip in one run, a review is a block someone reads
+  const ratings = feed.flatMap((item) => (item.kind === "rating" ? [item] : []));
+  const reviews = feed.flatMap((item) => (item.kind === "review" ? [item] : []));
+
+  // people, not rows. On a series one viewer holds a score per season, and
+  // counting rows here claimed nine viewers where there was one.
+  const raters = new Set(ratings.map((item) => item.username)).size;
 
   return (
     <section>
@@ -190,31 +208,32 @@ export default async function ReviewsSection({ filmIds, basePath, viewer, tab }:
             : "No ratings or reviews yet. Log a viewing to be the first."}
         </p>
       ) : (
-        <ul className="space-y-5">
-          {feed.map((item) =>
-            item.kind === "review" ? (
-              <ReviewCard key={item.data.id} review={item.data} signedIn={Boolean(viewer)} />
-            ) : (
-              <li key={item.id} className="flex items-center gap-2 border-b border-seam pb-4 text-sm">
-                <Avatar
-                  avatarUrl={item.avatarUrl}
-                  name={item.displayName ?? item.username}
-                  size={24}
-                />
-                <Link href={`/${item.username}`} className="text-paper hover:underline">
-                  {item.displayName ?? item.username}
-                </Link>
-                <span className="text-ash">rated</span>
-                {item.part && <span className="text-ash">{item.part}</span>}
-                <span className={`num ${ratingColor(item.rating)}`}>
-                  {formatTenths(item.rating)}
+        <ul className="space-y-[18px]">
+          {/*
+           * Thirty bare ratings rendered as thirty rows is mostly hairline and
+           * whitespace, and it pushes the reviews — the part anyone actually
+           * reads — off the bottom of the page. The scores that came without a
+           * review collapse into one run instead. Nothing is dropped: every
+           * name, every figure, still in the order they were logged.
+           */}
+          {ratings.length > 0 && (
+            // the hairline separates the run from the reviews; with no reviews
+            // under it there is nothing to separate and it just hangs there
+            <li className={reviews.length > 0 ? "border-b border-seam pb-4" : ""}>
+              <div className="mb-[11px] flex items-baseline gap-[7px]">
+                <span className="num text-[13px] text-paper">{raters}</span>
+                <span className="text-[11px] uppercase tracking-[0.12em] text-ash">
+                  rated it without writing
                 </span>
-                {item.watchedOn && (
-                  <span className="num ml-auto text-xs text-ash">{item.watchedOn}</span>
-                )}
-              </li>
-            ),
+              </div>
+              <RatingChips items={ratings} />
+            </li>
           )}
+          <ShowMore initial={5} step={10} noun="review">
+            {reviews.map((item) => (
+              <ReviewCard key={item.data.id} review={item.data} signedIn={Boolean(viewer)} />
+            ))}
+          </ShowMore>
         </ul>
       )}
     </section>

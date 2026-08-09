@@ -207,7 +207,7 @@ export default function ImportWizard() {
         <p className="num mt-2 text-sm text-ash">
           {progress.done} of {progress.total} titles
         </p>
-        <div className="mt-3 h-1 w-full overflow-hidden rounded bg-tray" role="progressbar"
+        <div className="mt-3 h-1 w-full overflow-hidden rounded bg-dim" role="progressbar"
           aria-valuenow={progress.done} aria-valuemin={0} aria-valuemax={progress.total}>
           <div
             className="h-full bg-beam transition-[width]"

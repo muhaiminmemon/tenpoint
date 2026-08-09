@@ -237,7 +237,7 @@ function CardTab({ data, binderHref }: { data: HomeTasteCardData; binderHref?: s
           {/* The rung as a bar. Depth is one number, so this is one bar — the
               two stacked percentages that used to be here were describing a
               rule the ladder no longer uses. */}
-          <div className="h-1 overflow-hidden rounded-full bg-tray">
+          <div className="h-1 overflow-hidden rounded-full bg-dim">
             <span
               className="block h-full rounded-full bg-beam transition-[width] duration-500"
               style={{ width: `${standing.gate.progressPct}%` }}
@@ -345,7 +345,7 @@ function TraitsTab({ data }: { data: HomeTasteCardData }) {
               <div className="mt-0.5 text-[11.5px] leading-snug text-dim">
                 <span className={t.held ? "num text-ash" : "num"}>{t.count}</span> {t.unit}
               </div>
-              <div className="mt-2 h-[3px] overflow-hidden rounded-full bg-[#1c1c21]">
+              <div className="mt-2 h-[3px] overflow-hidden rounded-full bg-dim">
                 <span
                   className="block h-full rounded-full bg-gold transition-[width] duration-500"
                   style={{ width: `${pct}%`, opacity: t.held ? 1 : 0.45 }}

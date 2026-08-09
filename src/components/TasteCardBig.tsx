@@ -150,7 +150,7 @@ export function TasteCardFrontBig({
               <div key={d.label} className="flex items-center gap-2.5">
                 <span className="size-1.5 shrink-0 rounded-full" style={{ background: d.dot }} aria-hidden />
                 <span className="w-[104px] truncate text-[11px] text-card-2">{d.label}</span>
-                <span className="h-1 flex-1 overflow-hidden rounded-full bg-[#1f1f25]">
+                <span className="h-1 flex-1 overflow-hidden rounded-full bg-card-track">
                   <span
                     className="block h-full rounded-full bg-gradient-to-r from-beam to-gold"
                     style={{ width: `${Math.max(4, d.pct)}%` }}
