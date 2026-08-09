@@ -313,6 +313,35 @@ export const diaryEntries = pgTable(
   ],
 );
 
+/**
+ * The ratings a viewing used to carry, before its owner changed their mind.
+ *
+ * Correcting a score is not watching something again, and it is not nothing
+ * either. Editing an entry used to overwrite the rating in place, which quietly
+ * destroyed the earlier opinion in a product whose first principle is that no
+ * later action rewrites an earlier one; the season list avoided that by writing
+ * a whole second diary row instead, which made a correction look like a rewatch
+ * and inflated every count built on viewings. This is the third answer: the
+ * viewing stays one viewing, and what it used to say is kept beside it.
+ *
+ * Rows hold the rating being *replaced*, so the entry's own column is always
+ * the current one and the full sequence is these plus it. Cascaded from the
+ * entry, because a viewing that never happened has no opinions to have held.
+ */
+export const entryRatingHistory = pgTable(
+  "entry_rating_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entryId: uuid("entry_id")
+      .notNull()
+      .references(() => diaryEntries.id, { onDelete: "cascade" }),
+    /** the superseded rating, in tenths, as every rating is stored */
+    rating: smallint("rating").notNull(),
+    changedAt: timestamp("changed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("entry_rating_history_entry_idx").on(t.entryId, t.changedAt)],
+);
+
 export const imports = pgTable("imports", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")

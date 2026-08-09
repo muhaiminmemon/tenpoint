@@ -42,7 +42,7 @@ export default function FilmRail({
             href={href}
             className="shrink-0 text-[12.5px] text-beam transition-colors hover:text-paper"
           >
-            See all &rarr;
+            See all
           </Link>
         )}
       </div>

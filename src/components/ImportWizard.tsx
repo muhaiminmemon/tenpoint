@@ -166,9 +166,10 @@ export default function ImportWizard() {
     return (
       <div className="max-w-xl">
         <p className="text-ash">
-          From Letterboxd: Settings → Import &amp; Export → Export your data, unzip it, and
-          upload <code className="text-paper">ratings.csv</code>. From MyAnimeList: Profile →
-          Export, then unzip and upload the <code className="text-paper">.xml</code>.
+          From Letterboxd: open Settings, then Import &amp; Export, then Export your data. Unzip
+          it and upload <code className="text-paper">ratings.csv</code>. From MyAnimeList: open
+          Profile, then Export, then unzip and upload the{" "}
+          <code className="text-paper">.xml</code>.
         </p>
         <p className="mt-3 text-sm text-ash">
           Letterboxd stars carry over doubled: 4★ becomes 8.0, 3½★ becomes 7.0. MyAnimeList

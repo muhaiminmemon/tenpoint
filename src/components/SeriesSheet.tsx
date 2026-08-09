@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "@phosphor-icons/react/ssr";
 import Sheet from "./Sheet";
 import LogSheet, { type LogPayload } from "./LogSheet";
 import { useConfirm } from "./Confirm";
@@ -72,15 +71,26 @@ export default function SeriesSheet({
     if (!active || busy) return;
     setBusy(true);
     setError(null);
+    /**
+     * Correcting a score edits the viewing; it does not log another one.
+     *
+     * Posting a new entry was how this used to save an edit, which made
+     * changing 8.0 to 8.5 read as having watched the season twice, and every
+     * count built on viewings believed it. Watching a season again is a diary
+     * act and belongs on the series page with the rest of the record.
+     */
+    const editing = active.rating !== null && active.entryId !== null;
     try {
-      const res = await fetch("/api/entries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Never a rewatch from here. Watching a season again is a diary act
-        // and belongs on the series page with the rest of the record; this
-        // panel is for the score itself, first or corrected.
-        body: JSON.stringify({ filmId: active.filmId, ...payload, rewatch: false }),
-      });
+      const res = await fetch(
+        editing ? `/api/entries/${active.entryId}` : "/api/entries",
+        {
+          method: editing ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            editing ? payload : { filmId: active.filmId, ...payload, rewatch: false },
+          ),
+        },
+      );
       if (!res.ok) {
         setError(await errorFrom(res, "That didn't save. Try again."));
         return;
@@ -108,7 +118,9 @@ export default function SeriesSheet({
     if (!s.entryId) return;
     const ok = await confirm({
       title: `Remove your rating of ${series.name}, ${s.label.toLowerCase()}?`,
-      body: "The rating and anything written with it go too. This can't be undone.",
+      // Names the mechanism rather than only the consequence: ratings you
+      // replace are kept, and this is the action that throws them away.
+      body: "The whole viewing goes, and with it the rating, anything you wrote alongside it, and any earlier ratings this one replaced. This can't be undone.",
       action: "Remove",
     });
     if (!ok) return;
@@ -194,7 +206,6 @@ export default function SeriesSheet({
           className="mt-5 inline-flex items-center gap-1.5 rounded-card text-[13.5px] text-beam transition-colors hover:text-paper focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-beam-edge"
         >
           Open the series page
-          <ArrowRight aria-hidden className="size-3.5" />
         </Link>
       </Sheet>
 

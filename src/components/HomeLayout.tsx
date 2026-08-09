@@ -67,7 +67,15 @@ export default function HomeLayout({
 
       {taste.full ? (
         <>
-          <div className="mt-6 grid gap-5 md:grid-cols-[220px_1fr]">
+          {/* Both tracks are minmax(0,…) rather than auto or 1fr.
+              A grid column defaults to `auto`, which resolves to the widest
+              content it holds and will not shrink below it. On a phone that
+              made this one column 397px inside a 368px page, and the 13px it
+              stuck out was enough to make every fixed-position element and the
+              whole document scroll sideways: the card looked oversized and the
+              page had to be zoomed out to read. `1fr` has the same failure, as
+              its implied minimum is also auto. */}
+          <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-5 md:grid-cols-[220px_minmax(0,1fr)]">
             <HomeTasteCard
               taste={taste}
               username={username}

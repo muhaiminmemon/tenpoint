@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
-import { accentFor } from "@/lib/format";
 
 type FilmHit = {
   tmdbId?: number;
@@ -133,11 +132,6 @@ export default function HomeSearch() {
                     cursor === i ? "bg-tray" : ""
                   }`}
                 >
-                  <span
-                    aria-hidden
-                    className="h-8 w-[3px] shrink-0 rounded-sm"
-                    style={{ background: accentFor(f.slug ?? String(f.tmdbId)) }}
-                  />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-paper">{f.title}</span>
                     <span className="num block truncate text-[11px] text-ash">

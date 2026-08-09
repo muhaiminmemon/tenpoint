@@ -361,9 +361,6 @@ export function BinderLink({ href = "/binder", label = "Open the binder" }: {
         className="display flex items-center justify-between rounded-card border border-seam bg-[#1a1a1f] px-3.5 py-2.5 text-[13px] text-paper transition-colors hover:border-dim"
       >
         {label}
-        <span aria-hidden className="text-ash">
-          &rarr;
-        </span>
       </Link>
     </div>
   );

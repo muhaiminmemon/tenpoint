@@ -72,7 +72,7 @@ export default async function SettingsPage() {
           </a>
         </div>
         <p className="mt-2 text-xs text-ash">
-          On Letterboxd: Settings → Import &amp; Export → Import Diary.
+          On Letterboxd: open Settings, then Import &amp; Export, then Import Diary.
         </p>
       </section>
 

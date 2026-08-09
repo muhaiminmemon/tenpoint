@@ -196,7 +196,7 @@ function Pager({
           href={step(page + 1)}
           className="rounded-card border border-seam px-4 py-2 text-sm text-ash transition-colors hover:border-dim hover:text-paper"
         >
-          Next &rarr;
+          Next
         </Link>
       ) : (
         <span />

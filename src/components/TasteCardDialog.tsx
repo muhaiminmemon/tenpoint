@@ -135,7 +135,10 @@ export default function TasteCardDialog({
           </div>
         </div>
 
-        <div className="grid flex-1 gap-6 p-4 sm:grid-cols-[320px_1fr] sm:p-5">
+        {/* Shrinkable tracks. Below `sm` this is one implicit `auto` column,
+            which sizes to the card's widest content and refuses to go under
+            it, pushing the dialog wider than the phone holding it. */}
+        <div className="grid flex-1 grid-cols-[minmax(0,1fr)] gap-6 p-4 sm:grid-cols-[320px_minmax(0,1fr)] sm:p-5">
           <div>
             <TasteCardFlip
               data={data}
@@ -224,7 +227,7 @@ function CardTab({ data, binderHref }: { data: HomeTasteCardData; binderHref?: s
         <div className="rounded-xl border border-seam bg-lift p-4">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <span className="text-[10px] uppercase tracking-[.14em] text-ash">
-              {data.tier.name} &rarr; {standing.next?.name}
+              {data.tier.name} to {standing.next?.name}
             </span>
             <span className="num text-[11px] text-beam">
               {standing.depth.toLocaleString()} / {standing.gate.need.toLocaleString()}

@@ -11,6 +11,11 @@ export type Viewing = {
   spoiler: boolean;
   private: boolean;
   createdAt: string;
+  /**
+   * Every rating this viewing carried before the one it carries now, oldest
+   * first. Empty for a verdict that never moved.
+   */
+  ratingHistory?: number[];
 };
 
 type Props = {
@@ -60,6 +65,33 @@ export default function ViewingCard({ viewing, busy, onEdit, onDelete }: Props) 
             </span>
           )}
         </div>
+        {/* How the verdict moved on this one viewing.
+            Not a rewatch and not a second viewing: the same night, reconsidered.
+            The chain ends on the rating printed large to the left, so the two
+            always agree about what the current number is. */}
+        {viewing.ratingHistory && viewing.ratingHistory.length > 0 && viewing.rating !== null && (
+          <p className="num mt-1 text-[11.5px] text-dim">
+            <span className="sr-only">
+              You changed this rating{" "}
+              {viewing.ratingHistory.length === 1
+                ? "once"
+                : `${viewing.ratingHistory.length} times`}
+              :{" "}
+            </span>
+            {[...viewing.ratingHistory, viewing.rating].map((r, i, all) => (
+              <span key={i}>
+                {/* The chain already reads left to right in the order it
+                    happened, so it needs a separator rather than a direction.
+                    The same middle dot every other row in the app separates
+                    facts with. */}
+                {i > 0 && <span className="px-1.5 text-seam">·</span>}
+                <span className={i === all.length - 1 ? ratingColor(r) : undefined}>
+                  {formatTenths(r)}
+                </span>
+              </span>
+            ))}
+          </p>
+        )}
         {viewing.review && (
           <p className="mt-1 line-clamp-3 text-[13px] leading-relaxed text-ash">
             {viewing.spoiler ? "Mentions plot details." : viewing.review}

@@ -14,7 +14,6 @@ import {
   ERA_BY_DECADE,
   evaluateTraits,
   tierStanding,
-  SEASON_WEIGHT,
   RARITY_TIERS,
   type RarityTier,
   type TierStanding,
@@ -685,15 +684,22 @@ export async function buildHomeTasteCard(
    * is the correction and the binder states it.
    */
   /**
-   * How the shelf splits, weighted the way the ladder weighs it.
+   * How the shelf splits, counted in works.
    *
-   * By rows this library is a sixth television; by hours it is half. The card
-   * prints the weighted reading because that is the one the tier and the
-   * signature quartet were decided on, and a card that shows a figure nothing
-   * acts on is worse than one that shows none.
+   * The share used to be weighted by seasons: every credited season counted as
+   * `SEASON_WEIGHT` films, so one five-season show arrived on the card as
+   * twenty titles and a shelf of thirty-four films with a few series on it read
+   * as half television. That is a true statement about hours and a false one
+   * about what somebody's shelf is made of, and "47% series" is read as the
+   * second.
+   *
+   * A series is one work here, however many seasons it took, which is the same
+   * rule the library itself now uses to draw a row. The ladder still weighs
+   * seasons, and the binder still explains that it does; depth and composition
+   * are different questions and the card answers them in different places.
    */
-  const seasonWeighted = signals.seasonsCredited * SEASON_WEIGHT;
   const filmCount = taste.rated - signals.seasonCount - signals.wholeShowCount;
+  const showCount = signals.showsTouched;
   const mix = {
     films: filmCount,
     /**
@@ -701,14 +707,13 @@ export async function buildHomeTasteCard(
      *
      * A season is the unit of opinion but it is not the unit anybody compares
      * to a film: "43 seasons" next to "250 films" reads as two different kinds
-     * of thing. The count shown is series watched; the share below stays
-     * weighted by seasons, so an eight-season run still outweighs a one-off.
+     * of thing.
      */
-    shows: signals.showsTouched,
+    shows: showCount,
     seasons: signals.seasonsCredited,
     showShare:
-      seasonWeighted + filmCount > 0
-        ? Math.round((seasonWeighted / (seasonWeighted + filmCount)) * 100)
+      showCount + filmCount > 0
+        ? Math.round((showCount / (showCount + filmCount)) * 100)
         : 0,
   };
 

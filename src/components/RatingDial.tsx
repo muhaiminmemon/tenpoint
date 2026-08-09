@@ -94,7 +94,7 @@ export default function RatingDial({ value, onCommit, busy }: Props) {
 
       {anchors.rendered && (
         <dl
-          className={`${anchors.state === "out" ? "pop-out" : "pop-in"} mb-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-card border border-seam bg-tray p-3 text-sm`}
+          className={`${anchors.state === "out" ? "pop-out" : "pop-in"} mb-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 rounded-card border border-seam bg-tray p-3 text-sm`}
         >
           {RATING_ANCHORS.map((a) => (
             <div key={a.range} className="contents">

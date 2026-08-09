@@ -1,7 +1,7 @@
 import { Instrument_Serif } from "next/font/google";
 import FoilLight, { CARD_FOIL } from "./FoilLight";
 import CardGrain, { CARD_GRAIN } from "./CardGrain";
-import { accentFor, formatTenths, ratingColor } from "@/lib/format";
+import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import { stockDef } from "@/lib/taste-card";
 import type { HomeTasteCardData } from "@/lib/taste";
@@ -224,11 +224,6 @@ export default function TasteCardFace({
                         {f.title}
                       </span>
                     )}
-                    <span
-                      className="absolute left-[3px] top-[3px] h-3 w-[3px] rounded-[2px]"
-                      style={{ background: accentFor(f.slug) }}
-                      aria-hidden
-                    />
                   </div>
                 );
               })}
@@ -238,10 +233,11 @@ export default function TasteCardFace({
           {data.traitsHeldCount > 0 && (
             <div className="mt-3 flex items-center justify-center gap-2.5 text-[10px]">
               <span className="num text-gold">{data.traitsHeldCount} traits</span>
-              {/* The split, once there is one. A shelf that is a third series
-                  is a fact about somebody, and it is the reading the tier and
-                  the signature quartet were both decided on. */}
-              {data.mix.seasons > 0 && (
+              {/* The split, once there is one: what share of the works on this
+                  shelf are series rather than films. Gated on the series count
+                  rather than the season count, so somebody who rates shows
+                  whole and never by season still gets the figure. */}
+              {data.mix.shows > 0 && (
                 <span className="num text-dim">{data.mix.showShare}% series</span>
               )}
             </div>

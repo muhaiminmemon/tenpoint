@@ -134,6 +134,13 @@
       "when": 1786235091624,
       "tag": "0019_signature_history",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786246977718,
+      "tag": "0020_entry_rating_history",
+      "breakpoints": true
     }
   ]
 }

@@ -89,9 +89,6 @@ export default function ProfileReading({
           className="mt-7 inline-flex items-center gap-2 rounded-card border border-seam px-4 py-2 text-sm text-ash transition-colors hover:border-dim hover:text-paper"
         >
           Open their binder
-          <span aria-hidden className="text-dim">
-            &rarr;
-          </span>
         </Link>
       )}
     </div>

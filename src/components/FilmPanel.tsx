@@ -163,9 +163,41 @@ export default function FilmPanel({
   }
 
   async function deleteViewing(v: Viewing) {
+    /**
+     * Say what actually goes, by name and by count.
+     *
+     * A viewing is not just a row: it carries the rating, whatever was written
+     * with it, and every earlier rating that one replaced. "This can't be
+     * undone" is true but tells nobody what they are about to lose, and the
+     * rating history in particular is invisible until it is gone.
+     */
+    const replaced = v.ratingHistory?.length ?? 0;
+    const goes = [
+      v.rating !== null ? "its rating" : null,
+      v.review ? "the review you wrote with it" : null,
+      replaced > 0
+        ? `the ${replaced === 1 ? "earlier rating" : `${replaced} earlier ratings`} it replaced`
+        : null,
+    ].filter((s): s is string => s !== null);
+    const attached =
+      goes.length > 1
+        ? `${goes.slice(0, -1).join(", ")} and ${goes[goes.length - 1]}`
+        : goes[0];
+
+    const onlyRating =
+      v.rating !== null && entries.every((e) => e.id === v.id || e.rating === null);
+
     const ok = await confirm({
       title: "Delete this viewing?",
-      body: "The rating and anything written with it go too. This can't be undone.",
+      body: [
+        attached ? `This viewing goes, and ${attached} with it.` : "This viewing goes.",
+        onlyRating
+          ? "It is the only rating you have of this film, so the film goes back to unrated."
+          : null,
+        "This can't be undone.",
+      ]
+        .filter(Boolean)
+        .join(" "),
       action: "Delete",
     });
     if (!ok) return;

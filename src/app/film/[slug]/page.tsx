@@ -2,7 +2,15 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { diaryEntries, films, listItems, listMembers, lists, watchlist } from "@/db/schema";
+import {
+  diaryEntries,
+  entryRatingHistory,
+  films,
+  listItems,
+  listMembers,
+  lists,
+  watchlist,
+} from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { hydrateFilm, isUnreleased } from "@/lib/films";
 import { criticScores } from "@/lib/omdb";
@@ -63,6 +71,25 @@ export default async function FilmPage(ctx: {
         .where(and(eq(diaryEntries.userId, user.id), eq(diaryEntries.filmId, film.id)))
         .orderBy(sql`${diaryEntries.watchedOn} desc nulls last`, desc(diaryEntries.createdAt))
     : [];
+
+  /**
+   * The ratings each of these viewings carried before the one it carries now.
+   *
+   * Read here rather than joined onto the entries because most viewings have
+   * none: a verdict that never moved should not pay for a join, and a card
+   * that shows a progression is the exception rather than the rule.
+   */
+  const ratingHistory = new Map<string, number[]>();
+  if (entries.length > 0) {
+    const rows = await db
+      .select({ entryId: entryRatingHistory.entryId, rating: entryRatingHistory.rating })
+      .from(entryRatingHistory)
+      .where(inArray(entryRatingHistory.entryId, entries.map((e) => e.id)))
+      .orderBy(entryRatingHistory.changedAt);
+    for (const r of rows) {
+      ratingHistory.set(r.entryId, [...(ratingHistory.get(r.entryId) ?? []), r.rating]);
+    }
+  }
 
   const ratedSorted = entries.filter((e) => e.rating !== null);
   const currentRated = ratedSorted[0] ?? null;
@@ -204,6 +231,7 @@ export default async function FilmPage(ctx: {
                 spoiler: e.spoiler,
                 private: e.private,
                 createdAt: e.createdAt.toISOString(),
+                ratingHistory: ratingHistory.get(e.id) ?? [],
               }))}
               inWatchlist={Boolean(wlRow)}
               watchlistSource={wlRow?.source ?? null}

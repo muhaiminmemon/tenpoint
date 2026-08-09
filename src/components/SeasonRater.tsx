@@ -72,11 +72,22 @@ export default function SeasonRater({
     if (!active || busy) return;
     setBusy(true);
     setError(null);
+    /**
+     * Changing your mind edits the viewing; watching it again logs a new one.
+     *
+     * Both used to post a new entry, so a corrected score was indistinguishable
+     * from a rewatch and inflated every count built on viewings. "Again" is the
+     * control that means a second viewing, and it is the only one that writes
+     * a second row.
+     */
+    const editing = !again && active.rating !== null && active.entryId !== null;
     try {
-      const res = await fetch("/api/entries", {
-        method: "POST",
+      const res = await fetch(editing ? `/api/entries/${active.entryId}` : "/api/entries", {
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filmId: active.id, ...payload, rewatch: again }),
+        body: JSON.stringify(
+          editing ? payload : { filmId: active.id, ...payload, rewatch: again },
+        ),
       });
       if (!res.ok) {
         setError(await errorFrom(res, "That didn't save. Try again."));
@@ -127,7 +138,9 @@ export default function SeasonRater({
     if (!s.entryId) return;
     const ok = await confirm({
       title: `Remove your rating of ${s.label}?`,
-      body: "The rating and anything written with it go too. This can't be undone.",
+      // Names the mechanism rather than only the consequence: ratings you
+      // replace are kept, and this is the action that throws them away.
+      body: "The whole viewing goes, and with it the rating, anything you wrote alongside it, and any earlier ratings this one replaced. This can't be undone.",
       action: "Remove",
     });
     if (!ok) return;
