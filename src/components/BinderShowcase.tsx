@@ -224,6 +224,21 @@ function SignatureSection({ films, person }: { films: Binder["signature"]; perso
           same film. Each of these is here for a different reason, and the reason is written
           under it. A series counts as one work, with its seasons as the evidence.
         </p>
+        {/* The pairing is the point, and it is invisible without saying so: two
+            of the four are chosen to disagree with each other.
+         *
+         * Built as one string rather than as JSX with pronouns interpolated
+         * mid-sentence. A `{" "}` sitting between two expressions lost its space
+         * and shipped "what youkeep returning to"; a sentence assembled in one
+         * piece cannot do that. */}
+        <p className="mt-3 text-sm leading-relaxed text-ash">
+          {[
+            "Two of them are usually opposites.",
+            `One is the clearest example of what ${person ? "they" : "you"} keep returning to.`,
+            `Another is the exception — the work that looks nothing like the rest, and ${person ? "they" : "you"} rate it at the top anyway.`,
+            "A shelf explains the first one on its own; the second is the part of a taste that nothing else here would tell anyone.",
+          ].join(" ")}
+        </p>
       </div>
 
       <ol className="mt-7 flex flex-col gap-5 border-b border-seam pb-6">

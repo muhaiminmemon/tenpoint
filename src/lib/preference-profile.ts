@@ -28,10 +28,30 @@ export type PreferenceProfile = {
   lift: Record<string, number>;
   /** the strongest dimensions, already ordered, for explanations */
   top: { key: string; name: string; note: string; share: number; lift: number }[];
-  /** weak supporting dimensions, kept separate so they can never dominate */
+  /**
+   * Weak supporting dimensions, kept separate so they can never dominate.
+   *
+   * These are weighted by affection: they describe the library somebody
+   * *responds to*, not the one they merely accumulated.
+   */
   era: { classic: number; modern: number };
   reach: { wide: number; narrow: number };
   language: { english: number; other: number };
+  /**
+   * The same three, unweighted.
+   *
+   * The pair is the whole point. On its own, "38% of what you rate is recent"
+   * is exposure — it describes what was available and what got logged. Divided
+   * by this, it becomes preference: recent films are over-represented among the
+   * ones you actually love, relative to how much recent film you watch at all.
+   * Every disposition that reads one of these axes reads the ratio, never the
+   * raw share.
+   */
+  exposure: {
+    era: { classic: number; modern: number };
+    reach: { wide: number; narrow: number };
+    language: { english: number; other: number };
+  };
   /**
    * How much of this profile is guesswork.
    *
@@ -126,6 +146,14 @@ export function buildPreferenceProfile(inputs: ProfileInput[]): PreferenceProfil
   let langEnglish = 0;
   let langOther = 0;
 
+  // The same tallies with every title counted once, whatever it was rated.
+  let xEraClassic = 0;
+  let xEraModern = 0;
+  let xReachWide = 0;
+  let xReachNarrow = 0;
+  let xLangEnglish = 0;
+  let xLangOther = 0;
+
   for (const t of inputs) {
     // A title nobody liked describes what they watched, not what they like.
     const w = Math.max(0, t.affection);
@@ -140,18 +168,33 @@ export function buildPreferenceProfile(inputs: ProfileInput[]): PreferenceProfil
     }
 
     if (t.year !== null) {
-      if (t.year < ERA_SPLIT) eraClassic += w;
-      else eraModern += w;
+      if (t.year < ERA_SPLIT) {
+        eraClassic += w;
+        xEraClassic += 1;
+      } else {
+        eraModern += w;
+        xEraModern += 1;
+      }
     }
     // Unknown reach is not narrow reach. It is nothing, and contributes to
     // neither side rather than quietly voting for obscurity.
     if (t.reach !== null) {
-      if (t.reach >= WIDE_REACH) reachWide += w;
-      else reachNarrow += w;
+      if (t.reach >= WIDE_REACH) {
+        reachWide += w;
+        xReachWide += 1;
+      } else {
+        reachNarrow += w;
+        xReachNarrow += 1;
+      }
     }
     if (t.language !== null) {
-      if (t.language === "en") langEnglish += w;
-      else langOther += w;
+      if (t.language === "en") {
+        langEnglish += w;
+        xLangEnglish += 1;
+      } else {
+        langOther += w;
+        xLangOther += 1;
+      }
     }
   }
 
@@ -207,6 +250,14 @@ export function buildPreferenceProfile(inputs: ProfileInput[]): PreferenceProfil
     era: { classic: frac(eraClassic, eraModern), modern: frac(eraModern, eraClassic) },
     reach: { wide: frac(reachWide, reachNarrow), narrow: frac(reachNarrow, reachWide) },
     language: { english: frac(langEnglish, langOther), other: frac(langOther, langEnglish) },
+    exposure: {
+      era: { classic: frac(xEraClassic, xEraModern), modern: frac(xEraModern, xEraClassic) },
+      reach: { wide: frac(xReachWide, xReachNarrow), narrow: frac(xReachNarrow, xReachWide) },
+      language: {
+        english: frac(xLangEnglish, xLangOther),
+        other: frac(xLangOther, xLangEnglish),
+      },
+    },
     confidence: Math.max(0, Math.min(1, themedCount / CONFIDENT_AT)),
     themedCount,
     totalCount: inputs.length,

@@ -57,7 +57,7 @@ export type SignatureTitle = {
     distinctiveness: number;
     stability: number;
     attachment: number;
-    influence: number;
+    outlier: number;
     viewings: number;
     reviews: number;
     ratedSeasons?: number;
@@ -75,11 +75,20 @@ export type SignatureTitle = {
  */
 const WEIGHTS = {
   affection: 0.35,
-  representation: 0.25,
-  distinctiveness: 0.15,
+  representation: 0.22,
+  distinctiveness: 0.13,
   stability: 0.1,
   attachment: 0.1,
-  influence: 0.05,
+  /**
+   * Worth more than the follow-on reading it replaces.
+   *
+   * Five percent was the right price for a signal that mostly restated a shared
+   * credit. An exception to somebody's taste is the rarest thing a shelf
+   * contains and the one a reader could never work out for themselves, so it is
+   * paid for out of representation and distinctiveness — the two components it
+   * sits between, and the two that would otherwise crowd it out.
+   */
+  outlier: 0.1,
 } as const;
 
 type Candidate = {
@@ -344,6 +353,18 @@ function affection(c: Candidate, mean: number, sd: number): number {
  * supports it: the title has to sit in a theme this person is genuinely
  * unusual for.
  */
+/**
+ * Whether the crowd here is big and real enough to be compared against.
+ *
+ * Today it is neither: eighty-two of the eighty-three accounts are generated
+ * fixtures, so "you rate this higher than other people here" would mean "you
+ * disagree with a seeder". The measurement still runs — it is worth having the
+ * machinery warm — but while this is false the population half is left out of
+ * the score and never spoken aloud, and distinctiveness rests on the catalogue
+ * instead. Flip it when there are genuine profiles to compare against.
+ */
+const POPULATION_IS_REAL = false;
+
 function distinctiveness(c: Candidate, profile: PreferenceProfile): number {
   const patternSupport = Math.max(
     0,
@@ -352,14 +373,18 @@ function distinctiveness(c: Candidate, profile: PreferenceProfile): number {
 
   // Against the crowd here, when enough of the crowd has an opinion.
   let againstCrowd = 0;
-  if (c.crowdCount >= 5 && c.crowdMean !== null) {
+  if (POPULATION_IS_REAL && c.crowdCount >= 5 && c.crowdMean !== null) {
     againstCrowd = Math.max(0, Math.min(1, (c.rating - c.crowdMean) / 20));
   }
 
   // Few people having rated it at all is weak evidence on its own.
   const rarity = c.reach === null ? 0 : Math.max(0, Math.min(1, 1 - c.reach / 200_000));
 
-  return Math.max(0, Math.min(1, patternSupport * (0.6 * againstCrowd + 0.4 * rarity)));
+  // With no real crowd, rarity carries the whole reading rather than 40% of it,
+  // which keeps the component meaningful without inventing a comparison.
+  return POPULATION_IS_REAL
+    ? Math.max(0, Math.min(1, patternSupport * (0.6 * againstCrowd + 0.4 * rarity)))
+    : Math.max(0, Math.min(1, patternSupport * rarity));
 }
 
 /**
@@ -402,22 +427,36 @@ function attachment(c: Candidate): number {
 }
 
 /**
- * Whether a title looks like it opened a door.
+ * The one that does not fit, and is loved anyway.
  *
- * The weakest signal here and treated as such at five percent. It asks only
- * whether this person went on to rate more of the same director or theme
- * *after* this one, which is association and not causation; the explanations
- * never claim otherwise.
+ * This replaces a follow-on reading that measured whether more of the same
+ * director or theme got rated afterwards. That was association wearing the
+ * clothes of insight: it could not tell a taste being formed from two films
+ * sharing a credit, and it produced lines like "you went on to rate more Jared
+ * Bush films" about a co-director nobody was following.
+ *
+ * This asks something a person cannot already know: everything else you love
+ * looks like *this*, and then there is this one, which looks like none of it,
+ * and you rate it at the top anyway. It is the exact mirror of representation,
+ * so a quartet naturally gets both its clearest example and its exception —
+ * and an exception is the most interesting thing a shelf can contain, because
+ * nothing about a taste explains it.
+ *
+ * Gated on the profile being worth contradicting. Against a thin or unformed
+ * profile everything looks like an outlier, which would make the slot fire
+ * loudest exactly when it knows least.
  */
-function influence(c: Candidate, all: Candidate[]): number {
-  if (!c.director && !c.primaryTheme) return 0;
-  const sameDirector = c.director
-    ? all.filter((o) => o.slug !== c.slug && o.director === c.director).length
-    : 0;
-  const sameTheme = c.primaryTheme
-    ? all.filter((o) => o.slug !== c.slug && o.primaryTheme === c.primaryTheme).length
-    : 0;
-  return Math.max(0, Math.min(1, (sameDirector / 4) * 0.6 + (sameTheme / 8) * 0.4));
+function outlier(c: Candidate, profile: PreferenceProfile): number {
+  // Nothing is an exception to a taste we cannot describe.
+  if (profile.confidence < 0.5 || profile.top.length < 3) return 0;
+  // A title with no themes is unreadable, not unusual.
+  if (c.themes.size === 0) return 0;
+
+  const fit = representation(profile, c.keywords);
+  // Below a third is where a title stops being a variation on their taste and
+  // starts being a departure from it.
+  if (fit > 0.33) return 0;
+  return Math.max(0, Math.min(1, (0.33 - fit) / 0.33));
 }
 
 /** How much of the metadata this score actually rested on. */
@@ -448,7 +487,7 @@ export type ScoredCandidate = Candidate & {
     distinctiveness: number;
     stability: number;
     attachment: number;
-    influence: number;
+    outlier: number;
   };
 };
 
@@ -465,7 +504,7 @@ function scoreAll(
       distinctiveness: distinctiveness(c, profile),
       stability: stability(c),
       attachment: attachment(c),
-      influence: influence(c, candidates),
+      outlier: outlier(c, profile),
     };
     const score =
       parts.affection * WEIGHTS.affection +
@@ -473,7 +512,7 @@ function scoreAll(
       parts.distinctiveness * WEIGHTS.distinctiveness +
       parts.stability * WEIGHTS.stability +
       parts.attachment * WEIGHTS.attachment +
-      parts.influence * WEIGHTS.influence;
+      parts.outlier * WEIGHTS.outlier;
     return { ...c, score, confidence: confidenceFor(c, profile), parts };
   });
 }
@@ -667,9 +706,9 @@ function explain(
       };
     case "distinctiveness":
       return {
-        label: "Least like everyone else",
+        label: POPULATION_IS_REAL ? "Least like everyone else" : "The deep cut",
         reason:
-          c.crowdCount >= 5 && c.crowdMean !== null
+          POPULATION_IS_REAL && c.crowdCount >= 5 && c.crowdMean !== null
             ? `You gave this ${rating}. The ${c.crowdCount} other people here who rated it average ${(c.crowdMean / 10).toFixed(1)}.`
             : theme
               ? `Hardly anyone has seen this, and you rate it ${rating}. It is the least predictable thing about your taste for ${theme}.`
@@ -699,14 +738,12 @@ function explain(
         supporting,
         angle,
       };
-    case "influence":
+    case "outlier":
       return {
-        label: "It led you somewhere",
-        reason: c.director
-          ? `You went on to rate more ${c.director} films after this one.`
-          : theme
-            ? `You went on to rate more about ${theme} after this one.`
-            : `You went on to rate more like it.`,
+        label: "The one that breaks the pattern",
+        reason: theme
+          ? `Almost nothing else you rate this highly is about ${theme}. You love it anyway, and that is the part of your taste nothing else on this card would tell anyone.`
+          : `It looks nothing like the rest of what you love, and you rate it at the top regardless.`,
         supporting,
         angle,
       };
@@ -749,7 +786,7 @@ function explain(
 function assignAngles(
   quartet: ScoredCandidate[],
 ): { c: ScoredCandidate; lead: string }[] {
-  const kinds = ["affection", "representation", "distinctiveness", "stability", "attachment", "influence"] as const;
+  const kinds = ["affection", "representation", "distinctiveness", "stability", "attachment", "outlier"] as const;
   const mean: Record<string, number> = {};
   for (const k of kinds) {
     mean[k] = quartet.reduce((sum, c) => sum + c.parts[k], 0) / Math.max(1, quartet.length);
@@ -901,7 +938,7 @@ function toTitle(
       distinctiveness: c.parts.distinctiveness,
       stability: c.parts.stability,
       attachment: c.parts.attachment,
-      influence: c.parts.influence,
+      outlier: c.parts.outlier,
       viewings: c.viewings,
       reviews: c.reviews,
       ratedSeasons: c.ratedSeasons,
