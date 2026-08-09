@@ -17,13 +17,37 @@ colors:
   gold: "#d9b25f"
   good: "#8fbf7f"
   warn: "#c4756a"
-  # Tier finishes — the collectible rank palette. Earned objects only.
+  # Tier finishes — a ladder of metals, not of hues. Earned objects only.
+  #
+  # Rarity climbs by lightness, sheen and movement, so a rim can sit on any of
+  # the ten stock grounds without arguing with it. Rare was beam blue and Epic
+  # was violet, which put a third uncorrelated hue on every card: Rare's blue
+  # against Cel's orange measured 173 degrees apart at the highest chroma in
+  # the set, a direct complement. Gold is the one hue left, because gold is
+  # read as a material rather than a colour.
+  tier-common-rim: "#2a2a31"
   tier-common-label: "#8a8a92"
-  tier-uncommon-rim: "#34343d"
-  tier-uncommon-ground: "#30303a"
-  tier-epic-rim: "#5a5570"
-  tier-epic-foil: "#b3a3d6"
-  tier-epic-ground: "#2a2740"
+  tier-uncommon-rim-low: "#33333b"
+  tier-uncommon-rim-high: "#4a4a55"
+  tier-uncommon-label: "#a6a6b0"
+  tier-rare-rim-low: "#4e535c"
+  tier-rare-rim-high: "#9aa3b0"
+  tier-rare-label: "#9aa3b0"
+  tier-epic-rim-low: "#70757f"
+  tier-epic-rim-high: "#d9dde3"
+  tier-epic-label: "#d9dde3"
+  tier-legendary-rim-low: "#4a3f24"
+  tier-legendary-rim-mid: "#3a3a44"
+  # Mythic is pearl rather than rainbow: iridescence at low chroma, so the top
+  # finish does not carry a blue segment onto a warm card.
+  tier-mythic-pearl-cool: "#cfd8e3"
+  tier-mythic-pearl-warm: "#ecdcc0"
+  tier-mythic-pearl-blush: "#e6cdc8"
+  tier-mythic-pearl-steel: "#d3dbe6"
+  # The dark end of each tier's swatch chip, where the metal runs into shadow.
+  tier-rare-swatch-low: "#20242a"
+  tier-epic-swatch-low: "#2b2e33"
+  tier-legendary-swatch-low: "#3a2f16"
   # Card stocks — the taste palette. Card grounds only.
   stock-vellum-low: "#2b2620"
   stock-vellum-high: "#3b352b"
@@ -49,8 +73,16 @@ colors:
   stock-cel-low: "#171016"
   stock-cel-high: "#7c3a12"
   # Variant accents dealt from the highest-rated decade.
-  accent-emerald: "#7fb59a"
-  accent-amethyst: "#a98fd6"
+  #
+  # Tints rather than hues: roughly 85% lightness at a sixth of the chroma they
+  # used to carry. The decade is a third colour axis on a card that already has
+  # a metal and a ground, and at full strength it had to be reconciled with
+  # both. Held this pale it still reads as its own temperature and can fight
+  # nothing.
+  accent-crimson: "#e8cfc8"
+  accent-cobalt: "#cfdae8"
+  accent-emerald: "#cfe3d8"
+  accent-amethyst: "#ddd2ea"
 typography:
   display:
     fontFamily: "Space Grotesk, sans-serif"

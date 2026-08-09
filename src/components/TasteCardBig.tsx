@@ -7,7 +7,7 @@ import type { HomeTasteCardData } from "@/lib/taste";
 function SectionLabel({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
   return (
     <div className="mb-1.5 flex items-center gap-2">
-      <span className="text-[8px] uppercase tracking-[0.18em] text-[#8a8a92]">{children}</span>
+      <span className="text-[8px] uppercase tracking-[0.18em] text-card-3">{children}</span>
       <span className="h-px flex-1 bg-[#1f1f25]" aria-hidden />
       {right}
     </div>
@@ -114,7 +114,7 @@ export function TasteCardFrontBig({
           </div>
         )}
         {data.archetypeMeaning && (
-          <p className="mx-4 mt-1.5 text-[11px] leading-snug text-ash">{data.archetypeMeaning}</p>
+          <p className="mx-4 mt-1.5 text-[11px] leading-snug text-card-2">{data.archetypeMeaning}</p>
         )}
       </div>
 
@@ -125,7 +125,7 @@ export function TasteCardFrontBig({
         <div>
           <SectionLabel
             right={
-              <span className="text-[9px] uppercase tracking-[.12em] text-dim">
+              <span className="text-[9px] uppercase tracking-[.12em] text-card-3">
                 share of shelf
               </span>
             }
@@ -136,7 +136,7 @@ export function TasteCardFrontBig({
             {genreDNA.map((d) => (
               <div key={d.label} className="flex items-center gap-2.5">
                 <span className="size-1.5 shrink-0 rounded-full" style={{ background: d.dot }} aria-hidden />
-                <span className="w-[104px] truncate text-[11px] text-[#d0d0d5]">{d.label}</span>
+                <span className="w-[104px] truncate text-[11px] text-card-2">{d.label}</span>
                 <span className="h-1 flex-1 overflow-hidden rounded-full bg-[#1f1f25]">
                   <span
                     className="block h-full rounded-full bg-gradient-to-r from-beam to-gold"
@@ -161,7 +161,7 @@ export function TasteCardFrontBig({
               ) : null)}
           </div>
           <div>
-            <div className="text-[9px] uppercase tracking-[.1em] text-[#8a8a92]">Signature</div>
+            <div className="text-[9px] uppercase tracking-[.1em] text-card-3">Signature</div>
             <div className="display max-w-[190px] text-[12px] leading-tight text-paper sm:max-w-[120px]">
               {signature?.title ?? "None yet"}
             </div>
@@ -171,19 +171,19 @@ export function TasteCardFrontBig({
           <div className="num text-[30px] leading-none text-paper">
             {data.mean !== null ? formatTenths(data.mean) : "-"}
           </div>
-          <div className="mt-0.5 text-[9px] uppercase tracking-[.1em] text-[#8a8a92]">career avg</div>
+          <div className="mt-0.5 text-[9px] uppercase tracking-[.1em] text-card-3">career avg</div>
         </div>
       </div>
 
       {/* footer */}
-      <div className="mt-2.5 flex items-center justify-between border-t border-[#1c1c22] pt-2 text-[9px] uppercase tracking-[.08em] text-[#5a5a62]">
+      <div className="mt-2.5 flex items-center justify-between border-t border-[#1c1c22] pt-2 text-[9px] uppercase tracking-[.08em] text-card-3">
         <span className="inline-flex items-center gap-1.5">
           <span
             aria-hidden
             className="size-[5px] rounded-full"
             style={{ background: "#d9b25f", boxShadow: "0 0 8px rgba(217,178,95,.6)" }}
           />
-          <span className="text-[#6a6a72]">{data.traitsHeldCount} traits</span>
+          <span className="text-card-3">{data.traitsHeldCount} traits</span>
         </span>
         <span>No. {String(memberNumber).padStart(4, "0")}</span>
       </div>
@@ -210,7 +210,7 @@ export function TasteCardBackBig({
     <div className="relative flex flex-col gap-2.5 p-4">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-[9px] uppercase tracking-[.18em] text-[#8a8a92]">Profile</div>
+          <div className="text-[9px] uppercase tracking-[.18em] text-card-3">Profile</div>
           <div className="display text-[16px] text-paper">
             {displayName} <span className="num text-[11px] text-beam">@{username}</span>
           </div>
@@ -227,7 +227,7 @@ export function TasteCardBackBig({
             {data.profStats.map((s) => (
               <div key={s.label} className="rounded-[7px] border border-[#232329] bg-white/[.02] py-1.5 text-center">
                 <div className="num text-[14px] text-paper">{s.value}</div>
-                <div className="mt-0.5 text-[7px] uppercase tracking-[.04em] text-[#8a8a92]">{s.label}</div>
+                <div className="mt-0.5 text-[7px] uppercase tracking-[.04em] text-card-3">{s.label}</div>
               </div>
             ))}
           </div>
@@ -266,14 +266,14 @@ export function TasteCardBackBig({
                   className="size-1.5 shrink-0 rounded-full bg-beam"
                   style={{ opacity: 1 - (i / Math.max(1, all.length)) * 0.62 }}
                 />
-                <span className="flex-1 truncate text-[10px] text-[#d0d0d5]">
+                <span className="flex-1 truncate text-[10px] text-card-2">
                   {band.label.split(",")[0]}
                 </span>
-                <span className="num shrink-0 text-[10px] text-ash">{band.pct}%</span>
+                <span className="num shrink-0 text-[10px] text-card-2">{band.pct}%</span>
               </div>
             ))}
           </div>
-          <div className="mt-1.5 text-[9px] text-[#8a8a92]">
+          <div className="mt-1.5 text-[9px] text-card-3">
             {data.personality[0].basis}. The rest is in the binder.
           </div>
         </div>
@@ -285,7 +285,7 @@ export function TasteCardBackBig({
           <div className="flex flex-col gap-1">
             {data.favsCard.map((f) => (
               <div key={f.label} className="flex items-baseline justify-between border-b border-[#1a1a20] pb-1">
-                <span className="text-[9px] uppercase tracking-[.08em] text-[#8a8a92]">{f.label}</span>
+                <span className="text-[9px] uppercase tracking-[.08em] text-card-3">{f.label}</span>
                 <span className="display text-[12px] text-paper">{f.value}</span>
               </div>
             ))}
@@ -300,7 +300,7 @@ export function TasteCardBackBig({
               reading. */}
           {data.social.map((s, i) => (
             <div key={i} className="rounded-[7px] border border-[#232329] px-2.5 py-1.5">
-              <div className="text-[8px] uppercase tracking-[.1em] text-[#8a8a92]">
+              <div className="text-[8px] uppercase tracking-[.1em] text-card-3">
                 {i === 0 ? "Closest taste" : "Furthest taste"}
               </div>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
@@ -309,7 +309,7 @@ export function TasteCardBackBig({
                   {s.pct}%
                 </span>
               </div>
-              <div className="mt-0.5 text-[8px] leading-snug text-[#6a6a72]">{s.basis}</div>
+              <div className="mt-0.5 text-[8px] leading-snug text-card-3">{s.basis}</div>
             </div>
           ))}
         </div>
@@ -337,7 +337,7 @@ export function TasteCardBackBig({
         </div>
       )}
 
-      <div className="mt-1 text-center text-[9px] uppercase tracking-[.12em] text-[#5a5a62]">
+      <div className="mt-1 text-center text-[9px] uppercase tracking-[.12em] text-card-3">
         Click to flip back
       </div>
     </div>

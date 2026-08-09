@@ -65,11 +65,11 @@ export const RARITY_TIERS: RarityTier[] = [
     index: 1,
     depth: 60,
     range: "60 points",
-    effect: "A cleaner edge, faint sheen.",
-    border: "#34343d",
+    effect: "Brushed steel. A cleaner edge, faint sheen.",
+    border: "linear-gradient(160deg,#33333b,#4a4a55)",
     glow: "none",
-    labelColor: "#9fb0c0",
-    swatch: "linear-gradient(120deg,#232329,#30303a)",
+    labelColor: "#a6a6b0",
+    swatch: "linear-gradient(120deg,#232329,#4a4a55)",
     sheenOp: 0.12,
     sweepSec: 0,
   },
@@ -78,11 +78,11 @@ export const RARITY_TIERS: RarityTier[] = [
     index: 2,
     depth: 200,
     range: "200 points",
-    effect: "Beam-blue border.",
-    border: "linear-gradient(160deg,#34506a,#8faecc)",
+    effect: "Polished steel, a brighter edge.",
+    border: "linear-gradient(160deg,#4e535c,#9aa3b0)",
     glow: "none",
-    labelColor: "#8faecc",
-    swatch: "linear-gradient(120deg,#1a2530,#34506a)",
+    labelColor: "#9aa3b0",
+    swatch: "linear-gradient(120deg,#20242a,#9aa3b0)",
     sheenOp: 0.2,
     sweepSec: 0,
   },
@@ -92,10 +92,10 @@ export const RARITY_TIERS: RarityTier[] = [
     depth: 500,
     range: "500 points",
     effect: "Silver foil, quiet shimmer.",
-    border: "linear-gradient(160deg,#5a5570,#b3a3d6)",
+    border: "linear-gradient(160deg,#70757f,#d9dde3)",
     glow: "none",
-    labelColor: "#b3a3d6",
-    swatch: "linear-gradient(120deg,#2a2740,#b3a3d6)",
+    labelColor: "#d9dde3",
+    swatch: "linear-gradient(120deg,#2b2e33,#d9dde3)",
     sheenOp: 0.42,
     sweepSec: 52,
   },
@@ -119,11 +119,11 @@ export const RARITY_TIERS: RarityTier[] = [
     depth: 2500,
     range: "2,500 points",
     effect: "Full foil, drifting light, particles.",
-    border: "conic-gradient(from 0deg,#8faecc,#d9b25f,#c4756a,#8faecc)",
-    borderFlat: "linear-gradient(130deg,#8faecc,#d9b25f 34%,#c4756a 66%,#8faecc)",
-    glow: "0 0 34px rgba(143,174,204,.28)",
+    border: "conic-gradient(from 0deg,#cfd8e3,#ecdcc0,#e6cdc8,#d3dbe6,#cfd8e3)",
+    borderFlat: "linear-gradient(130deg,#cfd8e3,#ecdcc0 34%,#e6cdc8 66%,#cfd8e3)",
+    glow: "0 0 34px rgba(236,234,230,.24)",
     labelColor: "#eceae6",
-    swatch: "conic-gradient(from 0deg,#8faecc,#d9b25f,#c4756a,#8faecc)",
+    swatch: "conic-gradient(from 0deg,#cfd8e3,#ecdcc0,#e6cdc8,#d3dbe6,#cfd8e3)",
     sheenOp: 0.7,
     sweepSec: 34,
   },
@@ -1235,25 +1235,19 @@ export function computeVariant(
     (topGenre && GENRE_STOCK[topGenre]) ||
     "Bare";
 
+  // The name is decided here; the colour is looked up, never restated. These
+  // two used to carry their own copies of the same four hexes, so softening
+  // the accents changed the card and left the binder printing the old ones.
   const decade = topRatedDecade ?? topDecade;
-  let accent: string;
-  let accentColor: string;
-  if (decade === null) {
-    accent = "Cobalt";
-    accentColor = "#8faecc";
-  } else if (decade < 1970) {
-    accent = "Crimson";
-    accentColor = "#c4756a";
-  } else if (decade < 2000) {
-    accent = "Cobalt";
-    accentColor = "#8faecc";
-  } else if (decade < 2015) {
-    accent = "Emerald";
-    accentColor = "#7fb59a";
-  } else {
-    accent = "Amethyst";
-    accentColor = "#a98fd6";
-  }
+  const accent =
+    decade === null || (decade >= 1970 && decade < 2000)
+      ? "Cobalt"
+      : decade < 1970
+        ? "Crimson"
+        : decade < 2015
+          ? "Emerald"
+          : "Amethyst";
+  const accentColor = accentColorOf(accent);
 
   // Cut on the real spread of how people rate rather than round numbers.
   // The old bands put Analog above 9.0, which nobody reaches, and used it as
@@ -1798,17 +1792,36 @@ export function stockDef(name: string): StockDef | undefined {
 
 export type AxisDef = { name: string; color: string; condition: string };
 
+/**
+ * The accents, as tints rather than colours.
+ *
+ * These were full-strength hues, which made the decade a third independent
+ * colour on a card that already carries the tier's metal and the stock's
+ * ground. Three uncorrelated hues over six tiers, ten stocks and four accents
+ * is 240 combinations with nothing checking that any of them agree, and the
+ * dice came up badly often: twelve tier-and-stock pairs alone sat more than
+ * 130 degrees apart.
+ *
+ * Held at roughly 85% lightness and a sixth of the chroma, an accent still
+ * reads as its own temperature against a dark ground while being unable to
+ * fight anything. The axis keeps its four names and its meaning; it stops
+ * being a hue that has to be reconciled with two others.
+ */
 export const ACCENT_DEFS: AxisDef[] = [
-  { name: "Crimson", color: "#c4756a", condition: "That decade is the 1960s or earlier." },
+  { name: "Crimson", color: "#e8cfc8", condition: "That decade is the 1960s or earlier." },
   {
     name: "Cobalt",
-    color: "#8faecc",
+    color: "#cfdae8",
     condition:
       "That decade is the 1970s, 1980s or 1990s. Also the accent before any decade leads.",
   },
-  { name: "Emerald", color: "#7fb59a", condition: "That decade is the 2000s or 2010s." },
-  { name: "Amethyst", color: "#a98fd6", condition: "That decade is the 2020s or later." },
+  { name: "Emerald", color: "#cfe3d8", condition: "That decade is the 2000s or 2010s." },
+  { name: "Amethyst", color: "#ddd2ea", condition: "That decade is the 2020s or later." },
 ];
+
+/** The one place an accent's colour is written down, so the card and the binder cannot disagree. */
+const accentColorOf = (name: string): string =>
+  ACCENT_DEFS.find((a) => a.name === name)?.color ?? "#cfdae8";
 
 // Cut on the real spread of how people rate. The old bands asked 9.0 for
 // Analog, which nobody reaches, and doubled it up as the value for a library

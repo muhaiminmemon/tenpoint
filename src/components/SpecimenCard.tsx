@@ -49,7 +49,7 @@ export default function SpecimenCard({
 
         <div className="relative p-5">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-ash">Taste class</span>
+            <span className="text-[10px] uppercase tracking-[0.18em] text-card-2">Taste class</span>
             <span
               className="display text-[9px] uppercase tracking-[.08em]"
               style={{ color: tier.labelColor }}
@@ -63,7 +63,7 @@ export default function SpecimenCard({
             <br />
             Maximalist
           </p>
-          <p className="mt-2 text-[11px] leading-relaxed text-ash">
+          <p className="mt-2 text-[11px] leading-relaxed text-card-2">
             Read from what you rate. Never chosen.
           </p>
 

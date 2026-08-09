@@ -134,7 +134,7 @@ export default function TasteCardFace({
         <div className="relative flex flex-col px-4 pb-4 pt-[18px]">
           <div className="flex items-baseline justify-between gap-2 text-[9px] uppercase tracking-[0.14em]">
             <span className="display tracking-[0.06em] text-beam">@{username}</span>
-            <span className="num text-dim">Since {memberSince}</span>
+            <span className="num text-card-3">Since {memberSince}</span>
           </div>
 
           {/* Two voices, and which one is which is the point.
@@ -160,7 +160,7 @@ export default function TasteCardFace({
             </div>
           )}
 
-          <div className="mt-[9px] flex items-baseline justify-center gap-[7px] text-[9px] uppercase tracking-[0.16em] text-ash">
+          <div className="mt-[9px] flex items-baseline justify-center gap-[7px] text-[9px] uppercase tracking-[0.16em] text-card-2">
             <span>Taste class</span>
             {variant.name && (
               <span className="display" style={{ color: variant.accentColor }}>
@@ -200,7 +200,7 @@ export default function TasteCardFace({
                   className="inline-flex items-baseline gap-1.5 rounded-full border border-seam bg-[rgba(255,255,255,.04)] px-[9px] py-[3px] text-[11px] text-paper"
                 >
                   {g.name}
-                  <span className="num text-[10px] text-ash">{g.pct}%</span>
+                  <span className="num text-[10px] text-card-2">{g.pct}%</span>
                 </span>
               ))}
             </div>
@@ -220,7 +220,7 @@ export default function TasteCardFace({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={poster} alt="" loading="lazy" className="size-full object-cover" />
                     ) : (
-                      <span className="flex size-full items-center justify-center p-1 text-center text-[8px] text-ash">
+                      <span className="flex size-full items-center justify-center p-1 text-center text-[8px] text-card-2">
                         {f.title}
                       </span>
                     )}
@@ -238,7 +238,7 @@ export default function TasteCardFace({
                   rather than the season count, so somebody who rates shows
                   whole and never by season still gets the figure. */}
               {data.mix.shows > 0 && (
-                <span className="num text-dim">{data.mix.showShare}% series</span>
+                <span className="num text-card-3">{data.mix.showShare}% series</span>
               )}
             </div>
           )}

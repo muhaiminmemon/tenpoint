@@ -16,6 +16,22 @@
   --color-paper: #eceae6;
   --color-ash: #9a9aa3;
   --color-dim: #6a6a72;
+  /**
+   * The two quiet voices, for text printed on a card rather than on the app.
+   *
+   * `ash` and `dim` are neutral greys, which is right on graphite and wrong on
+   * anything with a hue in it: on the saturated stocks they read as dirt, and
+   * they do not carry. Measured against the ten grounds, `ash` failed body
+   * contrast on five of them and `dim` cleared 3:1 on none at all, bottoming
+   * out at 1.59:1 on Cel, which is barely visible.
+   *
+   * White at alpha fixes both at once. It takes the hue of whatever it is
+   * printed on, so it can never go muddy on a stock that does not exist yet,
+   * and on the worst ground in the set it measures 4.96:1 and 3.73:1 where the
+   * greys measured 3.05 and 1.59.
+   */
+  --color-card-2: rgba(236, 234, 230, 0.78);
+  --color-card-3: rgba(236, 234, 230, 0.62);
   --color-beam: #8faecc;
   --color-beam-edge: #34506a;
   --color-gold: #d9b25f;
