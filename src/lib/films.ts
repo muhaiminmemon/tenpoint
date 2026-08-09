@@ -89,10 +89,15 @@ export async function bulkEnsureFilms(movies: TmdbMovie[]): Promise<Map<number, 
     const inserted = await db.insert(films).values(values).onConflictDoNothing().returning();
     for (const f of inserted) if (f.tmdbId) byTmdb.set(f.tmdbId, f);
   }
-  // pick up rows that lost insert races
+  // Pick up rows that lost insert races — still only movies. Without the kind
+  // filter this fallback could return a season or a series that merely shares
+  // the number, and hand it back as the film that was asked for.
   const still = ids.filter((id) => !byTmdb.has(id));
   if (still.length) {
-    for (const f of await db.select().from(films).where(inArray(films.tmdbId, still))) {
+    for (const f of await db
+      .select()
+      .from(films)
+      .where(and(inArray(films.tmdbId, still), eq(films.kind, "movie")))) {
       if (f.tmdbId) byTmdb.set(f.tmdbId, f);
     }
   }

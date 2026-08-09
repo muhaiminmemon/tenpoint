@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { films } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
@@ -141,7 +141,17 @@ export async function GET(req: Request) {
         director: films.director,
       })
       .from(films)
-      .where(inArray(films.tmdbId, tmdbIds));
+      /**
+       * Scoped to movies, because a TMDB id means nothing on its own.
+       *
+       * TMDB numbers movies, series and seasons in three separate spaces, so
+       * the same integer is a different work in each. `films` holds all three
+       * kinds and is only unique on the pair, so matching on the id alone hands
+       * back whichever row happened to share the number — and this pass then
+       * writes that row's slug onto the result. That is how searching one title
+       * could put you on the page for something unrelated, and rate it.
+       */
+      .where(and(inArray(films.tmdbId, tmdbIds), eq(films.kind, "movie")));
 
     const byTmdb = new Map(known.map((k) => [k.tmdbId, k]));
     let ratingByFilm = new Map<string, number>();

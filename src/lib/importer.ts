@@ -115,11 +115,27 @@ export async function userFilmSets(userId: string): Promise<{
   return { logged, rated };
 }
 
-export async function filmsByTmdbIds(tmdbIds: number[]): Promise<Map<number, string>> {
+/**
+ * Local rows for a set of TMDB ids, of one stated kind.
+ *
+ * `kind` is required rather than defaulted on purpose. TMDB numbers movies,
+ * series and seasons in three separate spaces, so an id is meaningless without
+ * knowing which space it came from — this table holds all three kinds and is
+ * unique only on the pair. Defaulting to "movie" would have made the wrong
+ * answer the quiet one; making it an argument means the caller has to have
+ * thought about it.
+ *
+ * Currently unused. It is kept correct rather than deleted because a helper
+ * shaped exactly like this is what the next importer will reach for.
+ */
+export async function filmsByTmdbIds(
+  tmdbIds: number[],
+  kind: "movie" | "season" | "show",
+): Promise<Map<number, string>> {
   if (!tmdbIds.length) return new Map();
   const rows = await db
     .select({ id: films.id, tmdbId: films.tmdbId })
     .from(films)
-    .where(inArray(films.tmdbId, tmdbIds));
+    .where(and(inArray(films.tmdbId, tmdbIds), eq(films.kind, kind)));
   return new Map(rows.filter((r) => r.tmdbId !== null).map((r) => [r.tmdbId!, r.id]));
 }
