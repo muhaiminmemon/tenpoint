@@ -1624,54 +1624,14 @@ export type StockDef = {
    *
    * Kept to plain gradients on purpose: the shareable card image is drawn by
    * Satori, which reads this and nothing else, and supports only a narrow
-   * subset of CSS. Anything a browser can do but an image cannot belongs in
-   * `texture`, which never reaches the renderer.
+   * subset of CSS.
    */
   material: string;
   /** what reads to it, in the user's own terms */
   condition: string;
   /** an inner texture layered over the ground; null for a plain stock */
   texture: string | null;
-  /**
-   * How the texture's layers tile, when a stock needs more than a stretched
-   * gradient. Comma lists, one entry per layer of `texture`.
-   *
-   * A stock without these is a full-bleed wash and needs no positioning. One
-   * with them is being printed *on* rather than tinted: Filmstrip punches
-   * sprocket holes down both edges, which is a repeating tile at a fixed
-   * rhythm and cannot be expressed as a single stretched gradient.
-   *
-   * Every value is a percentage rather than a pixel count, because the same
-   * string is drawn at 46px wide in the binder's specimen case and at ten
-   * times that on the card itself. Pixels would give the specimen four
-   * enormous holes and the card a row of pinpricks.
-   */
-  textureSize?: string;
-  texturePosition?: string;
-  textureRepeat?: string;
 };
-
-/** Everything a texture needs to paint, or nothing when the stock is plain. */
-export type TextureStyle = {
-  backgroundImage: string;
-  backgroundSize: string;
-  backgroundPosition: string;
-  backgroundRepeat: string;
-};
-
-/**
- * The texture of a stock as a style object, so the five surfaces that print a
- * card cannot disagree about how one is laid down.
- */
-export function stockTextureStyle(stock: StockDef | undefined): TextureStyle | undefined {
-  if (!stock?.texture) return undefined;
-  return {
-    backgroundImage: stock.texture,
-    backgroundSize: stock.textureSize ?? "auto",
-    backgroundPosition: stock.texturePosition ?? "0% 0%",
-    backgroundRepeat: stock.textureRepeat ?? "repeat",
-  };
-}
 
 export const STOCK_DEFS: StockDef[] = [
   {
@@ -1689,51 +1649,112 @@ export const STOCK_DEFS: StockDef[] = [
     texture: "repeating-linear-gradient(74deg,rgba(143,174,204,.02) 0 1px,transparent 1px 10px)",
   },
   /**
-   * A length of 35mm, not a grey card with faint lines on it.
+   * Silver: the same light Nebula and Neon Rain are made of, with the colour
+   * taken out of it.
    *
-   * This was the only stock in the set with no hue at all, graphite on
-   * graphite, and its texture was 1px hairlines at two percent opacity, which
-   * is under the threshold where anything is visible. So the loudest shelves
-   * in the product, the ones that read to Action, Adventure and War, drew the
-   * quietest object of the six and it looked like a card whose finish had
-   * failed to load.
+   * The old ground was graphite on graphite with 1px hairlines at two percent
+   * opacity, under the threshold where anything is visible at all, so the
+   * loudest shelves in the product drew a card that looked like a finish that
+   * had failed to load. What it was missing was not a hue: it was the soft
+   * raking blooms that give the other two stocks their depth.
    *
-   * Amber is the one hue nothing else here owns, and it is the right one:
-   * celluloid base, tungsten, muzzle flash. The ground rakes from gunmetal at
-   * the top corner into copper at the bottom, and the texture punches the
-   * strip itself, sprocket holes down both edges with a frame line ruled
-   * between them that stops short of the perforations the way a real one does.
+   * So it is built the way Nebula is, two washes crossing a two-tone ground,
+   * and lit in near-white instead of amethyst. The fine diagonal rule is Neon
+   * Rain's, whitened. Filmstrip sits brighter and cooler than Marble, which is
+   * the other neutral here: Marble is a diffuse, warm, low-contrast paper, and
+   * this is a metal.
    */
   {
     name: "Filmstrip",
-    material: "linear-gradient(150deg,#1b1a1f 0%,#2b2320 58%,#402c19 100%)",
+    material: "linear-gradient(150deg,#26272e,#474a55)",
     condition:
       "Your films keep returning to motion: heists, revenge, blades, engines, the front line, the open road.",
     texture: [
-      // The frame line, ruled between the perforation columns and fading out
-      // before it reaches them.
-      "linear-gradient(90deg,transparent 0%,rgba(236,234,230,.085) 14%,rgba(236,234,230,.085) 86%,transparent 100%)",
-      // One sprocket hole per tile, warm at its rim: the card is a lit object
-      // and a perforation is where the light gets through.
-      "radial-gradient(ellipse 30% 34% at 50% 50%,rgba(236,234,230,.10) 0 62%,rgba(217,178,95,.06) 66% 84%,transparent 86%)",
-      "radial-gradient(ellipse 30% 34% at 50% 50%,rgba(236,234,230,.10) 0 62%,rgba(217,178,95,.06) 66% 84%,transparent 86%)",
-      // Halation: the bloom exposed stock carries in its bottom corner.
-      "radial-gradient(76% 54% at 10% 94%,rgba(217,178,95,.11),transparent 64%)",
+      "radial-gradient(68% 54% at 74% 22%,rgba(236,234,230,.055),transparent 60%)",
+      "radial-gradient(58% 48% at 22% 78%,rgba(236,234,230,.032),transparent 56%)",
+      // The horizontal rule this stock has always had, kept at its original
+      // 9px rhythm. It was invisible before only because it sat on graphite;
+      // on a silver ground the same hairline finally reads, which is the whole
+      // reason the stock looked unfinished rather than quiet.
+      "repeating-linear-gradient(0deg,rgba(236,234,230,.026) 0 1px,transparent 1px 9px)",
     ].join(","),
-    // A Kodak Standard perforation is taller than it is wide, and there are
-    // four to a frame rather than a dotted line of them: the first pass tiled
-    // at 6.4% and read as a beaded border rather than as punched stock.
-    textureSize: "86% 1px,7% 8%,7% 8%,100% 100%",
-    texturePosition: "center 63%,left 3.2% top 5%,right 3.2% top 5%,0% 0%",
-    textureRepeat: "no-repeat,repeat-y,repeat-y,no-repeat",
   },
+  /**
+   * Verde antico, and veined rather than washed.
+   *
+   * Marble was a second neutral, and once Filmstrip took the silver the two
+   * were the same card in two values. Green is the one hue nothing else here
+   * owns, and green marble is the stone of libraries, courthouses and museums,
+   * which is exactly what this reads to. The texture is veining now: two soft
+   * washes made it a grey card with a name, and the name is the whole point.
+   */
   {
     name: "Marble",
-    material: "linear-gradient(150deg,#23232a,#3a3a43)",
+    material: "linear-gradient(150deg,#1b241f,#2e4034)",
     condition:
       "Your films keep returning to the record and to remarks upon it: what happened, when it happened, and the joke somebody made about it.",
-    texture:
-      "radial-gradient(120% 80% at 20% 15%,rgba(236,234,230,.022),transparent 60%),radial-gradient(90% 70% at 80% 85%,rgba(236,234,230,.015),transparent 55%)",
+    texture: [
+      "repeating-linear-gradient(102deg,transparent 0 31px,rgba(236,234,230,.030) 31px 32px,transparent 32px 74px)",
+      "repeating-linear-gradient(97deg,transparent 0 53px,rgba(236,234,230,.018) 53px 54px,transparent 54px 119px)",
+      "radial-gradient(96% 72% at 24% 16%,rgba(236,234,230,.024),transparent 62%)",
+    ].join(","),
+  },
+  /**
+   * The four below were carved from measured distribution, not invented.
+   *
+   * Across 83 libraries, Neon Rain was winning 43% and Nebula 27%: between
+   * them they held seven in ten shelves, which is the same failure the genre
+   * mapping had before, where 77% of libraries came out Filmstrip. A finish
+   * that most people hold says nothing about any of them.
+   *
+   * Each of these takes a cluster that was already winning on its own and was
+   * being filed under a coat that did not fit it. Witches are not detectives;
+   * dragons are not spacecraft; a talking animal is not a lost astronaut; and
+   * a film about a man who cannot trust his own memory has nothing to do with
+   * a police procedural.
+   */
+  {
+    name: "Oxblood",
+    material: "linear-gradient(150deg,#22141a,#3f2028)",
+    condition:
+      "Your films keep returning to what should not be there: witches, cults, possession, the dead who will not stay down, the thing under the skin.",
+    texture: [
+      "radial-gradient(72% 56% at 76% 20%,rgba(236,234,230,.05),transparent 60%)",
+      "radial-gradient(60% 50% at 20% 82%,rgba(196,117,106,.045),transparent 58%)",
+      "repeating-linear-gradient(0deg,rgba(236,234,230,.016) 0 1px,transparent 1px 7px)",
+    ].join(","),
+  },
+  {
+    name: "Bromide",
+    material: "linear-gradient(150deg,#251d24,#42313c)",
+    condition:
+      "Your films keep returning to a mind that will not hold still: amnesia, dreams, doubles, and a story told by somebody who is not sure it happened.",
+    texture: [
+      "radial-gradient(110% 84% at 34% 26%,rgba(236,234,230,.05),transparent 68%)",
+      "radial-gradient(88% 70% at 74% 84%,rgba(236,234,230,.035),transparent 64%)",
+    ].join(","),
+  },
+  {
+    name: "Gilt",
+    material: "linear-gradient(150deg,#1e1810,#463618)",
+    condition:
+      "Your films keep returning to magic and prophecy: wizards, dragons, sworn oaths, and the blade only one person can lift.",
+    texture: [
+      "radial-gradient(66% 52% at 72% 24%,rgba(217,178,95,.07),transparent 60%)",
+      "radial-gradient(58% 48% at 24% 80%,rgba(217,178,95,.04),transparent 56%)",
+      "repeating-linear-gradient(128deg,rgba(236,234,230,.02) 0 1px,transparent 1px 8px)",
+    ].join(","),
+  },
+  {
+    name: "Cel",
+    material: "linear-gradient(150deg,#12232a,#1d4048)",
+    condition:
+      "Your films keep returning to what was drawn rather than filmed: animation, talking animals, tournaments, toys.",
+    texture: [
+      "radial-gradient(70% 54% at 26% 22%,rgba(236,234,230,.055),transparent 60%)",
+      "radial-gradient(60% 50% at 78% 80%,rgba(143,174,204,.035),transparent 56%)",
+      "repeating-linear-gradient(46deg,rgba(236,234,230,.022) 0 1px,transparent 1px 9px)",
+    ].join(","),
   },
   {
     name: "Nebula",

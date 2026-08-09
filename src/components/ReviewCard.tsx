@@ -11,6 +11,8 @@ export type ReviewData = {
   review: string;
   spoiler: boolean;
   rating: string | null;
+  /** which part of a series this is about, when the page covers several */
+  part?: string | null;
   watchedOn: string | null;
   username: string;
   displayName: string | null;
@@ -105,6 +107,7 @@ export default function ReviewCard({
         <Link href={`/${review.username}`} className="text-paper hover:underline">
           {review.displayName ?? review.username}
         </Link>
+        {review.part && <span className="text-xs text-ash">on {review.part}</span>}
         {review.rating && <span className="num text-paper">{review.rating}</span>}
         {review.watchedOn && <span className="num text-xs text-ash">{review.watchedOn}</span>}
         {review.spoiler && <span className="text-xs text-warn">spoilers</span>}

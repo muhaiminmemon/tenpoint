@@ -10,6 +10,7 @@ import { personHref } from "@/lib/browse";
 import PosterImg from "@/components/PosterImg";
 import SeasonRater from "@/components/SeasonRater";
 import FilmPanel from "@/components/FilmPanel";
+import ReviewsSection from "@/components/ReviewsSection";
 import CastList from "@/components/CastList";
 
 export async function generateMetadata(ctx: { params: Promise<{ slug: string }> }) {
@@ -37,8 +38,13 @@ const FORM_LABEL: Record<string, string> = {
  * and it is labelled as the average it is, because a second editable number
  * for the same thing would be two opinions allowed to disagree.
  */
-export default async function ShowPage(ctx: { params: Promise<{ slug: string }> }) {
+export default async function ShowPage(ctx: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ reviews?: string }>;
+}) {
   const { slug } = await ctx.params;
+  const { reviews: reviewsParam } = await ctx.searchParams;
+  const reviewsTab = reviewsParam === "recent" ? "recent" : "friends";
   const found = await loadShow(slug);
   if (!found) notFound();
   const { show, seasons } = found;
@@ -283,6 +289,23 @@ export default async function ShowPage(ctx: { params: Promise<{ slug: string }> 
             </p>
           </section>
         )}
+
+        {/* Who has been watching this, at either grain.
+            Television opinion lives on the seasons: almost nobody rates the
+            whole-series row, so a feed keyed to the one row this page is named
+            after showed an empty section on every series in the catalogue.
+            Reading the series and its seasons together is the only way this
+            page can answer the question the film page answers. */}
+        <div className="mt-10">
+          <ReviewsSection
+            filmIds={[whole?.id, ...seasons.map((s) => s.id)].filter(
+              (id): id is string => Boolean(id),
+            )}
+            basePath={`/show/${show.slug}`}
+            viewer={user}
+            tab={reviewsTab}
+          />
+        </div>
       </div>
     </div>
   );

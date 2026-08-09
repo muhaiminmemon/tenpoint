@@ -443,27 +443,49 @@ export const CLUSTER_PREVALENCE: Record<string, number> = {
  * comparable number of themes: ten rare themes add up to less than six common
  * ones, and balancing by count is how the problem creeps back in.
  */
+/**
+ * Which finish a theme reads to.
+ *
+ * Measured, not assigned by feel. Across 83 libraries the previous partition
+ * gave Neon Rain 43% and Nebula 27%, so seven shelves in ten came out as one
+ * of two finishes, which is the same failure the genre mapping had before it
+ * when 77% of libraries came out Filmstrip. A finish most people hold is not
+ * telling anybody anything.
+ *
+ * Four clusters were each winning outright while filed under a coat that did
+ * not fit: `occult` at 11% and `identity` at 13% were both inside Neon Rain
+ * alongside police procedurals, and `myth` at 10% and `ink` at 8% were inside
+ * Nebula alongside deep space. Each now has its own stock, and the largest
+ * finish falls from 43% to 18%.
+ */
 export const STOCK_BY_CLUSTER: Record<string, string> = {
   // motion, bodies, momentum
   heist: "Filmstrip", revenge: "Filmstrip", blade: "Filmstrip", speed: "Filmstrip",
   sport: "Filmstrip", war: "Filmstrip", caped: "Filmstrip", road: "Filmstrip",
   sea: "Filmstrip", flight: "Filmstrip",
-  // night, dread, things that follow you
+  // the case, and whoever is working it
   noir: "Neon Rain", procedural: "Neon Rain", spy: "Neon Rain", prison: "Neon Rain",
   gumshoe: "Neon Rain", whodunit: "Neon Rain", missing: "Neon Rain",
-  dissident: "Neon Rain", identity: "Neon Rain", slasher: "Neon Rain", occult: "Neon Rain",
-  body: "Neon Rain", ghost: "Neon Rain", undead: "Neon Rain",
+  dissident: "Neon Rain",
+  // what should not be there
+  occult: "Oxblood", slasher: "Oxblood", body: "Oxblood", ghost: "Oxblood",
+  undead: "Oxblood", creature: "Oxblood",
+  // a mind that will not hold still
+  identity: "Bromide",
   // people, rooms, paper
   hearth: "Vellum", romance: "Vellum", comingofage: "Vellum", grief: "Vellum",
   town: "Vellum", outsider: "Vellum", faith: "Vellum", stage: "Vellum",
   sitcom: "Vellum",
-  // what could not happen
+  // what could not happen, by physics
   void: "Nebula", machine: "Nebula", loop: "Nebula", alien: "Nebula",
-  myth: "Nebula", ink: "Nebula", creature: "Nebula", apocalypse: "Nebula",
-  shounen: "Nebula",
+  apocalypse: "Nebula",
+  // what could not happen, by magic
+  myth: "Gilt",
+  // drawn rather than filmed
+  ink: "Cel", shounen: "Cel", adultanimation: "Cel",
   // the record, and remarks upon it
   period: "Marble", satire: "Marble", truestory: "Marble", court: "Marble",
-  deadpan: "Marble", winterholiday: "Marble", adultanimation: "Marble",
+  deadpan: "Marble", winterholiday: "Marble",
 };
 
 /** Every keyword any cluster cares about, for the query that counts them. */

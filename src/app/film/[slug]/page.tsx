@@ -245,7 +245,12 @@ export default async function FilmPage(ctx: {
               to log and rate this film.
             </p>
           )}
-          <ReviewsSection filmId={film.id} filmSlug={film.slug} viewer={user} tab={reviewsTab} />
+          <ReviewsSection
+            filmIds={[film.id]}
+            basePath={`/film/${film.slug}`}
+            viewer={user}
+            tab={reviewsTab}
+          />
           <SimilarRail {...(await similarTo(film.id, user?.id ?? null))} />
         </div>
       </div>

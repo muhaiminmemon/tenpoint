@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { and, desc, eq, inArray, or, isNotNull } from "drizzle-orm";
+
 import { db } from "@/db";
-import { comments, diaryEntries, users, type SessionUser } from "@/db/schema";
+import { comments, diaryEntries, films, users, type SessionUser } from "@/db/schema";
 import { blockedIdsFor, friendIdsOf } from "@/lib/social";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { avatarSrc } from "@/lib/avatar";
@@ -9,14 +10,24 @@ import Avatar from "./Avatar";
 import ReviewCard, { type ReviewData } from "./ReviewCard";
 
 type Props = {
-  filmId: string;
-  filmSlug: string;
+  /**
+   * Every row an opinion could be attached to.
+   *
+   * A film is one. A series is the whole-series row plus each of its seasons,
+   * because that is where television opinion actually lives: a show page that
+   * read only its own row showed nobody, since almost everybody rates seasons.
+   */
+  filmIds: string[];
+  /** where the tabs link back to, e.g. `/film/heat-1995` or `/show/severance` */
+  basePath: string;
   viewer: SessionUser | null;
   tab: "friends" | "recent";
 };
 
 /** Reviews are chronological. No top review, no like counts, no algorithm. */
-export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: Props) {
+export default async function ReviewsSection({ filmIds, basePath, viewer, tab }: Props) {
+  if (filmIds.length === 0) return null;
+
   const rows = await db
     .select({
       id: diaryEntries.id,
@@ -30,18 +41,36 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
       displayName: users.displayName,
       avatarUpdatedAt: users.avatarUpdatedAt,
       privacy: users.privacy,
+      // Which part of the series this opinion is about. Null for a film, and
+      // ignored when only one row was asked for.
+      partKind: films.kind,
+      partSeason: films.seasonNumber,
     })
     .from(diaryEntries)
     .innerJoin(users, eq(users.id, diaryEntries.userId))
+    .innerJoin(films, eq(films.id, diaryEntries.filmId))
     .where(
       and(
-        eq(diaryEntries.filmId, filmId),
+        inArray(diaryEntries.filmId, filmIds),
         or(isNotNull(diaryEntries.review), isNotNull(diaryEntries.rating)),
         eq(diaryEntries.private, false),
       ),
     )
     .orderBy(desc(diaryEntries.createdAt))
     .limit(100);
+
+  /**
+   * "Season 4", or "the whole series", or nothing at all.
+   *
+   * A rating of 9.2 under a series heading is ambiguous when it could belong
+   * to any one of eight seasons, so the part is named. On a film page there is
+   * only ever one row and the qualifier would be noise.
+   */
+  const partOf = (kind: string | null, season: number | null): string | null => {
+    if (filmIds.length < 2) return null;
+    if (kind === "season") return season === 0 ? "the specials" : `season ${season}`;
+    return "the whole series";
+  };
 
   const friendIds = viewer ? new Set(await friendIdsOf(viewer.id)) : new Set<string>();
   const blocked = viewer ? await blockedIdsFor(viewer.id) : new Set<string>();
@@ -89,10 +118,12 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        part: string | null;
       };
 
   const feed: FeedRow[] = shown.map((r) => {
     const avatarUrl = avatarSrc(r.authorId, r.avatarUpdatedAt);
+    const part = partOf(r.partKind, r.partSeason);
     if (r.review !== null) {
       return {
         kind: "review",
@@ -101,6 +132,7 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
           review: r.review,
           spoiler: r.spoiler,
           rating: r.rating !== null ? formatTenths(r.rating) : null,
+          part,
           watchedOn: r.watchedOn,
           username: r.username,
           displayName: r.displayName,
@@ -125,6 +157,7 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
       username: r.username,
       displayName: r.displayName,
       avatarUrl,
+      part,
     };
   });
 
@@ -136,7 +169,7 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
             key={t}
             role="tab"
             aria-selected={tab === t}
-            href={`/film/${filmSlug}?reviews=${t}`}
+            href={`${basePath}?reviews=${t}`}
             // Switching the feed is not arriving somewhere new. Left to
             // itself a link scrolls to the top of the page, which on a phone
             // throws you back past the whole film to change one word.
@@ -172,6 +205,7 @@ export default async function ReviewsSection({ filmId, filmSlug, viewer, tab }: 
                   {item.displayName ?? item.username}
                 </Link>
                 <span className="text-ash">rated</span>
+                {item.part && <span className="text-ash">{item.part}</span>}
                 <span className={`num ${ratingColor(item.rating)}`}>
                   {formatTenths(item.rating)}
                 </span>

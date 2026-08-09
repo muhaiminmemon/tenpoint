@@ -30,11 +30,22 @@ colors:
   stock-neon-high: "#1d2c3c"
   stock-nebula-low: "#231e36"
   stock-nebula-high: "#3b3054"
-  # Filmstrip rakes across three tones rather than two: gunmetal into copper,
-  # the amber of celluloid base. The only warm-saturated ground in the set.
-  stock-filmstrip-low: "#1b1a1f"
-  stock-filmstrip-mid: "#2b2320"
-  stock-filmstrip-high: "#402c19"
+  # Silver. Built like Nebula but lit in near-white. Filmstrip took the
+  # neutral, so Marble left grey for verde antico rather than sit beside it.
+  stock-filmstrip-low: "#26272e"
+  stock-filmstrip-high: "#474a55"
+  stock-marble-low: "#1b241f"
+  stock-marble-high: "#2e4034"
+  # Four finishes carved out of measured distribution: Neon Rain held 43% of
+  # libraries and Nebula 27%, so each was several appetites under one coat.
+  stock-oxblood-low: "#22141a"
+  stock-oxblood-high: "#3f2028"
+  stock-bromide-low: "#251d24"
+  stock-bromide-high: "#42313c"
+  stock-gilt-low: "#1e1810"
+  stock-gilt-high: "#463618"
+  stock-cel-low: "#12232a"
+  stock-cel-high: "#1d4048"
   # Variant accents dealt from the highest-rated decade.
   accent-emerald: "#7fb59a"
   accent-amethyst: "#a98fd6"

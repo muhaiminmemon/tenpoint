@@ -5,7 +5,7 @@ import type { HomeTasteCardData } from "@/lib/taste";
 import FoilLight, { CARD_FOIL } from "./FoilLight";
 import CardGrain, { CARD_GRAIN } from "./CardGrain";
 import TiltCard from "./TiltCard";
-import { stockDef, stockTextureStyle } from "@/lib/taste-card";
+import { stockDef } from "@/lib/taste-card";
 
 /**
  * The full-detail card, front and back, as a real 3D flip — used inside the
@@ -74,7 +74,7 @@ export default function TasteCardFlip({
             style={{ background: stock?.material ?? "linear-gradient(158deg,#18181e,#0f0f13)" }}
           >
             {stock?.texture && (
-              <span aria-hidden className="absolute inset-0" style={stockTextureStyle(stock)} />
+              <span aria-hidden className="absolute inset-0" style={{ backgroundImage: stock.texture }} />
             )}
             <CardGrain intensity={data.tier.sheenOp} strength={CARD_GRAIN} />
             <FoilLight intensity={data.tier.sheenOp * CARD_FOIL} sweepSec={data.tier.sweepSec} />
@@ -101,7 +101,7 @@ export default function TasteCardFlip({
             style={{ background: stock?.material ?? "linear-gradient(158deg,#18181e,#0f0f13)" }}
           >
             {stock?.texture && (
-              <span aria-hidden className="absolute inset-0" style={stockTextureStyle(stock)} />
+              <span aria-hidden className="absolute inset-0" style={{ backgroundImage: stock.texture }} />
             )}
             {/* the back is the same piece of card stock, so it carries the same
                 stock and foil; a card finished on one side only reads as a

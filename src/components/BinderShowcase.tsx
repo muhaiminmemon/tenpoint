@@ -6,7 +6,7 @@ import { inThirdPerson } from "@/lib/voice";
 
 import { posterUrl } from "@/lib/tmdb-urls";
 import { formatTenths, ratingColor } from "@/lib/format";
-import { stockTextureStyle, type StockDef } from "@/lib/taste-card";
+import type { StockDef } from "@/lib/taste-card";
 import FoilLight from "./FoilLight";
 import CardGrain from "./CardGrain";
 
@@ -73,7 +73,9 @@ function VariantSpecimen({ stock, held }: { stock: StockDef; held: boolean }) {
         className="relative block size-full overflow-hidden"
         style={{ background: stock.material }}
       >
-        {stock.texture && <span className="absolute inset-0" style={stockTextureStyle(stock)} />}
+        {stock.texture && (
+          <span className="absolute inset-0" style={{ backgroundImage: stock.texture }} />
+        )}
         {/* Slower than the card's own light: these are specimens in a case,
             not the card in your hand. */}
         <FoilLight intensity={0.5} sweepSec={60} still={!held} blurPx={4} />
