@@ -4,7 +4,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import { friendRequests, users } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
-import { friendsOf } from "@/lib/social";
+import { friendsOf, ratedTitleCounts } from "@/lib/social";
 import { eligibilityOf } from "@/lib/recs";
 import { avatarSrc } from "@/lib/avatar";
 import FriendsPanel from "@/components/FriendsPanel";
@@ -16,18 +16,22 @@ export default async function FriendsPage() {
   if (!user) redirect("/login");
 
   const friends = await friendsOf(user.id);
-  const withEligibility = await Promise.all(
-    friends.map(async (f) => {
-      const e = await eligibilityOf(f.id);
-      return {
-        id: f.id,
-        username: f.username,
-        displayName: f.displayName,
-        avatarUrl: avatarSrc(f.id, f.avatarUpdatedAt),
-        rated: e.rated,
-      };
-    }),
-  );
+  /**
+   * Titles, counted once each, in one query rather than one per friend.
+   *
+   * This used to read the recommender's eligibility count, which is a count of
+   * rated rows because that is what the recommender needs — a season is a real
+   * opinion to it. Beside a name it is the wrong number: it made three
+   * programmes watched properly read larger than thirty-eight films.
+   */
+  const titles = await ratedTitleCounts(friends.map((f) => f.id));
+  const withEligibility = friends.map((f) => ({
+    id: f.id,
+    username: f.username,
+    displayName: f.displayName,
+    avatarUrl: avatarSrc(f.id, f.avatarUpdatedAt),
+    rated: titles.get(f.id) ?? 0,
+  }));
 
   const fromUser = alias(users, "from_user");
   const incomingRows = await db

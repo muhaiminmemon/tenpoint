@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, or } from "drizzle-orm";
+import { and, count, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { blocks, friendRequests, friendships, safeUserColumns, users, type SessionUser } from "@/db/schema";
 
@@ -100,4 +100,39 @@ export async function canViewProfile(
     return viewer ? areFriends(viewer.id, profile.id) : false;
   }
   return false;
+}
+
+/**
+ * How many works each of these people has rated.
+ *
+ * Works, not rows. The friends list read this off the rated-film count, which
+ * counts a season as a title, so somebody who had watched three programmes
+ * properly — season by season, the way this product asks — was listed beside a
+ * name as "38 rated" while somebody with thirty-eight films read the same. The
+ * two are not the same claim, and the larger number belonged to the smaller
+ * shelf. A series counts once, which is how the profile counts it.
+ *
+ * Private viewings are excluded: this number is shown to other people.
+ *
+ * One statement for the whole list rather than one per friend, because this
+ * renders a row per friend and the page already runs a query each.
+ */
+export async function ratedTitleCounts(userIds: string[]): Promise<Map<string, number>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await db.execute(sql`
+    with current as (
+      select distinct on (d.user_id, d.film_id) d.user_id, d.film_id
+      from diary_entries d
+      where d.user_id in ${userIds} and d.rating is not null and d.private = false
+      order by d.user_id, d.film_id, d.watched_on desc nulls last, d.created_at desc
+    )
+    select c.user_id, count(distinct coalesce(f.show_id, f.id))::int as titles
+    from current c join films f on f.id = c.film_id
+    group by c.user_id
+  `);
+  const out = new Map<string, number>();
+  for (const r of rows as unknown as { user_id: string; titles: number }[]) {
+    out.set(r.user_id, Number(r.titles));
+  }
+  return out;
 }
