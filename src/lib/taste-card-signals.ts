@@ -417,11 +417,19 @@ export async function getTasteSignals(
       (select count(*) from cur where rating <= 30)::int as harsh_count,
       (select count(distinct rating) from cur)::int as distinct_ratings,
       (select count(*) from cur_f where reach < 50000)::int as obscure_count,
-      (select count(*) from (
-        select film_id from diary_entries
-        where user_id = ${userId} and ${privacy}
-        group by film_id having count(*) > 1
-      ) z)::int as repeat_title_count,
+      /**
+       * Titles they said they went back to, not titles with two rows.
+       *
+       * A second row is not a second viewing. An entry logged without a rating
+       * makes one, and so did correcting a score, back when that posted a new
+       * entry instead of editing the one already there — so a typo fixed on a
+       * season read here as a title returned to, and paid a depth point for it.
+       * A rewatch is the one repeat the viewer states outright, which is what
+       * the "log a rewatch" action sets, so it is the only one counted.
+       */
+      (select count(distinct film_id) from diary_entries
+       where user_id = ${userId} and ${privacy} and rewatch = true
+      )::int as repeat_title_count,
 
       -- era bands, over films with a year on file
       (select count(*) from cur_f where year is not null and year < 1970)::int as era_classic,

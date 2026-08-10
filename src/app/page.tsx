@@ -16,8 +16,11 @@ export default async function Home() {
   const user = await getSessionUser();
 
   if (user) {
-    const [topRated, taste, library, friendIds, recentViewings] = await Promise.all([
-      getGlobalTopRated(10),
+    const [topFilms, topShows, taste, library, friendIds, recentViewings] = await Promise.all([
+      // Both boards up front. The switch between them is display state, so
+      // flipping it should not cost a round trip.
+      getGlobalTopRated(10, "movie"),
+      getGlobalTopRated(10, "show"),
       getTasteProfile(user.id, { includePrivate: true }),
       // Read at the season grain, not collapsed: nothing on this page lists
       // the library, and the card that consumes it counts a season as a
@@ -79,7 +82,7 @@ export default async function Home() {
           recentViewings={recentViewings}
         />
         <div className="pb-6">
-          <TopRatedBoard films={topRated} />
+          <TopRatedBoard movies={topFilms} shows={topShows} />
         </div>
       </>
     );

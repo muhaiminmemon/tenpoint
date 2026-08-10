@@ -11,6 +11,8 @@ export type TopRatedFilm = {
   mean: number;
   /** how many people's ratings that mean is built from */
   voters: number;
+  /** which route the slug belongs to; a series is not at /film */
+  kind: "movie" | "show";
 };
 
 /**
@@ -42,7 +44,20 @@ export type TopRatedFilm = {
  * Each person's current rating only, never a stale one an unrated rewatch
  * would otherwise erase, and private entries are excluded throughout.
  */
-export async function getGlobalTopRated(limit = 10): Promise<TopRatedFilm[]> {
+/**
+ * Films and series are ranked apart, not together.
+ *
+ * Collapsing a series onto one row is right, and it has a side effect: twenty
+ * people's opinions land on one title where a film usually carries one or two.
+ * The weighting rewards agreement, so on a single board television takes the
+ * whole top and it reads as a verdict about the medium rather than about any
+ * of the titles. They are different things to be the best of.
+ */
+export async function getGlobalTopRated(
+  limit = 10,
+  kind: "movie" | "show" = "movie",
+): Promise<TopRatedFilm[]> {
+  const wantShows = kind === "show";
   const rows = await db.execute(sql`
     with current as (
       select distinct on (user_id, film_id) user_id, film_id, rating
@@ -50,10 +65,37 @@ export async function getGlobalTopRated(limit = 10): Promise<TopRatedFilm[]> {
       where rating is not null and private = false
       order by user_id, film_id, watched_on desc nulls last, created_at desc
     ),
+    /**
+     * One opinion per person per *work*, before anything is averaged.
+     *
+     * Grouping by film_id put every season on the board as its own title, so a
+     * nine-season programme arrived as nine entries competing with each other
+     * and with films — and none of them was the thing anybody would say they
+     * loved. Television opinion lives on the seasons here, so the collapse has
+     * to happen before the crowd mean, not after.
+     *
+     * A person's verdict on a series is the one they typed about the whole
+     * thing when they typed one, and otherwise the mean of the seasons they
+     * rated. The same order the library and the mutual-loves query use, so all
+     * three agree about what somebody thinks of a show.
+     */
+    per_user as (
+      select c.user_id,
+             coalesce(f.show_id, f.id) as work_id,
+             (f.show_id is not null) as is_show,
+             coalesce(
+               max(c.rating) filter (where f.kind = 'movie'),
+               max(c.rating) filter (where f.kind = 'show'),
+               round(avg(c.rating) filter (where f.kind = 'season'))
+             )::int as rating
+      from current c join films f on f.id = c.film_id
+      group by c.user_id, coalesce(f.show_id, f.id), (f.show_id is not null)
+    ),
     means as (
-      select film_id, avg(rating)::float as mean, count(*)::int as voters
-      from current
-      group by film_id
+      select work_id, is_show, avg(rating)::float as mean, count(*)::int as voters
+      from per_user
+      where rating is not null and is_show = ${wantShows}
+      group by work_id, is_show
     ),
     prior as (
       select
@@ -61,14 +103,25 @@ export async function getGlobalTopRated(limit = 10): Promise<TopRatedFilm[]> {
         greatest(2, percentile_cont(0.75) within group (order by voters))::float as weight
       from means
     )
-    select f.slug, f.title, f.year, f.director, f.poster_path, m.mean, m.voters
+    select
+      m.is_show,
+      case when m.is_show then sh.slug else f.slug end as slug,
+      case when m.is_show then sh.name else f.title end as title,
+      case when m.is_show then sh.first_air_year else f.year end as year,
+      -- A series is credited to whoever made it, which is a creator rather
+      -- than a director; the column below is only ever read as a byline.
+      case when m.is_show then sh.creators ->> 0 else f.director end as director,
+      case when m.is_show then sh.poster_path else f.poster_path end as poster_path,
+      m.mean, m.voters
     from means m
     cross join prior p
-    join films f on f.id = m.film_id
+    left join films f on f.id = m.work_id and m.is_show = false
+    left join shows sh on sh.id = m.work_id and m.is_show = true
+    where coalesce(sh.slug, f.slug) is not null
     order by
       (m.voters * m.mean + p.weight * p.global_mean) / (m.voters + p.weight) desc,
       m.voters desc,
-      f.title asc
+      coalesce(sh.name, f.title) asc
     limit ${limit}
   `);
 
@@ -76,9 +129,10 @@ export async function getGlobalTopRated(limit = 10): Promise<TopRatedFilm[]> {
     slug: r.slug as string,
     title: r.title as string,
     year: r.year as number | null,
-    director: r.director as string | null,
-    posterPath: r.poster_path as string | null,
+    director: (r.director as string) ?? null,
+    posterPath: (r.poster_path as string) ?? null,
     mean: Math.round(r.mean as number),
     voters: r.voters as number,
+    kind: r.is_show ? "show" : "movie",
   }));
 }

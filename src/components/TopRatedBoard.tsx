@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
@@ -10,28 +13,76 @@ import type { TopRatedFilm } from "@/lib/leaderboard";
  * so the board reads wrong without knowing that. A 9.5 from two people sitting
  * under an 8.7 from nine looks like a bug unless the rule is stated, and the
  * one place to state it is here, above the list it governs.
+ *
+ * Films and series are two boards behind one switch rather than one list.
+ * A series collapses to a single row carrying everybody's opinion of it, so it
+ * arrives with twenty ratings where a film has one or two — and since the
+ * weighting rewards agreement, television took the whole board and said
+ * nothing about any individual title. Both lists are sent down together: the
+ * switch is a display state, not a reason to go back to the server.
  */
-export default function TopRatedBoard({ films }: { films: TopRatedFilm[] }) {
+export default function TopRatedBoard({
+  movies,
+  shows,
+}: {
+  movies: TopRatedFilm[];
+  shows: TopRatedFilm[];
+}) {
+  const [kind, setKind] = useState<"movie" | "show">("movie");
+  const films = kind === "movie" ? movies : shows;
+  const noun = kind === "movie" ? "films" : "series";
+
   return (
     <div className="overflow-hidden rounded-xl border border-edge bg-carbon">
       <div className="border-b border-seam p-4">
-        <h2 className="display text-[19px] text-paper">Top rated on Tenpoint</h2>
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="display text-[19px] text-paper">Top rated on Tenpoint</h2>
+          <div
+            className="flex shrink-0 overflow-hidden rounded-card border border-seam text-xs"
+            role="group"
+            aria-label="Rank films or series"
+          >
+            {([
+              ["movie", "Films"],
+              ["show", "Series"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={kind === value}
+                onClick={() => setKind(value)}
+                className={`px-2.5 py-1.5 transition-colors ${
+                  kind === value ? "bg-tray-2 text-paper" : "text-ash hover:text-paper"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <p className="mt-0.5 text-sm text-ash">
-          The highest-rated films across everyone here, not just you. A score counts for more
+          The highest-rated {noun} across everyone here, not just you. A score counts for more
           the more people stand behind it, so a 9.5 from two can sit below an 8.7 from nine.
+          {kind === "show" &&
+            " A series is ranked whole: your verdict on it, or the mean of the seasons you rated."}
         </p>
       </div>
 
       {films.length === 0 ? (
-        <p className="p-4 text-sm text-ash">Nobody&apos;s rated anything yet. Be the first.</p>
+        <p className="p-4 text-sm text-ash">
+          {kind === "movie"
+            ? "Nobody's rated a film yet. Be the first."
+            : "Nobody's rated a series yet. Be the first."}
+        </p>
       ) : (
         <ol className="p-2">
           {films.map((f, i) => {
             const poster = posterUrl(f.posterPath, "w154");
             return (
-              <li key={f.slug}>
+              // A series lives at /show; linking it to /film 404s.
+              <li key={`${f.kind}-${f.slug}`}>
                 <Link
-                  href={`/film/${f.slug}`}
+                  href={`/${f.kind === "show" ? "show" : "film"}/${f.slug}`}
                   className="flex items-center gap-3 rounded-card p-2 hover:bg-tray"
                 >
                   <span className="num w-5 shrink-0 text-right text-sm text-dim">{i + 1}</span>
