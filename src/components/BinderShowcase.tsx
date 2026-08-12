@@ -665,6 +665,15 @@ export default function BinderShowcase({
             Nothing here is chosen. Every stock {person ? "they have" : "you have"} earned stays{" "}
             {person ? "theirs" : "yours"}, whichever one the card happens to be wearing.
           </p>
+          {/* The one thing a count of "titles about X" does not say by itself,
+              and the reason a title that plainly fits a theme can still not
+              move its number. Said once, here, rather than in all twelve rows. */}
+          <p className="mt-2.5 text-sm leading-relaxed text-ash">
+            A theme is counted by the keywords a title carries, which come from TMDB. A title that
+            fits a theme but is not tagged for it does not count toward it, so a number here can
+            sit still after {person ? "they log" : "you log"} something that looks like it should
+            have moved it.
+          </p>
         </div>
 
         <ol className="mt-7 border-b border-seam">

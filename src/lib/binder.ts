@@ -29,7 +29,7 @@ import {
   type RarityTier,
   type StockDef,
 } from "./taste-card";
-import { CLUSTERS, STOCK_BY_CLUSTER, clusterLabel } from "./archetype-clusters";
+import { CLUSTERS, STOCK_BY_CLUSTER } from "./archetype-clusters";
 import { decadeLabel, formatTenths } from "./format";
 import { getTasteSignals } from "./taste-card-signals";
 import { pickSignatureTitles, type SignatureTitle } from "./signature";
@@ -175,20 +175,27 @@ function stockDistance(
   const nearest = rows[0];
   const cluster = CLUSTER_BY_KEY.get(nearest.key);
   if (!cluster) return null;
-  const label = clusterLabel(cluster);
-  const subject = label.charAt(0).toLowerCase() + label.slice(1);
-  const need = `${plural(nearest.short, "more title")} about ${subject}`;
+  /**
+   * The theme's whole note, not just its first word.
+   *
+   * `clusterLabel` trims to the head for places that need a short name, and
+   * that head was doing real damage here: "titles about magic" reads as any
+   * film a person would call magical, while the theme is thirteen specific
+   * keywords. Printing the full note — "magic, wizards, dragons and prophecy" —
+   * describes what actually counts.
+   */
+  const subject = cluster.note;
   const have = `You have ${plural(nearest.count, "title")}.`;
 
-  if (nearest.qualifies) {
-    return `You hold ${stockName} on ${plural(nearest.count, "title")} about ${subject}.`;
-  }
-  // Held once but no longer qualifying: holding is permanent, the reading is
-  // not, and saying only "held" would hide that the theme has moved on.
+  // Deliberately not "you hold": a stock can be earned and sitting in the
+  // binder while the card wears a different one, and "hold" read as "wearing".
+  // Which of the two it is, the state mark beside the row already says.
+  if (nearest.qualifies) return `Earned on ${plural(nearest.count, "title")} about ${subject}.`;
+  const need = `${plural(nearest.short, "more title")} about ${subject}`;
   if (state !== "unheld") {
-    return `You held ${stockName} before. To hold it again you need ${need}. ${have}`;
+    return `Earned before, but not on the shelf as it stands. To earn it again you need ${need}. ${have}`;
   }
-  return `To hold ${stockName} you need ${need}. ${have}`;
+  return `To earn ${stockName} you need ${need}. ${have}`;
 }
 
 /**
@@ -315,7 +322,7 @@ export async function loadBinder(
     distance: revoiceText(
       t.depth <= depth
         ? null
-        : `To hold ${t.name} you need ${plural(t.depth - depth, "more point")}. You have ${plural(depth, "point")}.`,
+        : `To reach ${t.name} you need ${plural(t.depth - depth, "more point")}. You have ${plural(depth, "point")}.`,
     ),
     state:
       tier === null
