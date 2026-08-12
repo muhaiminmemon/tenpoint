@@ -43,6 +43,7 @@ import { useToast } from "./Toast";
 import { formatTenths } from "@/lib/format";
 import { errorFrom } from "@/lib/http";
 import { posterUrl } from "@/lib/tmdb-urls";
+import { useUrlState, useUrlText } from "@/lib/useUrlState";
 
 export type ShelfItem = {
   filmId: string;
@@ -77,6 +78,10 @@ const KINDS = [
 
 type KindFilter = (typeof KINDS)[number]["value"];
 
+const SORT_KEYS = SORTS.map((s) => s.value);
+const KIND_KEYS = KINDS.map((k) => k.value);
+const UNRELEASED_KEYS = ["all", "hide"] as const;
+
 function runtimeLabel(mins: number | null): string | null {
   if (!mins || mins <= 0) return null;
   const h = Math.floor(mins / 60);
@@ -98,10 +103,19 @@ export default function WatchlistShelf({ items }: { items: ShelfItem[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<Sort>("mine");
-  const [kind, setKind] = useState<KindFilter>("all");
-  const [hideUnreleased, setHideUnreleased] = useState(false);
+  /**
+   * In the address bar, not in this component.
+   *
+   * Opening a film unmounts the shelf, so a filter held here was gone by the
+   * time you came back — and the restored scroll position then pointed into a
+   * list that no longer had those rows in it.
+   */
+  const [query, setQuery] = useUrlText("q");
+  const [sort, setSort] = useUrlState<Sort>("sort", "mine", SORT_KEYS);
+  const [kind, setKind] = useUrlState<KindFilter>("show", "all", KIND_KEYS);
+  const [unreleased, setUnreleased] = useUrlState<"all" | "hide">("out", "all", UNRELEASED_KEYS);
+  const hideUnreleased = unreleased === "hide";
+  const setHideUnreleased = (next: boolean) => setUnreleased(next ? "hide" : "all");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -303,7 +317,7 @@ export default function WatchlistShelf({ items }: { items: ShelfItem[] }) {
         {unreleasedCount > 0 && (
           <Toggle
             pressed={hideUnreleased}
-            onClick={() => setHideUnreleased((v) => !v)}
+            onClick={() => setHideUnreleased(!hideUnreleased)}
             label={`Hide ${unreleasedCount} not out yet`}
           />
         )}

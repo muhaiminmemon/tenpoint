@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import ProfileWatchlistList, { type ProfileWatchlistRow } from "./ProfileWatchlistList";
+import { useUrlState, useUrlText } from "@/lib/useUrlState";
 
 type SortMode = "added" | "added-old" | "title";
+// Kept in the URL: opening a title from here should come back to this view.
+const SORT_KEYS = ["added", "added-old", "title"] as const;
 
 const SORT_LABELS: Record<SortMode, string> = {
   added: "Recently added",
@@ -19,8 +22,8 @@ export default function ProfileWatchlistTab({
   rows: ProfileWatchlistRow[];
   editable: boolean;
 }) {
-  const [filter, setFilter] = useState("");
-  const [sort, setSort] = useState<SortMode>("added");
+  const [filter, setFilter] = useUrlText("q");
+  const [sort, setSort] = useUrlState<SortMode>("sort", "added", SORT_KEYS);
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();

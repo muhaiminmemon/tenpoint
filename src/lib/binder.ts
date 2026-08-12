@@ -181,21 +181,36 @@ function stockDistance(
    * `clusterLabel` trims to the head for places that need a short name, and
    * that head was doing real damage here: "titles about magic" reads as any
    * film a person would call magical, while the theme is thirteen specific
-   * keywords. Printing the full note — "magic, wizards, dragons and prophecy" —
-   * describes what actually counts.
+   * keywords. Printing the full note describes what actually counts.
    */
   const subject = cluster.note;
-  const have = `You have ${plural(nearest.count, "title")}.`;
 
-  // Deliberately not "you hold": a stock can be earned and sitting in the
-  // binder while the card wears a different one, and "hold" read as "wearing".
-  // Which of the two it is, the state mark beside the row already says.
-  if (nearest.qualifies) return `Earned on ${plural(nearest.count, "title")} about ${subject}.`;
-  const need = `${plural(nearest.short, "more title")} about ${subject}`;
-  if (state !== "unheld") {
-    return `Earned before, but not on the shelf as it stands. To earn it again you need ${need}. ${have}`;
+  /**
+   * Every line opens with the count, then says what it buys.
+   *
+   * Leading with the verdict — "Earned on 28 titles" — put a bare number in
+   * front of a reader with nothing to measure it against, and made two rows
+   * look like they contradicted each other: 28 earns one stock while 112 does
+   * not earn another, because what a theme has to clear is its share of the
+   * catalogue and not a fixed count. Said in this order the number is a fact
+   * about the shelf first, and the consequence follows from it.
+   *
+   * Deliberately never "you hold": a stock can be earned and sitting in the
+   * binder while the card wears a different one, and "hold" read as "wearing".
+   * Which of the two it is, the state mark beside the row already says.
+   */
+  const has = `${plural(nearest.count, "title")} about ${subject}`;
+
+  if (nearest.qualifies) {
+    return `You have ${has}, which is enough to earn ${stockName}.`;
   }
-  return `To earn ${stockName} you need ${need}. ${have}`;
+  const more = `${nearest.short} more`;
+  // Held once but no longer qualifying. Holding is permanent and the reading is
+  // not, so this says both: that it was earned, and what it would take now.
+  if (state !== "unheld") {
+    return `You earned ${stockName} before. You now have ${has}, and need ${more} to get it back.`;
+  }
+  return `You have ${has}. You need ${more} to earn ${stockName}.`;
 }
 
 /**
@@ -322,7 +337,7 @@ export async function loadBinder(
     distance: revoiceText(
       t.depth <= depth
         ? null
-        : `To reach ${t.name} you need ${plural(t.depth - depth, "more point")}. You have ${plural(depth, "point")}.`,
+        : `You have ${plural(depth, "point")}. You need ${t.depth - depth} more to reach ${t.name}.`,
     ),
     state:
       tier === null

@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import ProfileDiaryList, { type ProfileDiaryRow } from "./ProfileDiaryList";
+import { useUrlState, useUrlText } from "@/lib/useUrlState";
 
 type SortMode = "newest" | "oldest" | "rating-desc" | "rating-asc" | "title";
+// Kept in the URL: opening a title from here should come back to this view.
+const SORT_KEYS = ["newest", "oldest", "rating-desc", "rating-asc", "title"] as const;
 
 const SORT_LABELS: Record<SortMode, string> = {
   newest: "Newest first",
@@ -21,8 +24,8 @@ export default function ProfileDiaryTab({
   rows: ProfileDiaryRow[];
   editable: boolean;
 }) {
-  const [filter, setFilter] = useState("");
-  const [sort, setSort] = useState<SortMode>("newest");
+  const [filter, setFilter] = useUrlText("q");
+  const [sort, setSort] = useUrlState<SortMode>("sort", "newest", SORT_KEYS);
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();

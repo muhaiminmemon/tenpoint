@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 /**
@@ -47,6 +47,56 @@ export function useUrlState<T extends string>(
   );
 
   return [value, set];
+}
+
+/**
+ * The same, for a search box.
+ *
+ * Free text needs both halves. The box holds its own value so every keystroke
+ * lands immediately — routing on each one would navigate a dozen times over a
+ * word nobody has finished — and the URL is written a beat later, so leaving
+ * the page and coming back finds the search still in it. The sort controls
+ * beside these boxes have survived a round trip for a while; the search next
+ * to them silently did not, which is the half people actually notice.
+ *
+ * The URL stays the authority: when it changes from outside — the back button,
+ * a shared link, a clear — that value is adopted. `seen` is what tells the two
+ * apart, so an external change is taken and the echo of our own write is not.
+ *
+ * Read from `window.location.search` rather than the hook's params, because the
+ * params object is a new identity every render and would re-arm the timer on
+ * each one.
+ */
+export function useUrlText(key: string, delay = 350): [string, (next: string) => void] {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const fromUrl = params.get(key) ?? "";
+
+  const [text, setText] = useState(fromUrl);
+  const seen = useRef(fromUrl);
+
+  useEffect(() => {
+    if (seen.current !== fromUrl) {
+      seen.current = fromUrl;
+      setText(fromUrl);
+    }
+  }, [fromUrl]);
+
+  useEffect(() => {
+    if (text === fromUrl) return;
+    const timer = setTimeout(() => {
+      const p = new URLSearchParams(window.location.search);
+      if (text) p.set(key, text);
+      else p.delete(key);
+      const q = p.toString();
+      seen.current = text;
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [text, fromUrl, key, delay, pathname, router]);
+
+  return [text, setText];
 }
 
 /** The same, for a bounded integer such as a page or a month offset. */

@@ -26,6 +26,7 @@ import Avatar from "./Avatar";
 import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
 import { errorFrom, readJson } from "@/lib/http";
+import { useUrlState, useUrlText } from "@/lib/useUrlState";
 
 export type ListCard = {
   id: string;
@@ -45,6 +46,7 @@ export type ListCard = {
 };
 
 type Sort = "edited" | "created" | "title" | "size";
+const SORT_KEYS = ["edited", "created", "title", "size"] as const;
 
 const SORTS: { value: Sort; label: string }[] = [
   { value: "edited", label: "Recently edited" },
@@ -93,8 +95,10 @@ export default function ListsIndex({
     setRows(cards);
   }
 
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<Sort>("edited");
+  // In the URL for the same reason the watchlist's are: opening a list
+  // unmounts this, and a search held here would not survive coming back.
+  const [query, setQuery] = useUrlText("q");
+  const [sort, setSort] = useUrlState<Sort>("sort", "edited", SORT_KEYS);
   /**
    * Held here rather than inside the form.
    *

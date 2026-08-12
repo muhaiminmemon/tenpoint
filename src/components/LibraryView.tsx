@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState } from "react";
-import { useUrlState } from "@/lib/useUrlState";
+import { useUrlState, useUrlText } from "@/lib/useUrlState";
 import SeriesSheet, { seriesStanding } from "./SeriesSheet";
 import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -135,7 +135,7 @@ export default function LibraryView({ films, editable }: Props) {
   const pathname = usePathname();
   const params = useSearchParams();
   const [view, setView] = useUrlState<"ledger" | "shelf">("view", "shelf", VIEWS);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useUrlText("q");
   const [sort, setSort] = useUrlState<SortMode>("sort", "rating", SORT_MODES);
   const [saved, setSaved] = useUrlState<SavedView>("show", "all", SAVED_KEYS);
   const [items, setItems] = useState(films);

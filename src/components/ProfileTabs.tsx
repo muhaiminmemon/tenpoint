@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useUrlState } from "@/lib/useUrlState";
 import LibraryView from "./LibraryView";
 import ProfileDiaryTab from "./ProfileDiaryTab";
 import ProfileWatchlistTab from "./ProfileWatchlistTab";
@@ -9,6 +9,8 @@ import type { ProfileDiaryRow } from "./ProfileDiaryList";
 import type { ProfileWatchlistRow } from "./ProfileWatchlistList";
 
 type Tab = "library" | "diary" | "watchlist";
+/** In the URL, so opening a film from the diary tab comes back to the diary tab. */
+const TAB_KEYS = ["library", "diary", "watchlist"] as const;
 
 type Props = {
   films: LibraryFilm[];
@@ -30,7 +32,14 @@ export default function ProfileTabs({
       ? [{ id: "watchlist" as const, label: "Watchlist", count: watchlistRows.length }]
       : []),
   ];
-  const [tab, setTab] = useState<Tab>("library");
+  const [urlTab, setTab] = useUrlState<Tab>("tab", "library", TAB_KEYS);
+  /**
+   * A tab in the URL that this profile does not offer falls back to the
+   * library. `?tab=diary` is a real link somebody may still hold — from a share,
+   * from history, or from before the owner turned their diary off — and honouring
+   * it literally would render an empty panel under a strip with no tab selected.
+   */
+  const tab: Tab = tabs.some((t) => t.id === urlTab) ? urlTab : "library";
 
   return (
     <div>

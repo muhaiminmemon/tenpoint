@@ -134,7 +134,17 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
   const viewerMean = viewerTaste?.mean ?? null;
   const mutual = viewer && !isOwner ? await getMutualLoves(viewer.id, profile.id) : [];
 
-  const showDiary = isOwner || profile.showDiaryOnProfile;
+  /**
+   * Not on your own profile: the nav bar already has it.
+   *
+   * A Diary tab on the page belonging to the person reading it duplicates a
+   * link one row above, and the profile copy of it is the worse of the two —
+   * it is a fixed slice with no calendar and no month navigation. Somebody
+   * else's diary is a different matter: theirs is not in your nav bar, so the
+   * tab is the only way to it, and their own setting still decides whether it
+   * is offered at all.
+   */
+  const showDiary = !isOwner && profile.showDiaryOnProfile;
   const showWatchlist = isOwner || profile.showWatchlistOnProfile;
 
   const diaryRows = showDiary

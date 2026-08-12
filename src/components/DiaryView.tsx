@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useUrlNumber, useUrlState } from "@/lib/useUrlState";
+import { useUrlNumber, useUrlState, useUrlText } from "@/lib/useUrlState";
 import Link from "next/link";
 import { ArrowCounterClockwise, CaretDown, CaretLeft, CaretRight } from "@phosphor-icons/react/ssr";
 import { accentFor, formatTenths, ratingColor } from "@/lib/format";
@@ -46,7 +46,7 @@ function monthLabel(key: string): string {
 
 export default function DiaryView({ rows }: { rows: DiaryRow[] }) {
   const [view, setView] = useUrlState<"calendar" | "timeline">("view", "calendar", DIARY_VIEWS);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useUrlText("q");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
