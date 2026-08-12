@@ -21,6 +21,7 @@ import {
   themeReadings,
   RARITY_TIERS,
   STOCK_DEFS,
+  leadingCluster,
   libraryDepth,
   titlesToSignature,
   type ArchetypeRead,
@@ -134,21 +135,60 @@ const CLUSTERS_BY_STOCK = (() => {
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * What it would take to hold this finish, said outright.
+ * How many more titles of a theme before the card is printed on its stock.
  *
- * Named in full — the finish, the theme, the number, and what they already
- * have — because the reader is looking at one row out of twelve and a bare
- * "11 short" makes them work out which finish and which theme it is short of.
- * The theme is the note's own plain words, which were written to slot into
- * "your films are about ___", so the sentence reads as the product speaks.
+ * Searched rather than solved. Which stock a card wears is an argmax across
+ * fifty themes with a tie-break and a format rule on top, so there is no
+ * inequality to rearrange — but there is a function that already decides it,
+ * and asking that function n times is exact where re-deriving it would only be
+ * plausible. The first k it returns is the answer by construction: k - 1 was
+ * tested on the previous pass and did not win.
+ *
+ * Read against the weighted counts because those are what `computeVariant`
+ * prints from, and each added title counts at full weight, which is what a
+ * title watched today is worth.
+ *
+ * `null` past the cap: beyond a few hundred titles the honest answer is that
+ * this is not the near thing to reach for, not a number nobody will act on.
+ */
+const WEAR_SEARCH_CAP = 400;
+
+function titlesToWear(
+  stockName: string,
+  themeKey: string,
+  weighted: Record<string, number>,
+  total: number,
+): number | null {
+  for (let k = 1; k <= WEAR_SEARCH_CAP; k++) {
+    const probe = { ...weighted, [themeKey]: (weighted[themeKey] ?? 0) + k };
+    const lead = leadingCluster(probe, total + k);
+    if (lead && STOCK_BY_CLUSTER[lead] === stockName) return k;
+  }
+  return null;
+}
+
+/**
+ * What this finish is doing, in the reader's terms.
+ *
+ * The three states are not three amounts of the same thing, and printing one
+ * sentence shape across all of them is what made the page unreadable: a stock
+ * marked HELD carried "which is enough to earn Vellum", which reads as "you
+ * have enough but you do not have it" and sends somebody looking for a way to
+ * win it back.
+ *
+ * There is no winning it back. Earning is permanent — `held_variants` never
+ * deletes a row — and wearing is not: a card carries one stock at a time, the
+ * one whose theme leads the shelf today. So the held case's job is to say that
+ * nothing was lost and name what is being worn instead, and only the unheld
+ * case is a distance at all.
  *
  * Second person like every other line here, so the same `inThirdPerson` pass
- * that re-voices the conditions re-voices these and the two never disagree on
- * somebody else's binder.
+ * that re-voices the conditions re-voices these too.
  */
 function stockDistance(
   stockName: string,
   state: FinishState,
+  wearing: string | null,
   counts: Record<string, number>,
   weighted: Record<string, number>,
   total: number,
@@ -162,8 +202,8 @@ function stockDistance(
       count: counts[key] ?? 0,
       short: titlesToSignature(key, counts, total),
       // A finish can be issued on the weighted reading while the plain counts
-      // still fall short, so "you hold it on" has to ask the same question the
-      // issuing rule asked or it names a theme that earned nothing.
+      // still fall short, so this has to ask the same question the issuing rule
+      // asked or it names a theme that earned nothing.
       qualifies:
         titlesToSignature(key, counts, total) === 0 ||
         titlesToSignature(key, weighted, total) === 0,
@@ -175,42 +215,29 @@ function stockDistance(
   const nearest = rows[0];
   const cluster = CLUSTER_BY_KEY.get(nearest.key);
   if (!cluster) return null;
-  /**
-   * The theme's whole note, not just its first word.
-   *
-   * `clusterLabel` trims to the head for places that need a short name, and
-   * that head was doing real damage here: "titles about magic" reads as any
-   * film a person would call magical, while the theme is thirteen specific
-   * keywords. Printing the full note describes what actually counts.
-   */
   const subject = cluster.note;
-
-  /**
-   * Every line opens with the count, then says what it buys.
-   *
-   * Leading with the verdict — "Earned on 28 titles" — put a bare number in
-   * front of a reader with nothing to measure it against, and made two rows
-   * look like they contradicted each other: 28 earns one stock while 112 does
-   * not earn another, because what a theme has to clear is its share of the
-   * catalogue and not a fixed count. Said in this order the number is a fact
-   * about the shelf first, and the consequence follows from it.
-   *
-   * Deliberately never "you hold": a stock can be earned and sitting in the
-   * binder while the card wears a different one, and "hold" read as "wearing".
-   * Which of the two it is, the state mark beside the row already says.
-   */
   const has = `${plural(nearest.count, "title")} about ${subject}`;
 
-  if (nearest.qualifies) {
-    return `You have ${has}, which is enough to earn ${stockName}.`;
+  if (state === "yours") {
+    return `Your card is wearing this one, on your ${has}.`;
   }
-  const more = `${nearest.short} more`;
-  // Held once but no longer qualifying. Holding is permanent and the reading is
-  // not, so this says both: that it was earned, and what it would take now.
-  if (state !== "unheld") {
-    return `You earned ${stockName} before. You now have ${has}, and need ${more} to get it back.`;
+
+  if (state === "held") {
+    // Earned is permanent; worn is not. Both halves have to be said, because
+    // the badge alone reads as a loss — and the second half is the question
+    // people actually have, which is how to get the card printed on it again.
+    const worn = wearing
+      ? `Your card wears one stock at a time and is wearing ${wearing} today.`
+      : "Your card wears one stock at a time.";
+    const back = titlesToWear(stockName, nearest.key, weighted, total);
+    const route =
+      back === null
+        ? `It comes back when ${subject} leads your shelf, which is a long way from where it is now.`
+        : `To put it back on your card, watch ${plural(back, "more title")} about ${subject}.`;
+    return `Yours for good, nothing to win back. ${worn} You have ${has}. ${route}`;
   }
-  return `You have ${has}. You need ${more} to earn ${stockName}.`;
+
+  return `You have ${has}. You need ${nearest.short} more to earn ${stockName}.`;
 }
 
 /**
@@ -370,6 +397,7 @@ export async function loadBinder(
         stockDistance(
           stock.name,
           state,
+          yoursVariant,
           signals.clusters,
           signals.clustersWeighted,
           signals.clusterFilmCount,

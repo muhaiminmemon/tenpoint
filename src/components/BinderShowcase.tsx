@@ -662,8 +662,13 @@ export default function BinderShowcase({
             place.
           </p>
           <p className="mt-2.5 text-sm leading-relaxed text-ash">
-            Nothing here is chosen. Every stock {person ? "they have" : "you have"} earned stays{" "}
-            {person ? "theirs" : "yours"}, whichever one the card happens to be wearing.
+            Nothing here is chosen, and nothing here is ever lost. A stock{" "}
+            {person ? "they have" : "you have"} earned stays {person ? "theirs" : "yours"} for good.
+            The card can only be printed on one of them at a time, so{" "}
+            <span className="text-paper">Held now</span> is the one it is wearing and{" "}
+            <span className="text-paper">Held</span> is one {person ? "they" : "you"} own that it is
+            not wearing today. There is nothing to win back: the card wears whichever theme leads
+            the shelf, and it changes as {person ? "they watch" : "you watch"}.
           </p>
           {/* The one thing a count of "titles about X" does not say by itself,
               and the reason a title that plainly fits a theme can still not

@@ -1047,6 +1047,20 @@ export function titlesToSignature(
   return Math.max(0, Math.ceil(Math.max(byLift, byShare, byMinimum)));
 }
 
+/**
+ * The theme a card would be printed on, for a given reading of a library.
+ *
+ * Exported so the binder can answer "what would it take to wear this again"
+ * by asking the real selection rather than modelling it: run this over the
+ * library plus n more titles of a theme and see which stock comes back. Every
+ * rule that decides a winner — the lift, the floor, the near-tie tie-break,
+ * the format share — is applied because it is the same function that issues
+ * the finish, and none of it has to be restated somewhere it could drift.
+ */
+export function leadingCluster(counts: Record<string, number>, total: number): string | null {
+  return signatureClusters(counts, total)[0]?.cluster.key ?? null;
+}
+
 function signatureClusters(counts: Record<string, number>, total: number) {
   if (total <= 0) return [];
   const floor = clusterFloor(total);
