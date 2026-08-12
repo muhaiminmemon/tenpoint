@@ -31,6 +31,19 @@ const STATE_LABEL: Record<FinishState, string> = {
   unheld: "Not held",
 };
 
+/**
+ * How far off a finish is, in one shape wherever it appears.
+ *
+ * Set apart from the condition rather than run into it: the condition is the
+ * rule, which never changes, and this is the reader's position against it,
+ * which changes every time they log something. Reading as one sentence made
+ * the fixed half look personal.
+ */
+function Distance({ text }: { text: string | null }) {
+  if (!text) return null;
+  return <span className="mt-1 block text-2xs leading-relaxed text-dim">{text}</span>;
+}
+
 /** The tissue a finish you don't hold is seen through. */
 function Glassine() {
   return (
@@ -609,6 +622,7 @@ export default function BinderShowcase({
                         : `Issued at ${row.tier.depth.toLocaleString()} points: a film is 1, a season is 4.`}{" "}
                       {row.tier.effect}
                     </p>
+                    <Distance text={row.distance} />
                   </div>
                   <StateMark state={row.state} markPast={false} />
                 </div>
@@ -670,6 +684,9 @@ export default function BinderShowcase({
                       {row.name}
                     </span>
                     <p className="mt-1 max-w-[46ch] text-sm text-ash">{row.stock.condition}</p>
+                    <span className="max-w-[46ch]">
+                      <Distance text={row.distance} />
+                    </span>
                   </div>
                   <StateMark state={row.state} />
                 </div>
@@ -697,6 +714,10 @@ export default function BinderShowcase({
             <div key={group.title}>
               <h3 className="display text-[15px] text-paper">{group.title}</h3>
               <p className="mt-1 text-sm text-ash">{group.note}</p>
+              {/* One standing per axis, not one per option: every row on an
+                  axis is measured against the same figure, so repeating it
+                  four times said nothing new three times. */}
+              <Distance text={group.rows[0]?.distance ?? null} />
               <ul className="mt-3 space-y-px">
                 {group.rows.map(({ axis, yours }) => (
                   <li

@@ -21,12 +21,16 @@ import {
   themeReadings,
   RARITY_TIERS,
   STOCK_DEFS,
+  libraryDepth,
+  titlesToSignature,
   type ArchetypeRead,
   type AxisDef,
   type ThemeReading,
   type RarityTier,
   type StockDef,
 } from "./taste-card";
+import { CLUSTERS, STOCK_BY_CLUSTER, clusterLabel } from "./archetype-clusters";
+import { decadeLabel, formatTenths } from "./format";
 import { getTasteSignals } from "./taste-card-signals";
 import { pickSignatureTitles, type SignatureTitle } from "./signature";
 import { stabilise } from "./signature-stability";
@@ -45,7 +49,18 @@ import { users as usersTable } from "@/db/schema";
 /** Yours right now, held at some point, or never held. */
 export type FinishState = "yours" | "held" | "unheld";
 
-export type TierRow = { tier: RarityTier; state: FinishState };
+/**
+ * A finish and how far off it is, in the unit that actually issues it.
+ *
+ * `null` where a distance would have to be invented. Only the theme stocks and
+ * the tier ladder are counted in titles and points; the accent reads which
+ * decade a person rates highest and the aura reads their average, and neither
+ * of those moves by watching a fixed number of anything. Printing "8 more
+ * films" against an average would be a number nobody could check.
+ */
+export type Distance = string | null;
+
+export type TierRow = { tier: RarityTier; state: FinishState; distance: Distance };
 
 /**
  * One finish. The stock *is* the finish, so its printed name and its material
@@ -56,9 +71,10 @@ export type VariantRow = {
   name: string;
   stock: StockDef;
   state: FinishState;
+  distance: Distance;
 };
 
-export type AxisRow = { axis: AxisDef; yours: boolean };
+export type AxisRow = { axis: AxisDef; yours: boolean; distance: Distance };
 
 /**
  * One axis of the personality profile, and what it is a share of.
@@ -101,6 +117,79 @@ export type Binder = {
   toArchetype: number;
   rated: number;
 };
+
+const CLUSTER_BY_KEY = new Map(CLUSTERS.map((c) => [c.key, c]));
+
+/** Which themes can issue each stock, inverted from the cluster → stock map. */
+const CLUSTERS_BY_STOCK = (() => {
+  const out = new Map<string, string[]>();
+  for (const [cluster, stock] of Object.entries(STOCK_BY_CLUSTER)) {
+    const list = out.get(stock) ?? [];
+    list.push(cluster);
+    out.set(stock, list);
+  }
+  return out;
+})();
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * What it would take to hold this finish, said outright.
+ *
+ * Named in full — the finish, the theme, the number, and what they already
+ * have — because the reader is looking at one row out of twelve and a bare
+ * "11 short" makes them work out which finish and which theme it is short of.
+ * The theme is the note's own plain words, which were written to slot into
+ * "your films are about ___", so the sentence reads as the product speaks.
+ *
+ * Second person like every other line here, so the same `inThirdPerson` pass
+ * that re-voices the conditions re-voices these and the two never disagree on
+ * somebody else's binder.
+ */
+function stockDistance(
+  stockName: string,
+  state: FinishState,
+  counts: Record<string, number>,
+  weighted: Record<string, number>,
+  total: number,
+): Distance {
+  const themes = CLUSTERS_BY_STOCK.get(stockName);
+  if (!themes?.length || total <= 0) return null;
+
+  const rows = themes
+    .map((key) => ({
+      key,
+      count: counts[key] ?? 0,
+      short: titlesToSignature(key, counts, total),
+      // A finish can be issued on the weighted reading while the plain counts
+      // still fall short, so "you hold it on" has to ask the same question the
+      // issuing rule asked or it names a theme that earned nothing.
+      qualifies:
+        titlesToSignature(key, counts, total) === 0 ||
+        titlesToSignature(key, weighted, total) === 0,
+    }))
+    .sort(
+      (a, b) => Number(b.qualifies) - Number(a.qualifies) || a.short - b.short || b.count - a.count,
+    );
+
+  const nearest = rows[0];
+  const cluster = CLUSTER_BY_KEY.get(nearest.key);
+  if (!cluster) return null;
+  const label = clusterLabel(cluster);
+  const subject = label.charAt(0).toLowerCase() + label.slice(1);
+  const need = `${plural(nearest.short, "more title")} about ${subject}`;
+  const have = `You have ${plural(nearest.count, "title")}.`;
+
+  if (nearest.qualifies) {
+    return `You hold ${stockName} on ${plural(nearest.count, "title")} about ${subject}.`;
+  }
+  // Held once but no longer qualifying: holding is permanent, the reading is
+  // not, and saying only "held" would hide that the theme has moved on.
+  if (state !== "unheld") {
+    return `You held ${stockName} before. To hold it again you need ${need}. ${have}`;
+  }
+  return `To hold ${stockName} you need ${need}. ${have}`;
+}
 
 /**
  * Builds the whole showcase for one user, and notes the finish they currently
@@ -150,6 +239,31 @@ export async function loadBinder(
   );
   const yoursVariant = hasCard ? variant.name : null;
 
+  /** The bare-string form of `revoice`, for the distances built below. */
+  const revoiceText = (text: Distance): Distance =>
+    text !== null && thirdPerson ? inThirdPerson(text) : text;
+
+  /**
+   * Where the reader stands on the two axes that are not counted in titles.
+   *
+   * One line each, printed against every option on the axis rather than only
+   * the one they hold: the question a reader has looking at Crimson is "what is
+   * mine, then", and the answer is the same sentence whichever row they are
+   * reading. The accent reads the decade they rate highest — not the one they
+   * watch most — so the line says so, because the two are different facts and
+   * the card would otherwise look wrong to anybody whose favourite decade is
+   * not their biggest.
+   */
+  const accentDecade = signals.topRatedDecade ?? taste.topDecade?.decade ?? null;
+  const accentStanding: Distance =
+    accentDecade === null
+      ? "Your accent comes from the decade you rate highest. You have not rated anything yet."
+      : `Your accent comes from the decade you rate highest, which is the ${decadeLabel(accentDecade)}.`;
+  const auraStanding: Distance =
+    taste.mean === null
+      ? "Your aura comes from your average rating. You have not rated anything yet."
+      : `Your aura comes from your average rating, which is ${formatTenths(taste.mean)}.`;
+
   const everHeld = await getHeldVariantNames(user.id);
 
   // The same call the card uses. This used to rebuild the title from the same
@@ -193,8 +307,16 @@ export async function loadBinder(
     return out;
   };
 
+  const depth = hasCard ? libraryDepth(signals).depth : 0;
   const tiers: TierRow[] = RARITY_TIERS.map((t) => ({
     tier: revoice(t, "range", "effect"),
+    // Points, because points are what the ladder is issued on — the same
+    // figure the card's own gate quotes, read off one depth calculation.
+    distance: revoiceText(
+      t.depth <= depth
+        ? null
+        : `To hold ${t.name} you need ${plural(t.depth - depth, "more point")}. You have ${plural(depth, "point")}.`,
+    ),
     state:
       tier === null
         ? "unheld"
@@ -215,11 +337,24 @@ export async function loadBinder(
    */
   const earned = hasCard ? new Set([...everHeld, ...variant.held]) : everHeld;
 
-  const variants: VariantRow[] = STOCK_DEFS.map((stock) => ({
-    name: stock.name,
-    stock: revoice(stock, "condition"),
-    state: stock.name === yoursVariant ? "yours" : earned.has(stock.name) ? "held" : "unheld",
-  }));
+  const variants: VariantRow[] = STOCK_DEFS.map((stock) => {
+    const state: FinishState =
+      stock.name === yoursVariant ? "yours" : earned.has(stock.name) ? "held" : "unheld";
+    return {
+      name: stock.name,
+      stock: revoice(stock, "condition"),
+      state,
+      distance: revoiceText(
+        stockDistance(
+          stock.name,
+          state,
+          signals.clusters,
+          signals.clustersWeighted,
+          signals.clusterFilmCount,
+        ),
+      ),
+    };
+  });
 
   return {
     tiers,
@@ -227,10 +362,12 @@ export async function loadBinder(
     accents: ACCENT_DEFS.map((axis) => ({
       axis: revoice(axis, "condition"),
       yours: hasCard && variant.accent === axis.name,
+      distance: revoiceText(accentStanding),
     })),
     auras: AURA_DEFS.map((axis) => ({
       axis: revoice(axis, "condition"),
       yours: hasCard && variant.aura === axis.name,
+      distance: revoiceText(auraStanding),
     })),
     personality: computePersonality(taste, signals).map((axis) =>
       thirdPerson ? { ...axis, note: inThirdPerson(axis.note) } : axis,

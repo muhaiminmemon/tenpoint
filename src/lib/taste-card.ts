@@ -990,31 +990,66 @@ function readings(s: TasteSignals, topGenre: string | undefined): Reading[] {
  * case, so below the margin the title falls through to it rather than
  * inventing a theme out of noise.
  */
+/**
+ * Five pseudo-films, added to both sides of the ratio.
+ *
+ * A plain share-over-prevalence hands rare themes enormous scores: four
+ * courtroom films against a theme carrying 1.3% of the catalogue reads as
+ * "three times normal", and in simulation that alone won 12% of libraries.
+ * Shrinking toward one until the evidence is thick enough is the standard
+ * cure, and it moved the spread from four themes dominating to thirty-nine
+ * of the forty-three winning somewhere, none above 6%.
+ */
+const PRIOR = 5;
+
+/**
+ * How far past ordinary a theme must sit before it can name somebody.
+ *
+ * Set just under the median winning lift across the seeded crowd, which is
+ * 1.68x: high enough to drop the eight libraries being named for something
+ * they barely over-watch, low enough that a genuine but mild concentration
+ * still counts.
+ */
+const MARGIN = 1.35;
+
+/** The count floor a theme clears before it can name anybody. */
+const clusterFloor = (total: number) => Math.max(4, Math.round(total * 0.02));
+
+/**
+ * How many more titles of one theme it would take to earn its finish.
+ *
+ * Module-level rather than inline so the number the binder prints and the rule
+ * that issues the finish read the same constants. A printed distance derived
+ * from a second copy of the thresholds is worse than none: it goes quietly
+ * wrong the moment either copy is tuned.
+ *
+ * Solved for k rather than counted up, because adding titles moves the target
+ * too — each one raises the library total, which raises both what "ordinary"
+ * expects of the theme and the 2% floor. Ignoring that under-states every
+ * distance, and by more the rarer the theme.
+ *
+ *   lift:  (count + k + PRIOR) / ((total + k) · prevalence + PRIOR) ≥ MARGIN
+ *   floor: count + k ≥ max(4, 2% of (total + k))
+ *
+ * Returns 0 when the theme already qualifies.
+ */
+export function titlesToSignature(
+  clusterKey: string,
+  counts: Record<string, number>,
+  total: number,
+): number {
+  const count = counts[clusterKey] ?? 0;
+  const prevalence = CLUSTER_PREVALENCE[clusterKey] ?? 0.05;
+  const byLift =
+    (MARGIN * (prevalence * total + PRIOR) - PRIOR - count) / (1 - MARGIN * prevalence);
+  const byShare = (0.02 * total - count) / 0.98;
+  const byMinimum = 4 - count;
+  return Math.max(0, Math.ceil(Math.max(byLift, byShare, byMinimum)));
+}
+
 function signatureClusters(counts: Record<string, number>, total: number) {
   if (total <= 0) return [];
-  const floor = Math.max(4, Math.round(total * 0.02));
-
-  /**
-   * Five pseudo-films, added to both sides of the ratio.
-   *
-   * A plain share-over-prevalence hands rare themes enormous scores: four
-   * courtroom films against a theme carrying 1.3% of the catalogue reads as
-   * "three times normal", and in simulation that alone won 12% of libraries.
-   * Shrinking toward one until the evidence is thick enough is the standard
-   * cure, and it moved the spread from four themes dominating to thirty-nine
-   * of the forty-three winning somewhere, none above 6%.
-   */
-  const PRIOR = 5;
-
-  /**
-   * How far past ordinary a theme must sit before it can name somebody.
-   *
-   * Set just under the median winning lift across the seeded crowd, which is
-   * 1.68x: high enough to drop the eight libraries being named for something
-   * they barely over-watch, low enough that a genuine but mild concentration
-   * still counts.
-   */
-  const MARGIN = 1.35;
+  const floor = clusterFloor(total);
 
   const ranked = CLUSTERS.map((c) => {
     const count = counts[c.key] ?? 0;
