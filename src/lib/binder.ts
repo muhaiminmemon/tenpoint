@@ -226,15 +226,13 @@ function stockDistance(
     // Earned is permanent; worn is not. Both halves have to be said, because
     // the badge alone reads as a loss — and the second half is the question
     // people actually have, which is how to get the card printed on it again.
-    const worn = wearing
-      ? `Your card wears one stock at a time and is wearing ${wearing} today.`
-      : "Your card wears one stock at a time.";
+    const worn = wearing ? `Your card is wearing ${wearing} today.` : null;
     const back = titlesToWear(stockName, nearest.key, weighted, total);
     const route =
       back === null
-        ? `It comes back when ${subject} leads your shelf, which is a long way from where it is now.`
-        : `To put it back on your card, watch ${plural(back, "more title")} about ${subject}.`;
-    return `Yours for good, nothing to win back. ${worn} You have ${has}. ${route}`;
+        ? "It comes back when this theme leads your shelf, which is a long way off."
+        : `To put this one back on, watch ${back} more.`;
+    return [worn, `You have ${has}.`, route].filter(Boolean).join(" ");
   }
 
   return `You have ${has}. You need ${nearest.short} more to earn ${stockName}.`;
