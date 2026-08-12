@@ -25,7 +25,6 @@ type Props = {
   unreleased?: boolean;
   entries: Viewing[];
   inWatchlist: boolean;
-  watchlistSource: string | null;
   lists: { id: string; title: string; hasFilm: boolean }[];
 };
 
@@ -36,7 +35,6 @@ export default function FilmPanel({
   unreleased = false,
   entries,
   inWatchlist,
-  watchlistSource,
   lists,
 }: Props) {
   const confirm = useConfirm();
@@ -50,8 +48,6 @@ export default function FilmPanel({
   const [addOpen, setAddOpen] = useState(false);
 
   const [wl, setWl] = useState(inWatchlist);
-  const [wlSource, setWlSource] = useState(watchlistSource ?? "");
-  const [wlAskSource, setWlAskSource] = useState(false);
 
   // membership is server state; mirror it so a chip lands the moment you tick it
   const [listState, setListState] = useState(lists);
@@ -125,7 +121,6 @@ export default function FilmPanel({
         body: JSON.stringify({ filmId: film.id }),
       }).catch(() => {});
       setWl(false);
-      setWlAskSource(false);
       movedFromWatchlist = true;
     }
 
@@ -225,29 +220,13 @@ export default function FilmPanel({
       fetch("/api/watchlist", {
         method: wl ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(wl ? { filmId: film.id } : { filmId: film.id, source: null }),
+        body: JSON.stringify({ filmId: film.id }),
       }),
     );
     if (!res) return;
     const next = !wl;
     setWl(next);
-    setWlAskSource(next);
-    if (!next) setWlSource("");
     toast({ message: next ? "Added to watchlist" : "Removed from watchlist" });
-    router.refresh();
-  }
-
-  async function saveWlSource() {
-    const res = await request(() =>
-      fetch("/api/watchlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filmId: film.id, source: wlSource || null }),
-      }),
-    );
-    if (!res) return;
-    setWlAskSource(false);
-    toast({ message: "Saved where it came from" });
     router.refresh();
   }
 
@@ -365,31 +344,6 @@ export default function FilmPanel({
             </li>
           ))}
         </ul>
-      )}
-
-      {wl && wlAskSource && (
-        <div className="mt-3 rounded-card border border-seam bg-tray p-3">
-          <label htmlFor="wl-source" className="mb-1.5 block text-xs text-ash">
-            Where did this come from? (optional)
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="wl-source"
-              value={wlSource}
-              onChange={(e) => setWlSource(e.target.value)}
-              placeholder="Who recommended it, or where you saw it"
-              className="min-w-0 flex-1 rounded-card border border-seam bg-carbon px-3 py-1.5 text-sm placeholder:text-dim focus:border-beam focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={saveWlSource}
-              disabled={busy}
-              className="shrink-0 rounded-card border border-seam px-3 py-1.5 text-sm text-paper hover:bg-tray-2 disabled:opacity-50"
-            >
-              Save
-            </button>
-          </div>
-        </div>
       )}
 
       {entries.length > 0 && (

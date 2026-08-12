@@ -7,7 +7,6 @@ export type ProfileWatchlistRow = {
   year: number | null;
   slug: string;
   posterPath: string | null;
-  source: string | null;
 };
 
 export default function ProfileWatchlistList({ rows }: { rows: ProfileWatchlistRow[] }) {
@@ -33,7 +32,6 @@ export default function ProfileWatchlistList({ rows }: { rows: ProfileWatchlistR
               <Link href={`/film/${r.slug}`} className="block truncate text-paper hover:underline">
                 {r.title} <span className="num text-xs text-ash">{r.year ?? ""}</span>
               </Link>
-              {r.source && <span className="block truncate text-xs text-ash">{r.source}</span>}
             </span>
           </li>
         );

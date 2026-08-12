@@ -169,7 +169,6 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
           year: films.year,
           slug: films.slug,
           posterPath: films.posterPath,
-          source: watchlist.source,
         })
         .from(watchlist)
         .innerJoin(films, eq(films.id, watchlist.filmId))

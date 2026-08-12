@@ -234,7 +234,6 @@ export default async function FilmPage(ctx: {
                 ratingHistory: ratingHistory.get(e.id) ?? [],
               }))}
               inWatchlist={Boolean(wlRow)}
-              watchlistSource={wlRow?.source ?? null}
               lists={editableLists}
             />
           ) : (

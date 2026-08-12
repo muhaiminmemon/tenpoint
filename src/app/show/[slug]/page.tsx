@@ -235,7 +235,6 @@ export default async function ShowPage(ctx: {
                 createdAt: e.createdAt.toISOString(),
               }))}
               inWatchlist={Boolean(wlRow)}
-              watchlistSource={wlRow?.source ?? null}
               lists={editableLists}
             />
 
