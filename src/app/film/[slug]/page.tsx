@@ -248,6 +248,7 @@ export default async function FilmPage(ctx: {
           <ReviewsSection
             filmIds={[film.id]}
             basePath={`/film/${film.slug}`}
+            title={film.title}
             viewer={user}
             tab={reviewsTab}
           />

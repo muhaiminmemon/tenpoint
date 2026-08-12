@@ -21,12 +21,14 @@ type Props = {
   filmIds: string[];
   /** where the tabs link back to, e.g. `/film/heat-1995` or `/show/severance` */
   basePath: string;
+  /** what is being rated, so a person's scores open with a subject */
+  title?: string;
   viewer: SessionUser | null;
   tab: "friends" | "recent";
 };
 
 /** Reviews are chronological. No top review, no like counts, no algorithm. */
-export default async function ReviewsSection({ filmIds, basePath, viewer, tab }: Props) {
+export default async function ReviewsSection({ filmIds, basePath, title, viewer, tab }: Props) {
   if (filmIds.length === 0) return null;
 
   const rows = await db
@@ -226,7 +228,7 @@ export default async function ReviewsSection({ filmIds, basePath, viewer, tab }:
                   rated it without writing
                 </span>
               </div>
-              <RatingChips items={ratings} />
+              <RatingChips items={ratings} title={title} />
             </li>
           )}
           <ShowMore initial={5} step={10} noun="review">

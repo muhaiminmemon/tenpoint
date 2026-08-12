@@ -213,7 +213,11 @@ function CardTab({ data, binderHref }: { data: HomeTasteCardData; binderHref?: s
       </div>
 
       {data.profStats.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+        <div
+          className={`grid grid-cols-3 gap-2 ${
+            data.profStats.length >= 5 ? "sm:grid-cols-5" : "sm:grid-cols-4"
+          }`}
+        >
           {data.profStats.map((s) => (
             <div key={s.label} className="rounded-card border border-seam bg-lift px-2 py-2.5 text-center">
               <div className="num text-[17px] text-paper">{s.value}</div>

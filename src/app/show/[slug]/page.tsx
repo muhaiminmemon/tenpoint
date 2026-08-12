@@ -362,6 +362,7 @@ export default async function ShowPage(ctx: {
               (id): id is string => Boolean(id),
             )}
             basePath={`/show/${show.slug}`}
+            title={show.name}
             viewer={user}
             tab={reviewsTab}
           />

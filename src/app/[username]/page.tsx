@@ -122,8 +122,11 @@ export default async function ProfilePage(ctx: { params: Promise<{ username: str
         )
       : null;
 
-  // Friends only, per the visibility rule for the binder.
-  const canSeeBinder = relationship.kind === "friends";
+  // Whoever can read the profile can read its binder. `visible` is the same
+  // `canViewProfile` answer this page already gated itself on, so the link
+  // cannot offer a page the visitor would be refused — and cannot hide one they
+  // would be let into.
+  const canSeeBinder = visible;
 
   // the compare snapshot only appears on someone else's profile
   const viewerTaste =

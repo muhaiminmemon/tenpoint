@@ -1,14 +1,48 @@
 import { rankTraits } from "@/lib/taste-card";
 import Link from "next/link";
-import { accentFor, formatTenths } from "@/lib/format";
+import { formatTenths } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import type { HomeTasteCardData } from "@/lib/taste";
 
-function SectionLabel({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
+/**
+ * The rating scale, drawn to survive twelve stocks.
+ *
+ * A fixed hue cannot. The grounds run brown, teal, maroon, rust, olive and
+ * indigo, so any one colour lands near-complementary to several of them — which
+ * is what the beam blue was doing on every warm stock. Gold is the single
+ * exception, because it is already printed on every card regardless of ground
+ * (the traits dot, the trait pills) and because the product already means
+ * "exceptional" by it: `ratingColor` gives gold to 9.0 and above.
+ *
+ * Below the top step the scale is white at falling alpha, for exactly the
+ * reason `card-2` and `card-track` are: white takes the hue of whatever it is
+ * printed on, so it cannot go muddy on a stock, including one that does not
+ * exist yet. The result reads as one scale rather than four unrelated hues.
+ */
+const RATE_BANDS = [
+  "#d9b25f",
+  "rgba(236,234,230,.85)",
+  "rgba(236,234,230,.55)",
+  "rgba(236,234,230,.3)",
+];
+
+const bandColor = (i: number) => RATE_BANDS[Math.min(i, RATE_BANDS.length - 1)];
+
+function SectionLabel({
+  children,
+  right,
+  center = false,
+}: {
+  children: React.ReactNode;
+  right?: React.ReactNode;
+  center?: boolean;
+}) {
   return (
-    <div className="mb-1.5 flex items-center gap-2">
+    <div className={`mb-1.5 flex items-center gap-2 ${center ? "justify-center" : ""}`}>
       <span className="text-[8px] uppercase tracking-[0.18em] text-card-3">{children}</span>
-      <span className="h-px flex-1 bg-[#1f1f25]" aria-hidden />
+      {/* The spacer is what pushes a right-hand label to the edge; centring a
+          lone label means there is nothing to push. */}
+      {!center && <span className="flex-1" aria-hidden />}
       {right}
     </div>
   );
@@ -52,8 +86,21 @@ export function TasteCardFrontBig({
   const genreDNA = dnaSource.map((g) => ({
     label: g.name,
     pct: g.pct,
-    dot: accentFor(g.name),
+    rest: "key" in g && g.key === "rest",
   }));
+  /**
+   * Four themes, and a mark for the rest.
+   *
+   * The remainder row is dropped rather than carried, because it is only
+   * meaningful as the closing term of a whole: once the list is capped the
+   * shares stop summing to one, and "Everything else" beside four of eight
+   * themes states a number that completes nothing. `TasteCardFace` drops it for
+   * the same reason. The binder reads ten themes to this card's four, so the
+   * mark has somewhere real to point.
+   */
+  const themeRows = genreDNA.filter((d) => !d.rest);
+  const shownDNA = themeRows.slice(0, 4);
+  const moreThemes = themeRows.length - shownDNA.length;
   const signature = data.signatureFilms[0];
 
   return (
@@ -132,11 +179,9 @@ export function TasteCardFrontBig({
         )}
       </div>
 
-      <div className="my-2.5 h-px bg-gradient-to-r from-transparent via-seam to-transparent" />
-
       {/* movie DNA */}
-      {genreDNA.length > 0 && (
-        <div>
+      {shownDNA.length > 0 && (
+        <div className="mt-5">
           <SectionLabel
             right={
               <span className="text-[9px] uppercase tracking-[.12em] text-card-3">
@@ -146,19 +191,38 @@ export function TasteCardFrontBig({
           >
             Taste DNA
           </SectionLabel>
-          <div className="flex flex-col gap-1.5">
-            {genreDNA.map((d) => (
-              <div key={d.label} className="flex items-center gap-2.5">
-                <span className="size-1.5 shrink-0 rounded-full" style={{ background: d.dot }} aria-hidden />
-                <span className="w-[104px] truncate text-[11px] text-card-2">{d.label}</span>
-                <span className="h-1 flex-1 overflow-hidden rounded-full bg-card-track">
+          <div className="grid gap-y-2">
+            {shownDNA.map((d) => (
+              <div key={d.label} className="grid grid-cols-[1fr_auto] items-baseline gap-x-2 gap-y-1">
+                <span className="truncate text-[11px] leading-tight text-paper">{d.label}</span>
+                <span className="num text-[11px] leading-tight text-paper">{d.pct}%</span>
+                <span className="col-span-2 block h-px overflow-hidden bg-[rgba(236,234,230,.18)]">
                   <span
-                    className="block h-full rounded-full bg-gradient-to-r from-beam to-gold"
-                    style={{ width: `${Math.max(4, d.pct)}%` }}
+                    className="block h-full bg-beam"
+                    style={{ width: `${Math.max(1.5, d.pct)}%` }}
                   />
                 </span>
               </div>
             ))}
+            {/* The rest of the shelf lives in the binder, which reads ten themes
+                to this card's four. The mark wears the tier so it reads as part
+                of the card's own printing rather than as a truncation glyph. */}
+            {moreThemes > 0 && (
+              <div className="mt-1 text-center">
+                <div
+                  aria-hidden
+                  className="display text-[26px] leading-none"
+                  style={{ color: tier.labelColor }}
+                >
+                  &hellip;
+                </div>
+                {/* The line carries the meaning, so the mark above it is
+                    decorative and hidden from the reader that cannot see it. */}
+                <p className="mt-2 text-[11px] leading-snug text-card-2">
+                  Open the binder for the full share
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -188,8 +252,18 @@ export function TasteCardFrontBig({
         </div>
       </div>
 
-      {/* footer */}
-      <div className="mt-2.5 flex items-center justify-between border-t border-[#1c1c22] pt-2 text-[9px] uppercase tracking-[.08em] text-card-3">
+      {/* footer
+       *
+       * The rule wears the tier, the way the portrait ring and the card's own
+       * rim do. A gradient cannot ride on `border-t`, so the line is its own
+       * 1px surface painted with the same material, and it reads `borderFlat`
+       * first for the conic tiers exactly as the ring does. */}
+      <div
+        aria-hidden
+        className="mt-2.5 h-px"
+        style={{ background: tier.borderFlat ?? tier.border }}
+      />
+      <div className="flex items-center justify-between pt-2 text-[9px] uppercase tracking-[.08em] text-card-3">
         <span className="inline-flex items-center gap-1.5">
           <span
             aria-hidden
@@ -221,7 +295,12 @@ export function TasteCardBackBig({
   return (
     // `relative` is load-bearing: the foil behind this face is absolutely
     // positioned, and a static root would let it paint over the type.
-    <div className="relative flex flex-col gap-2.5 p-4">
+    // Every rim and rule on this face is cut from one material, published once
+    // here so a panel never has to reach for the tier itself.
+    <div
+      className="relative flex flex-col gap-2.5 p-4"
+      style={{ "--tier-rim": data.tier.borderFlat ?? data.tier.border } as React.CSSProperties}
+    >
       <div className="flex items-start justify-between">
         <div>
           <div className="text-[9px] uppercase tracking-[.18em] text-card-3">Profile</div>
@@ -237,9 +316,9 @@ export function TasteCardBackBig({
       {data.profStats.length > 0 && (
         <div>
           <SectionLabel>Profile stats</SectionLabel>
-          <div className={`grid gap-1.5 ${data.profStats.length > 5 ? "grid-cols-6" : "grid-cols-5"}`}>
+          <div className={`grid gap-1.5 ${data.profStats.length >= 5 ? "grid-cols-5" : "grid-cols-4"}`}>
             {data.profStats.map((s) => (
-              <div key={s.label} className="rounded-[7px] border border-[#232329] bg-white/[.02] py-1.5 text-center">
+              <div key={s.label} className="tier-rim rounded-[7px] bg-white/[.02] py-1.5 text-center">
                 <div className="num text-[14px] text-paper">{s.value}</div>
                 <div className="mt-0.5 text-[7px] uppercase tracking-[.04em] text-card-3">{s.label}</div>
               </div>
@@ -263,22 +342,22 @@ export function TasteCardBackBig({
             {data.personality[0].bands.map((band, i, all) => (
               <span
                 key={band.label}
-                className="h-full bg-beam"
+                className="h-full"
                 style={{
                   width: `${band.pct}%`,
-                  opacity: 1 - (i / Math.max(1, all.length)) * 0.62,
+                  background: bandColor(i),
                   boxShadow: i === all.length - 1 ? undefined : "inset -1px 0 0 #141417",
                 }}
               />
             ))}
           </span>
           <div className="mt-2 grid grid-cols-2 gap-x-3.5 gap-y-1">
-            {data.personality[0].bands.map((band, i, all) => (
+            {data.personality[0].bands.map((band, i) => (
               <div key={band.label} className="flex items-baseline gap-1.5">
                 <span
                   aria-hidden
-                  className="size-1.5 shrink-0 rounded-full bg-beam"
-                  style={{ opacity: 1 - (i / Math.max(1, all.length)) * 0.62 }}
+                  className="size-1.5 shrink-0 rounded-full"
+                  style={{ background: bandColor(i) }}
                 />
                 <span className="flex-1 truncate text-[10px] text-card-2">
                   {band.label.split(",")[0]}
@@ -298,9 +377,14 @@ export function TasteCardBackBig({
           <SectionLabel>Most watched</SectionLabel>
           <div className="flex flex-col gap-1">
             {data.favsCard.map((f) => (
-              <div key={f.label} className="flex items-baseline justify-between border-b border-[#1a1a20] pb-1">
-                <span className="text-[9px] uppercase tracking-[.08em] text-card-3">{f.label}</span>
-                <span className="display text-[12px] text-paper">{f.value}</span>
+              // The rule is its own 1px surface rather than a `border-b`, for
+              // the same reason the rims are masked: it has to carry a gradient.
+              <div key={f.label}>
+                <div className="flex items-baseline justify-between pb-1">
+                  <span className="text-[9px] uppercase tracking-[.08em] text-card-3">{f.label}</span>
+                  <span className="display text-[12px] text-paper">{f.value}</span>
+                </div>
+                <div aria-hidden className="h-px" style={{ background: "var(--tier-rim)" }} />
               </div>
             ))}
           </div>
@@ -313,7 +397,7 @@ export function TasteCardBackBig({
               the least-close of two friends a rival is arithmetic, not a
               reading. */}
           {data.social.map((s, i) => (
-            <div key={i} className="rounded-[7px] border border-[#232329] px-2.5 py-1.5">
+            <div key={i} className="tier-rim rounded-[7px] px-2.5 py-1.5">
               <div className="text-[8px] uppercase tracking-[.1em] text-card-3">
                 {i === 0 ? "Closest taste" : "Furthest taste"}
               </div>
@@ -331,20 +415,25 @@ export function TasteCardBackBig({
 
       {heldTraits.length > 0 && (
         <div>
-          <SectionLabel>
+          <SectionLabel center>
             Traits · {data.traitsHeldCount} of {data.traitsTotal}
           </SectionLabel>
-          <div className="flex flex-wrap gap-1">
+          {/* Etched, not badged.
+           *
+           * The pill drew a container around every trait and tinted the lot
+           * gold, which put ten small buttons on a card that has nothing to
+           * press and spent the product's one warm accent on its least
+           * important row. Cut instead: the name sits in the stock with a
+           * single hairline of light along its lower edge, the way an
+           * incision catches light from above. No border, no fill, no hue —
+           * so it reads the same on all twelve grounds. */}
+          <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-center">
             {heldTraits.map((t) => (
-              <span
-                key={t.key}
-                className="flex items-center gap-1 rounded-full border border-[#3a3320] bg-[rgba(217,178,95,.05)] px-1.5 py-0.5 text-[8.5px] text-[#c9b48a]"
-              >
+              // Ranked strongest first, so the ten that fit are the ten that
+              // say most. The count is dropped: at this size it read as a
+              // score beside a name it does not score.
+              <span key={t.key} className="text-[10px] text-card-2">
                 {t.name}
-                {/* The count, which is the thing worth showing at this size.
-                    Ranked strongest first, so the ten that fit are the ten
-                    that say most. */}
-                <span className="num text-[#8a7a55]">{t.count}</span>
               </span>
             ))}
           </div>

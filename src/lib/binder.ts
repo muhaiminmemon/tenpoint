@@ -172,8 +172,29 @@ export async function loadBinder(
         })()
       : null;
 
+  /**
+   * Re-voice the fixed definitions.
+   *
+   * `RARITY_TIERS`, `STOCK_DEFS` and the axis tables are all written in the
+   * second person, because the common case is somebody reading their own
+   * binder. On a friend's every one of them is describing the wrong person —
+   * "Your films keep returning to the dark" printed under somebody else's name
+   * is the same bug the archetype and signature lines already had fixed here.
+   * The readings above go through `inThirdPerson` one field at a time; these
+   * are static tables, so they go through it one *key* at a time instead.
+   */
+  const revoice = <T extends Record<string, unknown>>(def: T, ...keys: (keyof T)[]): T => {
+    if (!thirdPerson) return def;
+    const out = { ...def };
+    for (const key of keys) {
+      const value = out[key];
+      if (typeof value === "string") out[key] = inThirdPerson(value) as T[keyof T];
+    }
+    return out;
+  };
+
   const tiers: TierRow[] = RARITY_TIERS.map((t) => ({
-    tier: t,
+    tier: revoice(t, "range", "effect"),
     state:
       tier === null
         ? "unheld"
@@ -196,15 +217,21 @@ export async function loadBinder(
 
   const variants: VariantRow[] = STOCK_DEFS.map((stock) => ({
     name: stock.name,
-    stock,
+    stock: revoice(stock, "condition"),
     state: stock.name === yoursVariant ? "yours" : earned.has(stock.name) ? "held" : "unheld",
   }));
 
   return {
     tiers,
     variants,
-    accents: ACCENT_DEFS.map((axis) => ({ axis, yours: hasCard && variant.accent === axis.name })),
-    auras: AURA_DEFS.map((axis) => ({ axis, yours: hasCard && variant.aura === axis.name })),
+    accents: ACCENT_DEFS.map((axis) => ({
+      axis: revoice(axis, "condition"),
+      yours: hasCard && variant.accent === axis.name,
+    })),
+    auras: AURA_DEFS.map((axis) => ({
+      axis: revoice(axis, "condition"),
+      yours: hasCard && variant.aura === axis.name,
+    })),
     personality: computePersonality(taste, signals).map((axis) =>
       thirdPerson ? { ...axis, note: inThirdPerson(axis.note) } : axis,
     ),

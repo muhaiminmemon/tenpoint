@@ -89,6 +89,22 @@ rebuilding:
   shared director, the shared face, the two keywords both films carry. Rank
   order communicates strength without implying precision the system doesn't
   have, so no percentage, match figure or score is rendered anywhere.
+- **One reading of taste, shared by everything that names it.** The card once
+  held four disagreeing answers — the archetype counted themes one way,
+  signature titles extracted them another, the theme panel read a third set of
+  numbers, and taste match compared a fourth — so the same film could be "about
+  magic" in one panel and carry no theme at all in the next.
+  `src/lib/preference-profile.ts` is the single reading they now all share. Two
+  things make it a *preference* profile rather than a viewing one: every title
+  is weighted by how much the person actually loved it, and the result is
+  expressed against how common each theme already is, so a shelf full of
+  adventure films does not come out "an adventure watcher" merely because half
+  the catalogue is adventure. Underneath it, `src/lib/semantic.ts` gives a title
+  a *strength* in every dimension — most of them zero — rather than a yes/no
+  membership, because one weak tag used to be enough: "based on manga" filed
+  Monster and Frieren as the same kind of thing. Exposure and preference are the
+  same arithmetic over the same vectors, with and without the affection weight,
+  which is the only honest way to say "you love this more than you watch it".
 
 ## Operating Context
 
@@ -128,7 +144,8 @@ rebuilding:
 ## Capabilities and Constraints
 
 Confirmed and shipped: diary logging with per-viewing entries, tenths ratings,
-reviews with independent `spoiler` and `private` flags, a ranked library with
+a per-viewing rating history, reviews with independent `spoiler` and `private`
+flags, a ranked library with
 drag-to-reorder within rating ties, watchlist, favourites, collaborative lists
 with `owner`/`editor`/`viewer` roles, friends and invites, blocks, reports with
 an admin queue, a strictly chronological friends feed with no ranking, public
@@ -196,9 +213,100 @@ eighteen traits. Its constraints are part of the feature:
 - Traits are never announced beyond a quiet dot on the card front; they list
   only on the back or in the popup.
 
+**Signature titles — confirmed feature.** Four works that best *prove* a taste,
+in `src/lib/signature.ts`. The question they answer was deliberately changed:
+the retired algorithm built a target vector out of era, popularity and language
+and chose the four whose average landed nearest it, which weighted when things
+were made and how famous they were at eight times every theme combined and
+produced a census rather than a portrait. A title now earns its place by being
+loved, by expressing what the preference profile actually is, and by saying
+something a similar viewer's card would not say.
+
+- **The quartet is held still unless something genuinely changed.** Every
+  component of the score moves whenever anything is rated, so a title sitting a
+  thousandth behind the incumbent would otherwise take its place while nothing
+  about the person had changed. `signature_sets` holds the incumbent and
+  `src/lib/signature-stability.ts` requires a challenger to win by a margin on
+  the *set* — not on individual titles, because swapping one member changes what
+  the other three cover. A card that reshuffles every time you log a film is not
+  a portrait of anybody.
+- `signature_history` keeps one row per genuine change, so what moved and when
+  is answerable.
+
+**The binder — confirmed feature.** `/binder` shows every finish the card can be
+dealt and which of them are yours. A showcase, not a game.
+
+- **No total, no ratio, no completion figure, nothing to configure.** The only
+  facts are which finishes exist and which are yours. A standing is a fact about
+  one plate; summed against a denominator the record becomes a chore list. This
+  rule is what keeps a browsable binder from being a scoreboard over people, and
+  it therefore hardens rather than relaxes now that the binder is public.
+- **Unheld plates are printed in full, not hidden or dimmed to illegibility.**
+  Withholding light is the mechanism; withholding legibility is the failure.
+- **Variants need history, tiers do not.** A variant is recomputed from current
+  taste, so the one held last year is gone unless something wrote it down
+  (`variant_history`). A tier is a floor that only ever rose.
+- **Anyone who can read a profile can read its binder.** `/[username]/binder`
+  gates on `canViewProfile`, the same helper the profile itself uses, so the
+  binder is exactly as reachable as the page that links to it: `public` accounts
+  are readable signed out, `friends` accounts by friends, `private` by nobody,
+  and a block hides it either way. Refusal is `notFound`, so somebody who cannot
+  read the account learns nothing about it from the response. The owner landing
+  on their own username is redirected to `/binder`, so the write that records a
+  held finish stays on one route. The read is pure — a visitor cannot rewrite
+  the owner's incumbent quartet — and it is scoped to public entries.
+- **The no-denominator rule is what makes this safe, not the audience.** A
+  binder was friends-only on the reasoning that opening it makes a table of who
+  has more. What actually prevents that is having no total, ratio or completion
+  figure to rank on. Anything that adds a count reopens the question.
+- **Copy is re-voiced, not duplicated.** `src/lib/voice.ts` rewrites generated
+  second-person sentences at the edge rather than threading a pronoun pair
+  through every template. The static tables — tiers, stocks, accent and aura
+  axes — are re-voiced by key in `loadBinder`. Any new binder copy has to go
+  through one of those two paths or it will address the reader as though the
+  binder were theirs.
+- The surface brief at `.impeccable/surfaces/src-app-binder-page-tsx.md`
+  predates all of this: it assumes a private "one pinned plate on a profile"
+  model and names a `users.pinned_plate` column and `PinnedPlate.tsx`, neither
+  of which exists.
+
+**Tier is earned now; the floor is history only.** `tierStanding` runs on a
+`libraryDepth` sum whose lines are named and weighted in the open — films,
+seasons, whole series, series finished season by season, rewatches — with caps,
+and the arithmetic is kept intact so the number can be shown as a sum rather
+than asserted. A series rated whole *and* season by season is paid once, not
+two or three times.
+
+- **Rank can fall.** Deleting entries, hiding private ones, or a re-fit of the
+  thresholds all move it down. That is the deliberate trade for a rank that
+  describes the shelf in front of you rather than the shelf you once had.
+- `users.tier_floor` records the high-water mark, but **only as history**: the
+  binder reads it so a finish somebody genuinely passed through keeps reading as
+  held. It never props up the tier in force. The `0018_tier_floor` migration
+  comment says the effective tier is the greater of the two; the shipped code
+  does not do that, and the code is the truth.
+- **Open:** the six milestones are displayed as progress toward each rung, but
+  the tier is issued by depth alone — nothing about "any three of six" gates it.
+  Whether the milestones should genuinely gate is undecided, and answering yes
+  is a change to the depth ladder, not to the copy.
+
+**A correction is neither a rewatch nor nothing.** Editing an entry used to
+overwrite the rating in place and destroy the earlier opinion, while the season
+list avoided that by writing a second diary row — which made a correction read
+as another viewing. A viewing now stays one viewing, and every rating it carried
+before this one is kept in `entry_rating_history`. Rows hold the rating being
+*replaced*, so the entry's own column is always the current one and the full
+progression is those rows plus it.
+
 **Terminology:** *entry* (one viewing), *current rating* (the derived one),
 *tenths* (the storage unit), *pair* / `pairKey`, *tier*, *trait*, *archetype*,
-*variant*. For television: *series* or *show* (the whole thing), *season* (the
+*variant*. For the card and the binder: *signature* (the quartet, never
+"signature films" — the old name and the old algorithm went together), *finish*
+and *plate* (what the binder deals and prints), *standing* (holding a plate),
+*library depth* (the sum tiers are issued on), *tier floor* (the high-water
+mark, history only), *preference profile* (the one shared reading), *semantic
+dimension* (a strength, not a membership), and *exposure* versus *preference*
+(what was watched versus what was loved, measured on one ruler). For television: *series* or *show* (the whole thing), *season* (the
 unit of opinion), *whole-series rating*, *credited seasons*, and the three
 states *finished* / *caught up* / *unfinished*. Prefer *title* over *film* where
 a statement covers both media. Ratings display as one decimal, always (`8.0`,
@@ -221,6 +329,12 @@ everything films.
 - Television is not a separate media type in the data model, and anime is not a
   separate media type from television. Neither may be given a parallel product
   surface.
+- Anything naming what somebody likes reads `preference-profile.ts`. A feature
+  that extracts its own themes reintroduces the disagreement that file exists to
+  end.
+- No denominator, completion figure, or total may be rendered in the binder.
+- A rating already destroyed cannot be recovered, so an edit path that overwrites
+  without writing `entry_rating_history` is a data-loss bug, not a shortcut.
 
 **Explicit non-goals, still binding:** no AI chatbot, no LLM-generated reviews
 or blurbs, no streaming availability, no watch-party/sync, no compatibility
@@ -267,6 +381,11 @@ nothing to remove later if that stays true.
 - Verified in testing (author's own, not third-party): two full imports of the
   same `diary.csv` added zero duplicate rows; two consecutive recommendation
   requests returned zero overlapping titles.
+- A unit suite runs under Vitest (`npm test`): 37 tests across
+  `src/lib/signature.test.ts` and `src/lib/taste-card.test.ts`, covering the
+  quartet selection and the tier ladder. Real and citable as engineering
+  evidence; it is not coverage of the product as a whole and must not be
+  described as such.
 - The seeded crowd is **synthetic** — accounts generated to exercise the
   catalogue, including television-led ones. It is a development fixture and must
   never be cited or displayed as evidence of real usage.

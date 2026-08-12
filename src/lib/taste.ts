@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import type { LibraryFilm } from "@/lib/library";
-import { decadeLabel, formatTenths } from "@/lib/format";
+import { decadeLabel } from "@/lib/format";
 import { CLUSTERS, CLUSTER_PREVALENCE } from "@/lib/archetype-clusters";
 import { pickSignatureTitles } from "@/lib/signature";
 import { stabilise } from "@/lib/signature-stability";
@@ -333,13 +333,25 @@ export async function getBestMatchAndRival(
   });
 
   scored.sort((a, b) => b.pct - a.pct);
-  const best = { ...scored[0], color: "#8faecc" };
+  /**
+   * White, not a blue and a red.
+   *
+   * These print on twelve card stocks that run the whole hue circle, so a fixed
+   * blue went complementary on the warm ones and the red disappeared into the
+   * maroon. White at alpha takes the ground's own hue and cannot do either.
+   *
+   * The pair also stopped being scored good-and-bad. A friend whose taste sits
+   * far from yours is a different reader, not a warning, and printing their
+   * number in the same colour the product uses for errors reads as a verdict on
+   * them. The labels already say which is which; weight separates them now.
+   */
+  const best = { ...scored[0], color: "#eceae6" };
 
   // Shown whenever there is somebody else to name. The only case still held
   // back is a single friend, where the closest and the furthest would be the
   // same person and the card would print them twice.
   const last = scored[scored.length - 1];
-  const rival = scored.length >= 2 ? { ...last, color: "#c4756a" } : null;
+  const rival = scored.length >= 2 ? { ...last, color: "rgba(236,234,230,.78)" } : null;
 
   return { bestMatch: best, rival: rival ?? best };
 }
@@ -838,10 +850,18 @@ export async function buildHomeTasteCard(
     decadeBreakdown,
     ratings: ratedFilms.map((f) => f.rating),
     mix,
+    /**
+     * No average here.
+     *
+     * The card itself prints the career average at its own size, and the card
+     * and this row are read side by side in the dialog — the same 6.4 twice,
+     * once as the figure the card is built around and once as a tile of equal
+     * weight to "0% rewatch". Dropping it also lets the row sit five across
+     * instead of wrapping a single tile onto a second line.
+     */
     profStats: [
       { label: "Films", value: String(mix.films) },
       ...(mix.shows > 0 ? [{ label: "Shows", value: String(mix.shows) }] : []),
-      { label: "Avg", value: taste.mean !== null ? formatTenths(taste.mean) : "-" },
       { label: "Rewatch", value: `${rewatchPct}%` },
       { label: "Reviews", value: String(signals.reviewCount) },
       { label: "Decades", value: String(signals.distinctDecades) },

@@ -577,8 +577,8 @@ export default function BinderShowcase({
             Tiers
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-ash">
-            Six finishes, in order. Each one is issued at a count of what you have watched, so every tier
-            below the current one was genuinely passed through.
+            Six finishes, in order. Each one is issued at a count of what {person ? "they have" : "you have"}{" "}
+            watched, so every tier below the current one was genuinely passed through.
           </p>
         </div>
 
@@ -636,18 +636,20 @@ export default function BinderShowcase({
             {binder.variants.length} stocks: the ground the card is printed on.
           </p>
           <p className="mt-2.5 text-sm leading-relaxed text-ash">
-            A stock reads what your films keep returning to, weighed against how common that
-            theme is rather than how much of your shelf it happens to fill.
+            A stock reads what {person ? "their" : "your"} films keep returning to, weighed against
+            how common that theme is rather than how much of {person ? "their" : "your"} shelf it
+            happens to fill.
           </p>
           <p className="mt-2.5 text-sm leading-relaxed text-ash">
             Recent watching counts for more. Nothing is ever dropped and there is no cut-off
             date: a viewing simply counts half as much once it is two years old, and half again
-            two years after that. So the stock follows your taste rather than the calendar, and
-            a shelf you built years ago cannot lock it in place.
+            two years after that. So the stock follows {person ? "their" : "your"} taste rather than
+            the calendar, and a shelf {person ? "they" : "you"} built years ago cannot lock it in
+            place.
           </p>
           <p className="mt-2.5 text-sm leading-relaxed text-ash">
-            Nothing here is chosen. Every stock you have earned stays yours, whichever one the
-            card happens to be wearing.
+            Nothing here is chosen. Every stock {person ? "they have" : "you have"} earned stays{" "}
+            {person ? "theirs" : "yours"}, whichever one the card happens to be wearing.
           </p>
         </div>
 
@@ -718,7 +720,7 @@ export default function BinderShowcase({
                     </span>
                     {yours && (
                       <span className="display shrink-0 text-2xs uppercase tracking-[0.12em] text-gold">
-                        Yours
+                        {person ? "Theirs" : "Yours"}
                       </span>
                     )}
                   </li>

@@ -5,6 +5,36 @@ import Link from "next/link";
 
 import { formatTenths, ratingColor } from "@/lib/format";
 import Avatar from "./Avatar";
+import Sheet from "./Sheet";
+
+/** The date they say they watched it, in the diary's own words. */
+function watchedLabel(watchedOn: string | null): string | null {
+  if (!watchedOn) return null;
+  const [y, m, d] = watchedOn.split("-").map(Number);
+  const when = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((today.getTime() - when.getTime()) / 86400000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return when.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: when.getFullYear() === today.getFullYear() ? undefined : "numeric",
+  });
+}
+
+/**
+ * "season 4" → "Season 4", "the whole series" → "Whole series".
+ *
+ * The article belongs to the sentence these were written for ("their rating of
+ * *the whole series*"), not to a row label standing on its own.
+ */
+function longPart(part: string | null): string | null {
+  if (!part) return null;
+  const bare = part.replace(/^the /, "");
+  return bare.charAt(0).toUpperCase() + bare.slice(1);
+}
 
 export type ChipRating = {
   id: string;
@@ -117,6 +147,36 @@ function byPerson(items: ChipRating[]): Person[] {
 }
 
 /**
+ * What they rated, named at the grain the page is about.
+ *
+ * Counting runs alone would call "seasons one and two, plus the whole series"
+ * three seasons. Rating a series whole is a different act from rating its
+ * parts — PRODUCT.md keeps them apart everywhere else for the same reason — so
+ * the summary names them separately rather than adding them up.
+ */
+function ratedSummary(runs: Run[]): string {
+  const seasons = runs.filter((r) => (r.partSort ?? -1) > 0).length;
+  const specials = runs.some((r) => r.partSort === 0);
+  const whole = runs.some((r) => r.partSort !== null && r.partSort < 0);
+  const viewings = runs.reduce((n, r) => n + r.ratings.length, 0);
+  const again = viewings > runs.length ? `, across ${viewings} viewings` : "";
+
+  const named: string[] = [];
+  if (seasons) named.push(`${seasons} ${seasons === 1 ? "season" : "seasons"}`);
+  if (specials) named.push("the specials");
+  if (whole) named.push("the whole series");
+
+  // A film has no parts to name, so the only thing to count is the viewings.
+  if (!named.length) return viewings > 1 ? `Rated ${viewings} times.` : "Rated once.";
+
+  const list =
+    named.length === 1
+      ? named[0]
+      : `${named.slice(0, -1).join(", ")} and ${named[named.length - 1]}`;
+  return `Rated ${list}${again}.`;
+}
+
+/**
  * "season 4" is prose, and eight of them inside one chip is a paragraph. The
  * numbered seasons compress to a tick; the two that appear at most once each
  * keep their word.
@@ -135,25 +195,50 @@ function shortPart(part: string | null, sort: number | null): string | null {
  * hundred chips is the same wall of page the rows were. The whole set is
  * already on the client, so opening it is a state change, not a request.
  */
+/**
+ * The pure grouping and naming, for tests.
+ *
+ * Whole-series ratings are the case with no coverage in seeded data — every
+ * demo account rates season by season — so the one path a reader is least
+ * likely to see by accident is the one worth pinning down here.
+ */
+export const __testables = { byPerson, ratedSummary, longPart, shortPart };
+
 export default function RatingChips({
   items,
+  title,
   initial = 18,
 }: {
   items: ChipRating[];
+  /** the thing being rated, named in the sheet so the scores have a subject */
+  title?: string;
   initial?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
+  /**
+   * Which person's scores are open.
+   *
+   * The chip used to be a link to their profile, which answered a question
+   * nobody asked here: the reason to click "s1 9.0 … 20 seasons" is to see the
+   * eighteen it folded away, not to go and read someone's library. Every run is
+   * already on the client, so opening them is a state change rather than a
+   * request, and the profile is still one click further in.
+   */
+  const [openFor, setOpenFor] = useState<string | null>(null);
   const people = byPerson(items);
   const shown = expanded ? people : people.slice(0, initial);
   const hidden = people.length - shown.length;
+  const active = people.find((p) => p.username === openFor) ?? null;
 
   return (
     <div className="flex flex-wrap gap-1.5">
       {shown.map((person) => (
-        <Link
+        <button
           key={person.username}
-          href={`/${person.username}`}
-          className="inline-flex min-h-[26px] flex-wrap items-center gap-x-1.5 gap-y-1 rounded-full border border-seam bg-tray py-[3px] pl-[3px] pr-[9px] transition-colors hover:border-edge hover:bg-tray-2"
+          type="button"
+          onClick={() => setOpenFor(person.username)}
+          aria-haspopup="dialog"
+          className="inline-flex min-h-[26px] flex-wrap items-center gap-x-1.5 gap-y-1 rounded-full border border-seam bg-tray py-[3px] pl-[3px] pr-[9px] text-left transition-colors hover:border-edge hover:bg-tray-2"
         >
           <Avatar
             avatarUrl={person.avatarUrl}
@@ -219,7 +304,7 @@ export default function RatingChips({
               {person.runs.length} {person.allSeasons ? "seasons" : "rated"}
             </span>
           )}
-        </Link>
+        </button>
       ))}
       {hidden > 0 && (
         <button
@@ -238,6 +323,69 @@ export default function RatingChips({
         >
           Show fewer
         </button>
+      )}
+
+      {active && (
+        <Sheet
+          open={openFor !== null}
+          onClose={() => setOpenFor(null)}
+          title={active.displayName ?? active.username}
+          subtitle={
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <Avatar
+                  avatarUrl={active.avatarUrl}
+                  name={active.displayName ?? active.username}
+                  size={32}
+                />
+                <div className="min-w-0">
+                  <div className="num truncate text-[12px] text-ash">@{active.username}</div>
+                  {title && <div className="truncate text-[13px] text-paper">{title}</div>}
+                </div>
+              </div>
+              <Link
+                href={`/${active.username}`}
+                className="shrink-0 text-[12px] text-beam underline underline-offset-4 hover:text-paper"
+              >
+                Profile
+              </Link>
+            </div>
+          }
+        >
+          {/* Every run, in full. The chip prints the ends of a long list because
+              it has one line to do it in; the point of opening this is to see
+              the middle. */}
+          <ul className="mt-4">
+            {active.runs.map((run) => (
+              <li
+                key={run.key}
+                className="flex items-baseline justify-between gap-4 border-b border-seam py-2.5 last:border-b-0"
+              >
+                <span className="min-w-0 flex-1 truncate text-[13px] text-paper">
+                  {longPart(run.part) ?? "Rated"}
+                </span>
+                <span className="flex flex-wrap items-baseline justify-end gap-x-2.5 gap-y-1">
+                  {run.ratings.map((score, i) => (
+                    <span key={i} className="inline-flex items-baseline gap-1.5">
+                      {/* A rewatch is the same title rated again, so the date is
+                          what tells the two numbers apart. */}
+                      {run.ratings.length > 1 && watchedLabel(score.watchedOn) && (
+                        <span className="text-[11px] text-dim">
+                          {watchedLabel(score.watchedOn)}
+                        </span>
+                      )}
+                      <span className={`num text-[15px] ${ratingColor(score.rating)}`}>
+                        {formatTenths(score.rating)}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <p className="mt-4 text-[12px] leading-relaxed text-ash">{ratedSummary(active.runs)}</p>
+        </Sheet>
       )}
     </div>
   );

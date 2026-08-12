@@ -96,6 +96,42 @@ body {
   letter-spacing: -0.02em;
 }
 
+/**
+ * A 1px rim painted with the tier's own material, from `--tier-rim`.
+ *
+ * `border` cannot take a gradient, and `border-image` can but ignores
+ * `border-radius`, which would square off every corner it touches. So the rim
+ * is a masked pseudo-element: the material fills the box and everything but
+ * the outer 1px is masked away. Radius survives, and so does a translucent
+ * fill — which the usual padding-box/border-box background trick cannot do,
+ * because that one needs an opaque inner colour and these boxes sit on a card
+ * stock that changes with the variant.
+ *
+ * `background` rather than `background-image` on purpose: the flat tiers hand
+ * over a plain hex, which is not a valid image.
+ */
+.tier-rim {
+  position: relative;
+}
+
+.tier-rim::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--tier-rim, #232329);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
 /* No scrollbars, anywhere.
  *
  * Every scrolling surface here is one somebody is already inside: a page, a
