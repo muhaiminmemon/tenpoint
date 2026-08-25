@@ -12,11 +12,26 @@ export function useProgressiveList<T>(items: T[], step = 30, memoryKey?: string)
   const [count, setCount] = useState(step);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  // a new filter/sort/saved-view produces a new array; start over from the top
+  /**
+   * Start over from the top when the *question* changes, not whenever the array
+   * does.
+   *
+   * A new filter, sort or slice is a different list and deserves a fresh slice,
+   * and all three live in the URL, so the memory key already names them. Array
+   * identity does not: re-fetching the same list — which is what a refresh after
+   * an edit is — also produces a new array, and collapsing six hundred rendered
+   * rows back to thirty shrinks the document under a reader who has not moved,
+   * throwing their scroll position hundreds of pixels. Callers with no memory
+   * key keep the old behaviour, having named nothing better.
+   */
+  const [prevKey, setPrevKey] = useState(memoryKey);
   const [prevItems, setPrevItems] = useState(items);
-  if (items !== prevItems) {
+  if (memoryKey === undefined ? items !== prevItems : memoryKey !== prevKey) {
+    setPrevKey(memoryKey);
     setPrevItems(items);
     setCount(step);
+  } else if (items !== prevItems) {
+    setPrevItems(items);
   }
 
   /**

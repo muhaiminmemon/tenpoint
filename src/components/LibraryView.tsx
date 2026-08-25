@@ -5,7 +5,7 @@ import { useUrlState, useUrlText } from "@/lib/useUrlState";
 import SeriesSheet, { seriesStanding } from "./SeriesSheet";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CaretRight, DotsThree, DotsThreeVertical, Plus } from "@phosphor-icons/react/ssr";
+import { CaretRight, DotsSixVertical, DotsThree, DotsThreeVertical, Plus } from "@phosphor-icons/react/ssr";
 import {
   DndContext,
   closestCenter,
@@ -18,6 +18,7 @@ import {
 import {
   SortableContext,
   arrayMove,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
@@ -27,7 +28,7 @@ import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import { useProgressiveList } from "@/lib/useProgressiveList";
 import type { LibraryFilm } from "@/lib/library";
-import { ratingFromNeighbours } from "@/lib/placement";
+import { ratingFromNeighbours, WINDOW } from "@/lib/placement";
 import PlaceSheet, { type PlacePayload } from "./PlaceSheet";
 import { useToast } from "./Toast";
 
@@ -292,6 +293,63 @@ export default function LibraryView({ films, editable }: Props) {
     below.map((f) => f.rating!),
   );
 
+  /**
+   * Dragging a film to a new place on the shelf, and its rating with it.
+   *
+   * The number is worked out here and shown immediately, before the request
+   * lands, because the point of the gesture is to reorder a shelf of hundreds
+   * without stopping. The server works the same rating out again from its own
+   * read and is the one that decides; if it disagrees or fails, the shelf goes
+   * back to how it was and says so.
+   */
+  async function moveOnShelf(activeId: string, overId: string) {
+    const rated = items.filter((f) => f.rating !== null);
+    const from = rated.findIndex((f) => f.filmId === activeId);
+    const to = rated.findIndex((f) => f.filmId === overId);
+    if (from < 0 || to < 0 || from === to) return;
+
+    const moved = arrayMove(rated, from, to);
+    const at = moved.findIndex((f) => f.filmId === activeId);
+    // the ranking as it reads with the dragged film taken out, so it is never
+    // counted as one of its own neighbours
+    const rest = moved.filter((f) => f.filmId !== activeId);
+    const above = rest.slice(Math.max(0, at - WINDOW), at).reverse();
+    const below = rest.slice(at, at + WINDOW);
+    const rating = ratingFromNeighbours(
+      above.map((f) => f.rating!),
+      below.map((f) => f.rating!),
+    );
+    if (rating === null) return;
+
+    const before = items;
+    setItems([
+      ...moved.map((f) => (f.filmId === activeId ? { ...f, rating } : f)),
+      ...items.filter((f) => f.rating === null),
+    ]);
+
+    try {
+      const res = await fetch("/api/library/rerank", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filmId: activeId,
+          afterFilmId: above[0]?.filmId ?? null,
+          beforeFilmId: below[0]?.filmId ?? null,
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        setItems(before);
+        toast({ message: data?.error ?? "That move didn't save.", tone: "warn" });
+        return;
+      }
+      router.refresh();
+    } catch {
+      setItems(before);
+      toast({ message: "Couldn't reach the server. That move didn't save.", tone: "warn" });
+    }
+  }
+
   async function logIntoGap(payload: PlacePayload) {
     setBusy(true);
     setGapError(null);
@@ -440,7 +498,7 @@ export default function LibraryView({ films, editable }: Props) {
               <FlatLedger films={shown} showRank={sort === "rating"} />
             )
           ) : (
-            <Shelf films={shown} />
+            <Shelf films={shown} sortable={dragEnabled} onMove={moveOnShelf} />
           )}
           </MatchQuery.Provider>
           </OpenSeries.Provider>
@@ -702,16 +760,86 @@ function LedgerRow({
   );
 }
 
-function Shelf({ films }: { films: LibraryFilm[] }) {
+function ShelfCell({
+  film,
+  index,
+  sortable,
+}: {
+  film: LibraryFilm;
+  index: number;
+  sortable: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: film.filmId,
+    // an unrated row has no place in the ranking, so there is nothing for a
+    // drop to read a rating from
+    disabled: !sortable || film.rating === null,
+  });
+  const draggable = sortable && film.rating !== null;
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`relative ${isDragging ? "z-30 opacity-80" : ""}`}
+    >
+      {film.rating !== null && <Gap index={index} variant="tile" />}
+      {draggable && (
+        <button
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          aria-label={`Reorder ${film.title}`}
+          className="absolute right-0 top-0 z-20 flex size-9 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
+        >
+          {/*
+            A corner wash, not a shadow. The system has no shadow vocabulary and
+            on a near-black ground one reads as blur; a gradient scrim is how
+            this shelf already makes a control legible over artwork, which is
+            the same problem the season count solves at the other corner.
+          */}
+          <span
+            aria-hidden
+            className="absolute inset-0 rounded-tr-card bg-gradient-to-bl from-[rgba(14,14,16,.92)] via-[rgba(14,14,16,.45)] to-transparent"
+          />
+          <DotsSixVertical aria-hidden weight="bold" className="relative size-4 text-paper" />
+        </button>
+      )}
+      <ShelfTile film={film} />
+    </li>
+  );
+}
+
+function Shelf({
+  films,
+  sortable,
+  onMove,
+}: {
+  films: LibraryFilm[];
+  /** dragging only means something in the canonical ranking, same as the gaps */
+  sortable: boolean;
+  onMove: (activeId: string, overId: string) => void;
+}) {
   const openGap = useContext(OpenGap);
   const rated = films.filter((f) => f.rating !== null).length;
-  return (
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const grid = (
     <ul className="fade-up grid grid-cols-3 gap-x-7 gap-y-5 px-7 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
       {films.map((film, i) => (
-        <li key={film.filmId} className="relative">
-          {film.rating !== null && <Gap index={i} variant="tile" />}
-          <ShelfTile film={film} />
-        </li>
+        <ShelfCell key={film.filmId} film={film} index={i} sortable={sortable} />
       ))}
       {openGap && rated > 0 && (
         <li>
@@ -730,6 +858,22 @@ function Shelf({ films }: { films: LibraryFilm[] }) {
         </li>
       )}
     </ul>
+  );
+
+  if (!sortable) return grid;
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={({ active, over }) => {
+        if (over && active.id !== over.id) onMove(String(active.id), String(over.id));
+      }}
+    >
+      <SortableContext items={films.map((f) => f.filmId)} strategy={rectSortingStrategy}>
+        {grid}
+      </SortableContext>
+    </DndContext>
   );
 }
 

@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { diaryEntries, entryRatingHistory } from "@/db/schema";
+import { diaryEntries } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
+import { updateEntry } from "@/lib/entries";
 import { revalidateAfterEntryChange } from "@/lib/revalidate";
 import { syncUserTier } from "@/lib/taste";
 
@@ -27,50 +28,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return NextResponse.json({ error: "Nothing to change." }, { status: 400 });
   }
 
-  const existing = (
-    await db
-      .select({ rating: diaryEntries.rating })
-      .from(diaryEntries)
-      .where(and(eq(diaryEntries.id, id), eq(diaryEntries.userId, user.id)))
-      .limit(1)
-  )[0];
-  if (!existing) return NextResponse.json({ error: "Entry not found." }, { status: 404 });
+  const result = await updateEntry(user.id, user.username, id, parsed.data);
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
 
-  /**
-   * Changing your mind is kept, not overwritten.
-   *
-   * This used to `set` the new rating straight over the old one, which is the
-   * one thing this diary promises never to do: a 7.8 that became an 8.4 left
-   * nothing behind saying it had ever been a 7.8. Recording the superseded
-   * value keeps the progression without inventing a viewing that never
-   * happened, which is the other way this could have gone and the way the
-   * season list was already going.
-   *
-   * Both writes or neither. A history row for an update that failed would
-   * claim an opinion moved when it did not.
-   */
-  const supersedes =
-    parsed.data.rating !== undefined &&
-    parsed.data.rating !== existing.rating &&
-    existing.rating !== null
-      ? existing.rating
-      : null;
-
-  const updated = await db.transaction(async (tx) => {
-    if (supersedes !== null) {
-      await tx.insert(entryRatingHistory).values({ entryId: id, rating: supersedes });
-    }
-    return tx
-      .update(diaryEntries)
-      .set(parsed.data)
-      .where(and(eq(diaryEntries.id, id), eq(diaryEntries.userId, user.id)))
-      .returning();
-  });
-  if (!updated[0]) return NextResponse.json({ error: "Entry not found." }, { status: 404 });
-
-  await syncUserTier(user.id);
-  revalidateAfterEntryChange(user.username);
-  return NextResponse.json({ entry: updated[0] });
+  return NextResponse.json({ entry: result.entry });
 }
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {

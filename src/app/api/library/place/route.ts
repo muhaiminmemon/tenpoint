@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/db";
-import { libraryOrder } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { createEntry } from "@/lib/entries";
 import { ensureFilm } from "@/lib/films";
 import { getRankedLibrary } from "@/lib/library";
-import { needsRenumber, ratingFromNeighbours, sortKeyBetween } from "@/lib/placement";
+import { keepTheSpot } from "@/lib/library-order";
+import { ratingFromNeighbours } from "@/lib/placement";
 import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 import { ensureShow, showRow } from "@/lib/shows";
 import { movieDetails } from "@/lib/tmdb";
@@ -80,59 +79,9 @@ export async function POST(req: Request) {
   const result = await createEntry({ ...entry, userId: user.id, username: user.username, filmId, rating });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
 
-  if (rating !== null) await keepTheSpot(user.id, filmId, rating, above[0] ?? null, below[0] ?? null);
-
-  return NextResponse.json({ entry: result.entry, rating });
-}
-
-type Edge = { filmId: string; rating: number | null; sortKey: number } | null;
-
-/**
- * Keeps the row where the gap was, when the rating alone would not.
- *
- * A rating nobody else holds sorts itself and needs nothing written. A rating
- * shared with a neighbour does: without a key, a film dropped between two tens
- * lands wherever the alphabet puts it, which is not where it was dropped.
- */
-async function keepTheSpot(
-  userId: string,
-  filmId: string,
-  rating: number,
-  above: Edge,
-  below: Edge,
-) {
-  const aboveKey = above && above.rating === rating ? above.sortKey : null;
-  const belowKey = below && below.rating === rating ? below.sortKey : null;
-  if (aboveKey === null && belowKey === null) return;
-
-  let sortKey = sortKeyBetween(aboveKey, belowKey);
-
-  if (needsRenumber(aboveKey, belowKey)) {
-    // Number the band as it stands, once; every insert after this is one write.
-    const band = await getRankedLibrary(userId).then((rows) =>
-      rows.filter((f) => f.rating === rating),
-    );
-    await db.transaction(async (tx) => {
-      for (const [i, f] of band.entries()) {
-        const key = (i + 1) * 100;
-        await tx
-          .insert(libraryOrder)
-          .values({ userId, filmId: f.filmId, sortKey: key })
-          .onConflictDoUpdate({
-            target: [libraryOrder.userId, libraryOrder.filmId],
-            set: { sortKey: key },
-          });
-      }
-    });
-    const seat = band.findIndex((f) => f.filmId === below?.filmId);
-    sortKey = seat === -1 ? (band.length + 1) * 100 : seat * 100 + 50;
+  if (rating !== null) {
+    await keepTheSpot(user.id, filmId, rating, above[0] ?? null, below[0] ?? null, rated);
   }
 
-  await db
-    .insert(libraryOrder)
-    .values({ userId, filmId, sortKey })
-    .onConflictDoUpdate({
-      target: [libraryOrder.userId, libraryOrder.filmId],
-      set: { sortKey },
-    });
+  return NextResponse.json({ entry: result.entry, rating });
 }

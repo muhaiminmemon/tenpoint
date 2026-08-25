@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { diaryEntries, films } from "@/db/schema";
+import { diaryEntries, entryRatingHistory, films } from "@/db/schema";
 import { isUnreleased } from "./films";
 import { revalidateAfterEntryChange } from "./revalidate";
 import { syncUserTier } from "./taste";
@@ -69,4 +69,61 @@ export async function createEntry(input: NewEntry): Promise<EntryResult> {
   await syncUserTier(input.userId);
   revalidateAfterEntryChange(input.username);
   return { ok: true, entry: created[0] };
+}
+
+export type EntryChanges = {
+  watchedOn?: string | null;
+  rating?: number | null;
+  review?: string | null;
+  spoiler?: boolean;
+  private?: boolean;
+  rewatch?: boolean;
+};
+
+/**
+ * Changes a viewing, keeping any opinion it is replacing.
+ *
+ * Shared by every path that can move a rating — the edit sheet and dragging a
+ * film to a new place on the shelf — because the rule it enforces is the one
+ * this diary is least able to afford getting wrong. Overwriting a 7.8 with an
+ * 8.4 and leaving nothing behind saying it was ever a 7.8 is data loss, not a
+ * shortcut, so the superseded value is recorded first and both writes land
+ * together or neither does. A second copy of this logic is a second place to
+ * forget it.
+ */
+export async function updateEntry(
+  userId: string,
+  username: string,
+  entryId: string,
+  changes: EntryChanges,
+): Promise<EntryResult> {
+  const existing = (
+    await db
+      .select({ rating: diaryEntries.rating })
+      .from(diaryEntries)
+      .where(and(eq(diaryEntries.id, entryId), eq(diaryEntries.userId, userId)))
+      .limit(1)
+  )[0];
+  if (!existing) return { ok: false, status: 404, error: "Entry not found." };
+
+  const supersedes =
+    changes.rating !== undefined && changes.rating !== existing.rating && existing.rating !== null
+      ? existing.rating
+      : null;
+
+  const updated = await db.transaction(async (tx) => {
+    if (supersedes !== null) {
+      await tx.insert(entryRatingHistory).values({ entryId, rating: supersedes });
+    }
+    return tx
+      .update(diaryEntries)
+      .set(changes)
+      .where(and(eq(diaryEntries.id, entryId), eq(diaryEntries.userId, userId)))
+      .returning();
+  });
+  if (!updated[0]) return { ok: false, status: 404, error: "Entry not found." };
+
+  await syncUserTier(userId);
+  revalidateAfterEntryChange(username);
+  return { ok: true, entry: updated[0] };
 }
