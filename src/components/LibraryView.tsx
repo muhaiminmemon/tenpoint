@@ -13,7 +13,6 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -277,9 +276,6 @@ export default function LibraryView({ films, editable }: Props) {
     return out;
   }, [items, filter, saved, sort]);
 
-  // manual tie-reorder only makes sense in the default ranking with nothing hidden
-  const dragEnabled = editable && sort === "rating" && !filter && saved === "all";
-
   /**
    * Placing and re-ranking work under any slice or search, but only in the
    * ranking itself.
@@ -337,7 +333,7 @@ export default function LibraryView({ films, editable }: Props) {
     : null;
 
   /**
-   * Dragging a film to a new place on the shelf, and its rating with it.
+   * Dragging a film to a new place in the ranking, and its rating with it.
    *
    * The number is worked out here and shown immediately, before the request
    * lands, because the point of the gesture is to reorder a shelf of hundreds
@@ -345,7 +341,7 @@ export default function LibraryView({ films, editable }: Props) {
    * read and is the one that decides; if it disagrees or fails, the shelf goes
    * back to how it was and says so.
    */
-  async function moveOnShelf(activeId: string, overId: string) {
+  async function moveInRanking(activeId: string, overId: string) {
     const from = rated.findIndex((f) => f.filmId === activeId);
     const to = rated.findIndex((f) => f.filmId === overId);
     if (from < 0 || to < 0 || from === to) return;
@@ -551,13 +547,13 @@ export default function LibraryView({ films, editable }: Props) {
           <OpenSeries.Provider value={setOpenShowId}>
           <MatchQuery.Provider value={filter.trim().toLowerCase()}>
           {view === "ledger" ? (
-            dragEnabled ? (
-              <RankedLedger films={shown} onReorder={setItems} all={items} />
+            rankable ? (
+              <RankedLedger films={shown} sortable onMove={moveInRanking} />
             ) : (
               <FlatLedger films={shown} showRank={sort === "rating"} />
             )
           ) : (
-            <Shelf films={shown} sortable={rankable} onMove={moveOnShelf} />
+            <Shelf films={shown} sortable={rankable} onMove={moveInRanking} />
           )}
           </MatchQuery.Provider>
           </OpenSeries.Provider>
@@ -610,88 +606,40 @@ export default function LibraryView({ films, editable }: Props) {
 }
 
 /** Default ranking view: tie groups are drag-reorderable. */
+/**
+ * The ranking, draggable end to end.
+ *
+ * One sortable list rather than one per tie group, which is what this was: a
+ * group-at-a-time context could only ever shuffle titles that already shared a
+ * rating, so a film could not be moved to a different one. Dragging across the
+ * whole ranking is the point — the rating follows the position, exactly as it
+ * does on the shelf, and both call the same handler.
+ */
 function RankedLedger({
   films,
-  onReorder,
-  all,
+  sortable,
+  onMove,
 }: {
   films: LibraryFilm[];
-  onReorder: (items: LibraryFilm[]) => void;
-  all: LibraryFilm[];
+  sortable: boolean;
+  onMove: (activeId: string, overId: string) => void;
 }) {
   const rated = films.filter((f) => f.rating !== null);
   const unrated = films.filter((f) => f.rating === null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const groups = useMemo(() => {
-    const out: LibraryFilm[][] = [];
-    for (const f of rated) {
-      const last = out[out.length - 1];
-      if (last && last[0].rating === f.rating) last.push(f);
-      else out.push([f]);
-    }
-    return out;
-  }, [rated]);
-
-  async function handleDragEnd(event: DragEndEvent, group: LibraryFilm[]) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = group.findIndex((f) => f.filmId === active.id);
-    const newIndex = group.findIndex((f) => f.filmId === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-    const reordered = arrayMove(group, oldIndex, newIndex);
-
-    const next = [...all];
-    const start = next.findIndex((f) => f.filmId === group[0].filmId);
-    reordered.forEach((f, i) => (next[start + i] = f));
-    onReorder(next);
-
-    await fetch("/api/library/reorder", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderedFilmIds: reordered.map((f) => f.filmId) }),
-    });
-  }
-
-  let rank = 0;
-  return (
+  const rows = (
     <ol className="fade-up">
-      {groups.map((group) => {
-        const tie = group.length > 1;
-        const rows = group.map((film) => {
-          rank += 1;
-          return { film, rank };
-        });
-        // `rank` is 1-based over the rated run, so `rank - 1` is the index the
-        // row sits at and therefore the index a gap above it would insert into.
-        const content = rows.map(({ film, rank }) => (
-          <Fragment key={film.filmId}>
-            <Gap above={rated[rank - 2]?.filmId ?? null} below={film.filmId} variant="row" />
-            <LedgerRow film={film} rank={rank} draggable={tie} />
-          </Fragment>
-        ));
-        return tie ? (
-          <DndContext
-            key={group[0].filmId}
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={(e) => handleDragEnd(e, group)}
-          >
-            <SortableContext
-              items={group.map((f) => f.filmId)}
-              strategy={verticalListSortingStrategy}
-            >
-              {content}
-            </SortableContext>
-          </DndContext>
-        ) : (
-          content
-        );
-      })}
+      {rated.map((film, i) => (
+        <Fragment key={film.filmId}>
+          <Gap above={rated[i - 1]?.filmId ?? null} below={film.filmId} variant="row" />
+          <LedgerRow film={film} rank={i + 1} draggable={sortable} />
+        </Fragment>
+      ))}
       <Gap above={rated[rated.length - 1]?.filmId ?? null} below={null} variant="row" />
       {unrated.length > 0 && (
         <>
@@ -704,6 +652,22 @@ function RankedLedger({
         </>
       )}
     </ol>
+  );
+
+  if (!sortable) return rows;
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={({ active, over }) => {
+        if (over && active.id !== over.id) onMove(String(active.id), String(over.id));
+      }}
+    >
+      <SortableContext items={rated.map((f) => f.filmId)} strategy={verticalListSortingStrategy}>
+        {rows}
+      </SortableContext>
+    </DndContext>
   );
 }
 
@@ -743,7 +707,15 @@ function LedgerRow({
   rank: number | null;
   draggable: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: film.filmId,
     disabled: !draggable,
   });
@@ -820,10 +792,11 @@ function LedgerRow({
           type="button"
           {...attributes}
           {...listeners}
-          aria-label={`Reorder ${film.title} within its rating group`}
-          className="cursor-grab touch-none px-1 text-seam opacity-60 transition-opacity hover:text-ash focus-visible:opacity-100 active:cursor-grabbing sm:opacity-0 sm:group-hover:opacity-100"
+          ref={setActivatorNodeRef}
+          aria-label={`Reorder ${film.title}`}
+          className="flex cursor-grab touch-none items-center px-1 text-ash transition-colors hover:text-paper active:cursor-grabbing"
         >
-          ⠿
+          <DotsSixVertical aria-hidden weight="bold" className="size-4" />
         </button>
       )}
       <span className={`num w-12 shrink-0 text-right text-lg ${ratingColor(film.rating)}`}>
