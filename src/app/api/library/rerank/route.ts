@@ -5,16 +5,25 @@ import { db } from "@/db";
 import { diaryEntries } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
 import { updateEntry } from "@/lib/entries";
-import { getRankedLibrary } from "@/lib/library";
+import { getRankedLibrary, type LibraryFilm } from "@/lib/library";
 import { keepTheSpot } from "@/lib/library-order";
-import { ratingFromNeighbours } from "@/lib/placement";
+import { ratingFromNeighbours, WINDOW } from "@/lib/placement";
 import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 
 const schema = z.object({
   filmId: z.string().uuid(),
-  /** the two titles the film was dropped between, with itself already taken out */
-  afterFilmId: z.string().uuid().nullable(),
-  beforeFilmId: z.string().uuid().nullable(),
+  /**
+   * The titles that were actually either side of the drop, nearest first.
+   *
+   * Sent as ids rather than derived from an index, because the shelf may be
+   * filtered: under "Anime" the title above a drop can be fifty rows away in
+   * the full ranking, and reading the rating off whatever sits at that index
+   * unfiltered would answer a question nobody asked. What the person saw is
+   * what the number comes from. The ratings themselves are still looked up
+   * here — only the identities are taken on trust.
+   */
+  above: z.array(z.string().uuid()).max(WINDOW),
+  below: z.array(z.string().uuid()).max(WINDOW),
 });
 
 /**
@@ -28,10 +37,6 @@ const schema = z.object({
  * a rewritten opinion has to keep the one it replaced, so this goes through
  * `updateEntry` — the same path the edit sheet uses — instead of setting the
  * column. Silent to the person dragging; permanent in the record.
- *
- * The rating is read here off a fresh library rather than taken from the
- * client, so a page left open while things moved cannot file a film against
- * neighbours it no longer has.
  */
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -42,10 +47,16 @@ export async function POST(req: Request) {
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bad request." }, { status: 400 });
-  const { filmId, afterFilmId, beforeFilmId } = parsed.data;
+  const { filmId, above, below } = parsed.data;
 
-  if (filmId === afterFilmId || filmId === beforeFilmId) {
+  if (above.includes(filmId) || below.includes(filmId)) {
     return NextResponse.json({ error: "A film can't sit next to itself." }, { status: 400 });
+  }
+  if (above.length === 0 && below.length === 0) {
+    return NextResponse.json(
+      { error: "Nothing either side to read a rating from." },
+      { status: 409 },
+    );
   }
 
   const library = await getRankedLibrary(user.id);
@@ -53,35 +64,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "That isn't in your library." }, { status: 404 });
   }
 
-  /**
-   * The ranking as it will read once the film has left its old place.
-   *
-   * Taken out before the neighbours are counted, because a film dragged three
-   * places down the same band would otherwise be read as one of the two titles
-   * above its own destination.
-   */
-  const rest = library.filter((f) => f.rating !== null && f.filmId !== filmId);
-  const at = beforeFilmId
-    ? rest.findIndex((f) => f.filmId === beforeFilmId)
-    : afterFilmId
-      ? rest.findIndex((f) => f.filmId === afterFilmId) + 1
-      : -1;
+  const byId = new Map(library.map((f) => [f.filmId, f]));
+  const ratingsOf = (ids: string[]) =>
+    ids.map((id) => byId.get(id)).filter((f): f is LibraryFilm => !!f && f.rating !== null);
 
-  if (at === -1) {
+  const aboveRows = ratingsOf(above);
+  const belowRows = ratingsOf(below);
+  if (aboveRows.length !== above.length || belowRows.length !== below.length) {
     return NextResponse.json(
       { error: "Your library changed while that was open. Reload and try again." },
       { status: 409 },
     );
   }
 
-  const above = rest.slice(Math.max(0, at - 2), at).reverse();
-  const below = rest.slice(at, at + 2);
   const rating = ratingFromNeighbours(
-    above.map((f) => f.rating!),
-    below.map((f) => f.rating!),
+    aboveRows.map((f) => f.rating!),
+    belowRows.map((f) => f.rating!),
   );
   if (rating === null) {
-    return NextResponse.json({ error: "Nothing either side to read a rating from." }, { status: 409 });
+    return NextResponse.json(
+      { error: "Nothing either side to read a rating from." },
+      { status: 409 },
+    );
   }
 
   /**
@@ -111,7 +115,14 @@ export async function POST(req: Request) {
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  await keepTheSpot(user.id, filmId, rating, above[0] ?? null, below[0] ?? null, rest);
+  await keepTheSpot(
+    user.id,
+    filmId,
+    rating,
+    aboveRows[0] ?? null,
+    belowRows[0] ?? null,
+    library.filter((f) => f.rating !== null && f.filmId !== filmId),
+  );
 
   return NextResponse.json({ rating });
 }

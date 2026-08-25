@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Renders `items` in growing slices instead of mounting hundreds of poster
@@ -57,25 +57,53 @@ export function useProgressiveList<T>(items: T[], step = 30, memoryKey?: string)
     sessionStorage.setItem(`tenpoint:shown:${memoryKey}`, String(count));
   }, [memoryKey, count, step]);
 
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setCount((c) => Math.min(items.length, c + step));
-        }
-      },
-      { rootMargin: "800px" },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+  const grow = useCallback(() => {
+    setCount((c) => Math.min(items.length, c + step));
   }, [items.length, step]);
+
+  /**
+   * Pull in the next slice while the foot of the list is near the viewport.
+   *
+   * This was an IntersectionObserver, and it stopped the list dead at its first
+   * slice — "Showing 30 of 196" however far you scrolled. An observer reports
+   * *changes* in intersection, so a sentinel that loads a slice and then stays
+   * on screen never reports again.
+   *
+   * Measuring the sentinel on scroll has no such blind spot, and `count` is a
+   * dependency so each slice re-checks and the list keeps filling until the
+   * foot is genuinely out of reach. Throttled on a timer rather than a frame
+   * because animation frames stop entirely in a tab the browser considers idle,
+   * and a list that quietly refuses to grow is the bug this is fixing.
+   */
+  useEffect(() => {
+    if (count >= items.length) return;
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const check = () => {
+      pending = null;
+      const el = sentinelRef.current;
+      if (el && el.getBoundingClientRect().top - window.innerHeight < 800) grow();
+    };
+    const onScroll = () => {
+      if (!pending) pending = setTimeout(check, 100);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    // deferred, so the first measurement happens after this render has painted
+    // and never sets state during the effect itself
+    pending = setTimeout(check, 0);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (pending) clearTimeout(pending);
+    };
+  }, [items.length, step, count, grow]);
 
   return {
     visible: items.slice(0, count),
     hasMore: count < items.length,
     total: items.length,
     sentinelRef,
+    /** the explicit way through, for when scrolling alone hasn't got there */
+    showMore: grow,
   };
 }

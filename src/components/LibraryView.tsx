@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, Fragment, useContext, useMemo, useState } from "react";
+import { createContext, Fragment, useCallback, useContext, useMemo, useState } from "react";
 import { useUrlState, useUrlText } from "@/lib/useUrlState";
 import SeriesSheet, { seriesStanding } from "./SeriesSheet";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -144,10 +144,19 @@ const OpenSeries = createContext<((showId: string) => void) | null>(null);
  * position means nothing — a filtered shelf or any sort but the ranking — so
  * the affordance simply is not there rather than recording something else.
  */
-const OpenGap = createContext<((index: number) => void) | null>(null);
+const OpenGap = createContext<((above: string | null, below: string | null) => void) | null>(null);
 
 /** The gap between two titles in the ranking, and the way into it. */
-function Gap({ index, variant }: { index: number; variant: "row" | "tile" }) {
+function Gap({
+  above,
+  below,
+  variant,
+}: {
+  /** film ids of the titles this gap sits between; null at either end */
+  above: string | null;
+  below: string | null;
+  variant: "row" | "tile";
+}) {
   const open = useContext(OpenGap);
   if (!open) return null;
 
@@ -155,7 +164,7 @@ function Gap({ index, variant }: { index: number; variant: "row" | "tile" }) {
     return (
       <button
         type="button"
-        onClick={() => open(index)}
+        onClick={() => open(above, below)}
         aria-label="Log a film here"
         className="absolute inset-y-0 -left-7 z-10 flex w-7 items-center justify-center"
       >
@@ -168,7 +177,7 @@ function Gap({ index, variant }: { index: number; variant: "row" | "tile" }) {
     <li className="relative h-0">
       <button
         type="button"
-        onClick={() => open(index)}
+        onClick={() => open(above, below)}
         aria-label="Log a film here"
         className="absolute left-1/2 top-0 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center px-4 py-2"
       >
@@ -272,26 +281,60 @@ export default function LibraryView({ films, editable }: Props) {
   const dragEnabled = editable && sort === "rating" && !filter && saved === "all";
 
   /**
-   * Logging into a gap.
+   * Placing and re-ranking work under any slice or search, but only in the
+   * ranking itself.
    *
-   * Gated on the same predicate as dragging, because it is the same claim: a
-   * position only means something in the canonical ranking with nothing
-   * filtered out. Under a slice or another sort the titles around a gap are not
-   * the ones its rating would be read from.
+   * A filter hides rows without changing what the order means, so the titles
+   * either side of a drop are still ranked against each other and the rating
+   * read off them is still the answer to "better than these, worse than
+   * those" — it is simply asked of the shelf in front of you. A different
+   * sort is not the same: under "Title A–Z" a position says nothing about a
+   * rating, so a drop there would record a number nobody meant.
    */
-  const [gap, setGap] = useState<number | null>(null);
+  const rankable = editable && sort === "rating";
+
+  /** the gap being filled, named by the two titles it sits between */
+  const [gap, setGap] = useState<{ above: string | null; below: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [gapError, setGapError] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
-  const rated = useMemo(() => items.filter((f) => f.rating !== null), [items]);
-  const above = gap === null ? [] : rated.slice(Math.max(0, gap - 2), gap).reverse();
-  const below = gap === null ? [] : rated.slice(gap, gap + 2);
-  const suggested = ratingFromNeighbours(
-    above.map((f) => f.rating!),
-    below.map((f) => f.rating!),
+  /**
+   * The rated rows as the shelf currently reads, filter and all.
+   *
+   * Neighbours are taken from here rather than from the whole library, because
+   * a rating read off titles the person cannot see is not the one they meant.
+   * Under "Anime" the film above a gap is the anime above it, not whatever the
+   * unfiltered ranking happens to hold at that index.
+   */
+  const rated = useMemo(() => visible.filter((f) => f.rating !== null), [visible]);
+
+  /** the two titles either side of a point in that list, nearest first */
+  const neighboursAt = useCallback(
+    (aboveId: string | null, belowId: string | null, exclude?: string) => {
+      const list = exclude ? rated.filter((f) => f.filmId !== exclude) : rated;
+      const at = belowId
+        ? list.findIndex((f) => f.filmId === belowId)
+        : aboveId
+          ? list.findIndex((f) => f.filmId === aboveId) + 1
+          : -1;
+      if (at < 0) return null;
+      return {
+        above: list.slice(Math.max(0, at - WINDOW), at).reverse(),
+        below: list.slice(at, at + WINDOW),
+      };
+    },
+    [rated],
   );
+
+  const gapNear = gap ? neighboursAt(gap.above, gap.below) : null;
+  const suggested = gapNear
+    ? ratingFromNeighbours(
+        gapNear.above.map((f) => f.rating!),
+        gapNear.below.map((f) => f.rating!),
+      )
+    : null;
 
   /**
    * Dragging a film to a new place on the shelf, and its rating with it.
@@ -303,15 +346,14 @@ export default function LibraryView({ films, editable }: Props) {
    * back to how it was and says so.
    */
   async function moveOnShelf(activeId: string, overId: string) {
-    const rated = items.filter((f) => f.rating !== null);
     const from = rated.findIndex((f) => f.filmId === activeId);
     const to = rated.findIndex((f) => f.filmId === overId);
     if (from < 0 || to < 0 || from === to) return;
 
+    // the shelf as it will read once the film has landed, so it is never
+    // counted as one of its own neighbours
     const moved = arrayMove(rated, from, to);
     const at = moved.findIndex((f) => f.filmId === activeId);
-    // the ranking as it reads with the dragged film taken out, so it is never
-    // counted as one of its own neighbours
     const rest = moved.filter((f) => f.filmId !== activeId);
     const above = rest.slice(Math.max(0, at - WINDOW), at).reverse();
     const below = rest.slice(at, at + WINDOW);
@@ -322,10 +364,23 @@ export default function LibraryView({ films, editable }: Props) {
     if (rating === null) return;
 
     const before = items;
-    setItems([
-      ...moved.map((f) => (f.filmId === activeId ? { ...f, rating } : f)),
-      ...items.filter((f) => f.rating === null),
-    ]);
+    /**
+     * Rewrite only the slots the filtered rows already occupy.
+     *
+     * Sorting the whole library by the new order would send everything the
+     * filter is hiding to the back, because a hidden row has no place in it.
+     * The visible rows change places among themselves; nothing else moves.
+     */
+    const inView = new Set(moved.map((f) => f.filmId));
+    const slots: number[] = [];
+    items.forEach((f, i) => {
+      if (inView.has(f.filmId)) slots.push(i);
+    });
+    const next = [...items];
+    moved.forEach((f, i) => {
+      next[slots[i]] = f.filmId === activeId ? { ...f, rating } : f;
+    });
+    setItems(next);
 
     try {
       const res = await fetch("/api/library/rerank", {
@@ -333,8 +388,8 @@ export default function LibraryView({ films, editable }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           filmId: activeId,
-          afterFilmId: above[0]?.filmId ?? null,
-          beforeFilmId: below[0]?.filmId ?? null,
+          above: above.map((f) => f.filmId),
+          below: below.map((f) => f.filmId),
         }),
       });
       if (!res.ok) {
@@ -360,8 +415,8 @@ export default function LibraryView({ films, editable }: Props) {
         body: JSON.stringify({
           tmdbId: payload.film.tmdbId,
           kind: payload.film.kind,
-          afterFilmId: above[0]?.filmId ?? null,
-          beforeFilmId: below[0]?.filmId ?? null,
+          above: (gapNear?.above ?? []).map((f) => f.filmId),
+          below: (gapNear?.below ?? []).map((f) => f.filmId),
           rating: payload.rating,
           watchedOn: payload.watchedOn,
           review: payload.review,
@@ -407,7 +462,11 @@ export default function LibraryView({ films, editable }: Props) {
   // list and its slice count is not this one's. Scroll position is handled for
   // every route at once in the layout.
   const memory = `${pathname}?${params.toString()}`;
-  const { visible: shown, hasMore, total, sentinelRef } = useProgressiveList(visible, 30, memory);
+  const { visible: shown, hasMore, total, sentinelRef, showMore } = useProgressiveList(
+    visible,
+    30,
+    memory,
+  );
 
   return (
     <div>
@@ -488,7 +547,7 @@ export default function LibraryView({ films, editable }: Props) {
         // hundreds of rows, and animating between two of them would be a long
         // slow scroll nobody asked for.
         <div key={view} className="pop-in">
-          <OpenGap.Provider value={dragEnabled ? setGap : null}>
+          <OpenGap.Provider value={rankable ? (a, b) => setGap({ above: a, below: b }) : null}>
           <OpenSeries.Provider value={setOpenShowId}>
           <MatchQuery.Provider value={filter.trim().toLowerCase()}>
           {view === "ledger" ? (
@@ -498,7 +557,7 @@ export default function LibraryView({ films, editable }: Props) {
               <FlatLedger films={shown} showRank={sort === "rating"} />
             )
           ) : (
-            <Shelf films={shown} sortable={dragEnabled} onMove={moveOnShelf} />
+            <Shelf films={shown} sortable={rankable} onMove={moveOnShelf} />
           )}
           </MatchQuery.Provider>
           </OpenSeries.Provider>
@@ -508,9 +567,20 @@ export default function LibraryView({ films, editable }: Props) {
 
       {visible.length > 0 && (
         <>
-          <p className="num mt-4 text-center text-[11px] text-dim">
-            Showing {shown.length} of {total}
-          </p>
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <p className="num text-[11px] text-dim">
+              Showing {shown.length} of {total}
+            </p>
+            {hasMore && (
+              <button
+                type="button"
+                onClick={showMore}
+                className="rounded-card border border-seam bg-tray px-3 py-1.5 text-[13px] text-ash transition-colors hover:border-beam-edge hover:text-paper"
+              >
+                Show more
+              </button>
+            )}
+          </div>
           {hasMore && <div ref={sentinelRef} aria-hidden className="h-1" />}
         </>
       )}
@@ -527,7 +597,10 @@ export default function LibraryView({ films, editable }: Props) {
         open={gap !== null}
         onClose={() => setGap(null)}
         suggested={suggested}
-        between={{ above: above[0]?.title ?? null, below: below[0]?.title ?? null }}
+        between={{
+          above: gapNear?.above[0]?.title ?? null,
+          below: gapNear?.below[0]?.title ?? null,
+        }}
         busy={busy}
         error={gapError}
         onSubmit={logIntoGap}
@@ -597,7 +670,7 @@ function RankedLedger({
         // row sits at and therefore the index a gap above it would insert into.
         const content = rows.map(({ film, rank }) => (
           <Fragment key={film.filmId}>
-            <Gap index={rank - 1} variant="row" />
+            <Gap above={rated[rank - 2]?.filmId ?? null} below={film.filmId} variant="row" />
             <LedgerRow film={film} rank={rank} draggable={tie} />
           </Fragment>
         ));
@@ -619,7 +692,7 @@ function RankedLedger({
           content
         );
       })}
-      <Gap index={rated.length} variant="row" />
+      <Gap above={rated[rated.length - 1]?.filmId ?? null} below={null} variant="row" />
       {unrated.length > 0 && (
         <>
           <li className="mt-6 mb-2 text-xs uppercase tracking-wide text-ash" aria-hidden>
@@ -762,11 +835,12 @@ function LedgerRow({
 
 function ShelfCell({
   film,
-  index,
+  aboveId,
   sortable,
 }: {
   film: LibraryFilm;
-  index: number;
+  /** the rated title immediately before this one, as the shelf is currently filtered */
+  aboveId: string | null;
   sortable: boolean;
 }) {
   const {
@@ -791,7 +865,7 @@ function ShelfCell({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`relative ${isDragging ? "z-30 opacity-80" : ""}`}
     >
-      {film.rating !== null && <Gap index={index} variant="tile" />}
+      {film.rating !== null && <Gap above={aboveId} below={film.filmId} variant="tile" />}
       {draggable && (
         <button
           ref={setActivatorNodeRef}
@@ -829,7 +903,9 @@ function Shelf({
   onMove: (activeId: string, overId: string) => void;
 }) {
   const openGap = useContext(OpenGap);
-  const rated = films.filter((f) => f.rating !== null).length;
+  const ratedRows = films.filter((f) => f.rating !== null);
+  const rated = ratedRows.length;
+  const lastRatedId = ratedRows[rated - 1]?.filmId ?? null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -839,13 +915,18 @@ function Shelf({
   const grid = (
     <ul className="fade-up grid grid-cols-3 gap-x-7 gap-y-5 px-7 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
       {films.map((film, i) => (
-        <ShelfCell key={film.filmId} film={film} index={i} sortable={sortable} />
+        <ShelfCell
+          key={film.filmId}
+          film={film}
+          aboveId={films[i - 1]?.rating != null ? films[i - 1].filmId : null}
+          sortable={sortable}
+        />
       ))}
       {openGap && rated > 0 && (
         <li>
           <button
             type="button"
-            onClick={() => openGap(rated)}
+            onClick={() => openGap(lastRatedId, null)}
             aria-label="Log a film at the end"
             className="group flex aspect-[2/3] w-full items-center justify-center rounded-card border border-seam bg-lift transition-colors hover:border-beam-edge hover:bg-tray"
           >

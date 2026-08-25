@@ -3,9 +3,9 @@ import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { createEntry } from "@/lib/entries";
 import { ensureFilm } from "@/lib/films";
-import { getRankedLibrary } from "@/lib/library";
+import { getRankedLibrary, type LibraryFilm } from "@/lib/library";
 import { keepTheSpot } from "@/lib/library-order";
-import { ratingFromNeighbours } from "@/lib/placement";
+import { ratingFromNeighbours, WINDOW } from "@/lib/placement";
 import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 import { ensureShow, showRow } from "@/lib/shows";
 import { movieDetails } from "@/lib/tmdb";
@@ -14,9 +14,15 @@ const schema = z.object({
   /** the work being logged, as TMDB numbers it; movies and series have separate id spaces */
   tmdbId: z.number().int().positive(),
   kind: z.enum(["movie", "show"]),
-  /** the two titles the gap sits between; null at either end of the ranking */
-  afterFilmId: z.string().uuid().nullable(),
-  beforeFilmId: z.string().uuid().nullable(),
+  /**
+   * The titles actually either side of the gap, nearest first.
+   *
+   * Ids rather than an index, because the shelf may be filtered and the title
+   * above a gap under "Anime" is not the one sitting at that index unfiltered.
+   * The rating comes from what the person saw.
+   */
+  above: z.array(z.string().uuid()).max(WINDOW),
+  below: z.array(z.string().uuid()).max(WINDOW),
   /** set when the dial was used instead of the gap; otherwise the gap decides */
   rating: z.number().int().min(10).max(100).nullable(),
   watchedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -41,7 +47,7 @@ export async function POST(req: Request) {
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bad request." }, { status: 400 });
-  const { tmdbId, kind, afterFilmId, beforeFilmId, rating: given, ...entry } = parsed.data;
+  const { tmdbId, kind, above, below, rating: given, ...entry } = parsed.data;
 
   // The row that carries the rating: the film, or the whole-series row that
   // stands for a show. A bare season is not placed here; the season list owns
@@ -58,29 +64,31 @@ export async function POST(req: Request) {
 
   const library = await getRankedLibrary(user.id);
   const rated = library.filter((f) => f.rating !== null);
-  const at = beforeFilmId
-    ? rated.findIndex((f) => f.filmId === beforeFilmId)
-    : afterFilmId
-      ? rated.findIndex((f) => f.filmId === afterFilmId) + 1
-      : -1;
+  const byId = new Map(library.map((f) => [f.filmId, f]));
+  const rowsFor = (ids: string[]) =>
+    ids.map((id) => byId.get(id)).filter((f): f is LibraryFilm => !!f && f.rating !== null);
 
-  if (at === -1 && (afterFilmId || beforeFilmId)) {
+  const aboveRows = rowsFor(above);
+  const belowRows = rowsFor(below);
+  if (aboveRows.length !== above.length || belowRows.length !== below.length) {
     return NextResponse.json(
       { error: "Your library changed while that was open. Reload and try again." },
       { status: 409 },
     );
   }
 
-  const above = rated.slice(Math.max(0, at - 2), at).reverse();
-  const below = rated.slice(at, at + 2);
   const rating =
-    given ?? ratingFromNeighbours(above.map((f) => f.rating!), below.map((f) => f.rating!));
+    given ??
+    ratingFromNeighbours(
+      aboveRows.map((f) => f.rating!),
+      belowRows.map((f) => f.rating!),
+    );
 
   const result = await createEntry({ ...entry, userId: user.id, username: user.username, filmId, rating });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
 
   if (rating !== null) {
-    await keepTheSpot(user.id, filmId, rating, above[0] ?? null, below[0] ?? null, rated);
+    await keepTheSpot(user.id, filmId, rating, aboveRows[0] ?? null, belowRows[0] ?? null, rated);
   }
 
   return NextResponse.json({ entry: result.entry, rating });
