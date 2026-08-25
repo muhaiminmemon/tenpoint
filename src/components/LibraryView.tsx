@@ -1,11 +1,11 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, Fragment, useContext, useMemo, useState } from "react";
 import { useUrlState, useUrlText } from "@/lib/useUrlState";
 import SeriesSheet, { seriesStanding } from "./SeriesSheet";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CaretRight } from "@phosphor-icons/react/ssr";
+import { CaretRight, DotsThree, DotsThreeVertical, Plus } from "@phosphor-icons/react/ssr";
 import {
   DndContext,
   closestCenter,
@@ -27,6 +27,9 @@ import { formatTenths, ratingColor } from "@/lib/format";
 import { posterUrl } from "@/lib/tmdb-urls";
 import { useProgressiveList } from "@/lib/useProgressiveList";
 import type { LibraryFilm } from "@/lib/library";
+import { ratingFromNeighbours } from "@/lib/placement";
+import PlaceSheet, { type PlacePayload } from "./PlaceSheet";
+import { useToast } from "./Toast";
 
 type Props = {
   films: LibraryFilm[];
@@ -131,6 +134,49 @@ const MatchQuery = createContext("");
  */
 const OpenSeries = createContext<((showId: string) => void) | null>(null);
 
+/**
+ * Opening a gap, from wherever it happens to be drawn.
+ *
+ * A context for the same reason the two above are: the callback would otherwise
+ * be threaded through the ledger, the shelf and the sortable wrapper, none of
+ * which have any interest in what a gap is worth. Null in every view where a
+ * position means nothing — a filtered shelf or any sort but the ranking — so
+ * the affordance simply is not there rather than recording something else.
+ */
+const OpenGap = createContext<((index: number) => void) | null>(null);
+
+/** The gap between two titles in the ranking, and the way into it. */
+function Gap({ index, variant }: { index: number; variant: "row" | "tile" }) {
+  const open = useContext(OpenGap);
+  if (!open) return null;
+
+  if (variant === "tile") {
+    return (
+      <button
+        type="button"
+        onClick={() => open(index)}
+        aria-label="Log a film here"
+        className="absolute inset-y-0 -left-7 z-10 flex w-7 items-center justify-center"
+      >
+        <DotsThreeVertical aria-hidden weight="bold" className="size-5 text-paper" />
+      </button>
+    );
+  }
+
+  return (
+    <li className="relative h-0">
+      <button
+        type="button"
+        onClick={() => open(index)}
+        aria-label="Log a film here"
+        className="absolute left-1/2 top-0 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center px-4 py-2"
+      >
+        <DotsThree aria-hidden weight="bold" className="size-5 text-paper" />
+      </button>
+    </li>
+  );
+}
+
 export default function LibraryView({ films, editable }: Props) {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -223,6 +269,67 @@ export default function LibraryView({ films, editable }: Props) {
 
   // manual tie-reorder only makes sense in the default ranking with nothing hidden
   const dragEnabled = editable && sort === "rating" && !filter && saved === "all";
+
+  /**
+   * Logging into a gap.
+   *
+   * Gated on the same predicate as dragging, because it is the same claim: a
+   * position only means something in the canonical ranking with nothing
+   * filtered out. Under a slice or another sort the titles around a gap are not
+   * the ones its rating would be read from.
+   */
+  const [gap, setGap] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [gapError, setGapError] = useState<string | null>(null);
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const rated = useMemo(() => items.filter((f) => f.rating !== null), [items]);
+  const above = gap === null ? [] : rated.slice(Math.max(0, gap - 2), gap).reverse();
+  const below = gap === null ? [] : rated.slice(gap, gap + 2);
+  const suggested = ratingFromNeighbours(
+    above.map((f) => f.rating!),
+    below.map((f) => f.rating!),
+  );
+
+  async function logIntoGap(payload: PlacePayload) {
+    setBusy(true);
+    setGapError(null);
+    try {
+      const res = await fetch("/api/library/place", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tmdbId: payload.film.tmdbId,
+          kind: payload.film.kind,
+          afterFilmId: above[0]?.filmId ?? null,
+          beforeFilmId: below[0]?.filmId ?? null,
+          rating: payload.rating,
+          watchedOn: payload.watchedOn,
+          review: payload.review,
+          spoiler: payload.spoiler,
+          private: payload.private,
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { error?: string; rating?: number | null }
+        | null;
+      if (!res.ok) {
+        setGapError(data?.error ?? "That didn't save. Try again.");
+        return;
+      }
+      const at = data?.rating;
+      toast({
+        message: `Logged ${payload.film.title}${at != null ? ` · ${formatTenths(at)}` : ""}`,
+      });
+      setGap(null);
+      router.refresh();
+    } catch {
+      setGapError("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const counts = useMemo(() => {
     const thisYear = String(new Date().getFullYear());
@@ -323,6 +430,7 @@ export default function LibraryView({ films, editable }: Props) {
         // hundreds of rows, and animating between two of them would be a long
         // slow scroll nobody asked for.
         <div key={view} className="pop-in">
+          <OpenGap.Provider value={dragEnabled ? setGap : null}>
           <OpenSeries.Provider value={setOpenShowId}>
           <MatchQuery.Provider value={filter.trim().toLowerCase()}>
           {view === "ledger" ? (
@@ -336,6 +444,7 @@ export default function LibraryView({ films, editable }: Props) {
           )}
           </MatchQuery.Provider>
           </OpenSeries.Provider>
+          </OpenGap.Provider>
         </div>
       )}
 
@@ -355,6 +464,16 @@ export default function LibraryView({ films, editable }: Props) {
           onClose={() => setOpenShowId(null)}
         />
       )}
+
+      <PlaceSheet
+        open={gap !== null}
+        onClose={() => setGap(null)}
+        suggested={suggested}
+        between={{ above: above[0]?.title ?? null, below: below[0]?.title ?? null }}
+        busy={busy}
+        error={gapError}
+        onSubmit={logIntoGap}
+      />
     </div>
   );
 }
@@ -416,8 +535,13 @@ function RankedLedger({
           rank += 1;
           return { film, rank };
         });
+        // `rank` is 1-based over the rated run, so `rank - 1` is the index the
+        // row sits at and therefore the index a gap above it would insert into.
         const content = rows.map(({ film, rank }) => (
-          <LedgerRow key={film.filmId} film={film} rank={rank} draggable={tie} />
+          <Fragment key={film.filmId}>
+            <Gap index={rank - 1} variant="row" />
+            <LedgerRow film={film} rank={rank} draggable={tie} />
+          </Fragment>
         ));
         return tie ? (
           <DndContext
@@ -437,6 +561,7 @@ function RankedLedger({
           content
         );
       })}
+      <Gap index={rated.length} variant="row" />
       {unrated.length > 0 && (
         <>
           <li className="mt-6 mb-2 text-xs uppercase tracking-wide text-ash" aria-hidden>
@@ -578,11 +703,32 @@ function LedgerRow({
 }
 
 function Shelf({ films }: { films: LibraryFilm[] }) {
+  const openGap = useContext(OpenGap);
+  const rated = films.filter((f) => f.rating !== null).length;
   return (
-    <ul className="fade-up grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-      {films.map((film) => (
-        <ShelfTile key={film.filmId} film={film} />
+    <ul className="fade-up grid grid-cols-3 gap-x-7 gap-y-5 px-7 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+      {films.map((film, i) => (
+        <li key={film.filmId} className="relative">
+          {film.rating !== null && <Gap index={i} variant="tile" />}
+          <ShelfTile film={film} />
+        </li>
       ))}
+      {openGap && rated > 0 && (
+        <li>
+          <button
+            type="button"
+            onClick={() => openGap(rated)}
+            aria-label="Log a film at the end"
+            className="group flex aspect-[2/3] w-full items-center justify-center rounded-card border border-seam bg-lift transition-colors hover:border-beam-edge hover:bg-tray"
+          >
+            <Plus
+              aria-hidden
+              weight="bold"
+              className="size-5 text-paper transition-colors group-hover:text-beam"
+            />
+          </button>
+        </li>
+      )}
     </ul>
   );
 }
@@ -650,8 +796,9 @@ function ShelfTile({ film }: { film: LibraryFilm }) {
     </>
   );
 
+  // The `li` belongs to the shelf, which also draws the gap beside this tile.
   return (
-    <li className="group relative">
+    <div className="group">
       {series ? (
         <button
           type="button"
@@ -667,6 +814,6 @@ function ShelfTile({ film }: { film: LibraryFilm }) {
           {content}
         </Link>
       )}
-    </li>
+    </div>
   );
 }

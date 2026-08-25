@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/db";
-import { diaryEntries, films } from "@/db/schema";
 import { getSessionUser } from "@/lib/auth";
-import { revalidateAfterEntryChange } from "@/lib/revalidate";
-import { syncUserTier } from "@/lib/taste";
-import { isUnreleased } from "@/lib/films";
+import { createEntry } from "@/lib/entries";
 import { enforceRateLimit, LIMITS } from "@/lib/ratelimit";
 
 const schema = z.object({
@@ -28,43 +23,9 @@ export async function POST(req: Request) {
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bad request." }, { status: 400 });
-  const { filmId, watchedOn, rating, review, spoiler, private: priv, rewatch } = parsed.data;
 
-  const film = (
-    await db
-      .select({ id: films.id, title: films.title, releaseDate: films.releaseDate })
-      .from(films)
-      .where(eq(films.id, filmId))
-      .limit(1)
-  )[0];
-  if (!film) return NextResponse.json({ error: "Film not found." }, { status: 404 });
+  const result = await createEntry({ ...parsed.data, userId: user.id, username: user.username });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
 
-  // Enforced here rather than only in the UI: the field is disabled on the
-  // film page, but the endpoint is the thing that actually writes, and a
-  // record that claims someone watched a film before it existed is exactly
-  // the kind of dishonesty this diary is built to refuse.
-  if (isUnreleased(film)) {
-    return NextResponse.json(
-      { error: `${film.title} isn't out yet. It can be logged once it's released.` },
-      { status: 409 },
-    );
-  }
-
-  const created = await db
-    .insert(diaryEntries)
-    .values({
-      userId: user.id,
-      filmId,
-      watchedOn: watchedOn ?? null,
-      rating: rating ?? null,
-      review: review ?? null,
-      spoiler: spoiler ?? false,
-      private: priv ?? false,
-      rewatch: rewatch ?? false,
-    })
-    .returning();
-
-  await syncUserTier(user.id);
-  revalidateAfterEntryChange(user.username);
-  return NextResponse.json({ entry: created[0] });
+  return NextResponse.json({ entry: result.entry });
 }
