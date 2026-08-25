@@ -277,17 +277,31 @@ export default function LibraryView({ films, editable }: Props) {
   }, [items, filter, saved, sort]);
 
   /**
-   * Placing and re-ranking work under any slice or search, but only in the
-   * ranking itself.
+   * Placing and re-ranking work under any slice or search, and under either
+   * direction of the ranking.
    *
    * A filter hides rows without changing what the order means, so the titles
    * either side of a drop are still ranked against each other and the rating
-   * read off them is still the answer to "better than these, worse than
-   * those" — it is simply asked of the shelf in front of you. A different
-   * sort is not the same: under "Title A–Z" a position says nothing about a
-   * rating, so a drop there would record a number nobody meant.
+   * read off them is still the answer to "better than these, worse than those"
+   * — it is simply asked of the shelf in front of you. Reversing the ranking
+   * changes nothing either: the neighbours are the same four titles, and an
+   * average does not care which end it is read from.
+   *
+   * Every other sort is a different matter, and deliberately excluded. Under
+   * "Title A–Z" the titles either side of a drop are neighbours of spelling,
+   * under "Recently watched" of date; their ratings are unrelated to each
+   * other and to the position. Reading a number off them would answer a
+   * question nobody asked and quietly overwrite a real opinion with it.
    */
-  const rankable = editable && sort === "rating";
+  const ascending = sort === "rating-asc";
+  const rankable = editable && (sort === "rating" || ascending);
+
+  /**
+   * The payload always names the neighbours as the ranking itself runs, best
+   * first, whichever way the page happens to be showing them.
+   */
+  const asRanked = <T,>(above: T[], below: T[]) =>
+    ascending ? { above: below, below: above } : { above, below };
 
   /** the gap being filled, named by the two titles it sits between */
   const [gap, setGap] = useState<{ above: string | null; below: string | null } | null>(null);
@@ -384,8 +398,13 @@ export default function LibraryView({ films, editable }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           filmId: activeId,
-          above: above.map((f) => f.filmId),
-          below: below.map((f) => f.filmId),
+          ...(() => {
+            const ranked = asRanked(above, below);
+            return {
+              above: ranked.above.map((f) => f.filmId),
+              below: ranked.below.map((f) => f.filmId),
+            };
+          })(),
         }),
       });
       if (!res.ok) {
@@ -411,8 +430,13 @@ export default function LibraryView({ films, editable }: Props) {
         body: JSON.stringify({
           tmdbId: payload.film.tmdbId,
           kind: payload.film.kind,
-          above: (gapNear?.above ?? []).map((f) => f.filmId),
-          below: (gapNear?.below ?? []).map((f) => f.filmId),
+          ...(() => {
+            const ranked = asRanked(gapNear?.above ?? [], gapNear?.below ?? []);
+            return {
+              above: ranked.above.map((f) => f.filmId),
+              below: ranked.below.map((f) => f.filmId),
+            };
+          })(),
           rating: payload.rating,
           watchedOn: payload.watchedOn,
           review: payload.review,
@@ -548,7 +572,12 @@ export default function LibraryView({ films, editable }: Props) {
           <MatchQuery.Provider value={filter.trim().toLowerCase()}>
           {view === "ledger" ? (
             rankable ? (
-              <RankedLedger films={shown} sortable onMove={moveInRanking} />
+              <RankedLedger
+                films={shown}
+                sortable
+                showRank={!ascending}
+                onMove={moveInRanking}
+              />
             ) : (
               <FlatLedger films={shown} showRank={sort === "rating"} />
             )
@@ -618,10 +647,13 @@ export default function LibraryView({ films, editable }: Props) {
 function RankedLedger({
   films,
   sortable,
+  showRank,
   onMove,
 }: {
   films: LibraryFilm[];
   sortable: boolean;
+  /** a rank numeral only means something counting down from the best */
+  showRank: boolean;
   onMove: (activeId: string, overId: string) => void;
 }) {
   const rated = films.filter((f) => f.rating !== null);
@@ -637,7 +669,7 @@ function RankedLedger({
       {rated.map((film, i) => (
         <Fragment key={film.filmId}>
           <Gap above={rated[i - 1]?.filmId ?? null} below={film.filmId} variant="row" />
-          <LedgerRow film={film} rank={i + 1} draggable={sortable} />
+          <LedgerRow film={film} rank={showRank ? i + 1 : null} draggable={sortable} />
         </Fragment>
       ))}
       <Gap above={rated[rated.length - 1]?.filmId ?? null} below={null} variant="row" />
